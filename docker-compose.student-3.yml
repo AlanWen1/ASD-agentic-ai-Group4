@@ -1,0 +1,80 @@
+services:
+  student-3-database:
+    build: ./student-3/database
+    container_name: student-3-database
+    environment:
+      DATABASE_PATH: /data/student-3-income.db
+    ports:
+      - "6003:6003"
+    volumes:
+      - student-3-data:/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:6003/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    restart: unless-stopped
+
+  student-3-backend:
+    build: ./student-3/backend
+    container_name: student-3-backend
+    environment:
+      DATABASE_SERVICE_URL: http://student-3-database:6003
+      OLLAMA_BASE_URL: http://ollama:11434/v1
+      OLLAMA_MODEL: qwen2.5:0.5b
+      OLLAMA_TIMEOUT_SECONDS: 90
+    ports:
+      - "5003:5003"
+    depends_on:
+      student-3-database:
+        condition: service_healthy
+      ollama-model-loader:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5003/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    restart: unless-stopped
+
+  student-3-frontend:
+    build: ./student-3/frontend
+    container_name: student-3-frontend
+    environment:
+      BACKEND_SERVICE_URL: http://student-3-backend:5003
+    ports:
+      - "3003:3003"
+    depends_on:
+      student-3-backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  ollama-model-loader:
+    image: ollama/ollama:latest
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+      OLLAMA_MODEL: qwen2.5:0.5b
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["ollama pull $${OLLAMA_MODEL}"]
+    depends_on:
+      ollama:
+        condition: service_healthy
+    restart: "no"
+
+volumes:
+  student-3-data:
+  ollama-data:

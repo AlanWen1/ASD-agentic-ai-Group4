@@ -1,0 +1,35 @@
+# Merge only these three services into the team's single root docker-compose.yml.
+# Reuse the team's existing `ollama` service instead of adding a duplicate.
+services:
+  student-3-database:
+    build: ./student-3/database
+    environment:
+      DATABASE_PATH: /data/student-3-income.db
+    ports: ["6003:6003"]
+    volumes: ["student-3-data:/data"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:6003/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  student-3-backend:
+    build: ./student-3/backend
+    environment:
+      DATABASE_SERVICE_URL: http://student-3-database:6003
+      OLLAMA_BASE_URL: http://ollama:11434/v1
+      OLLAMA_MODEL: qwen2.5:0.5b
+    ports: ["5003:5003"]
+    depends_on:
+      student-3-database:
+        condition: service_healthy
+
+  student-3-frontend:
+    build: ./student-3/frontend
+    environment:
+      BACKEND_SERVICE_URL: http://student-3-backend:5003
+    ports: ["3003:3003"]
+    depends_on: [student-3-backend]
+
+volumes:
+  student-3-data:

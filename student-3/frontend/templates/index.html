@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Manage income sources, pay schedules, received payments, and AI income summaries.">
+  <title>Income & Pay Schedule Manager</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">YP</div>
+      <div>
+        <p class="eyebrow">AI-Assisted Personal Money Management</p>
+        <h1>Income & Pay Schedule Manager</h1>
+      </div>
+    </div>
+    <div class="header-actions">
+      <label class="month-control" for="monthPicker">
+        <span>Dashboard month</span>
+        <input id="monthPicker" type="month" value="2026-08">
+      </label>
+      <button class="button button-secondary" id="refreshButton" type="button">Refresh</button>
+    </div>
+  </header>
+
+  <main class="page-shell">
+    <section class="summary-grid" aria-label="Monthly income summary">
+      <article class="metric-card metric-primary">
+        <p>Received</p>
+        <strong id="receivedTotal">AUD $0.00</strong>
+        <span id="receivedCount">0 payments</span>
+      </article>
+      <article class="metric-card">
+        <p>Expected</p>
+        <strong id="expectedTotal">AUD $0.00</strong>
+        <span>Excludes cancelled payments</span>
+      </article>
+      <article class="metric-card">
+        <p>Outstanding</p>
+        <strong id="outstandingTotal">AUD $0.00</strong>
+        <span id="outstandingCount">0 scheduled / 0 late</span>
+      </article>
+      <article class="metric-card">
+        <p>Active sources</p>
+        <strong id="activeSources">0</strong>
+        <span id="varianceText">Variance AUD $0.00</span>
+      </article>
+    </section>
+
+    <div id="notification" class="notification" role="status" aria-live="polite" hidden></div>
+
+    <section class="workspace-grid">
+      <div class="main-column">
+        <section class="panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">CRUD 1</p>
+              <h2>Income sources</h2>
+              <p class="subtle">Manage the recurring or one-off sources that produce your income.</p>
+            </div>
+            <button class="button button-primary" type="button" id="newSourceButton">+ Add source</button>
+          </div>
+
+          <form id="sourceForm" class="editor-form" hidden>
+            <input id="sourceId" type="hidden">
+            <div class="form-title-row">
+              <h3 id="sourceFormTitle">Add income source</h3>
+              <button class="icon-button" type="button" data-close="sourceForm" aria-label="Close source form">×</button>
+            </div>
+            <div class="form-grid">
+              <label>Source name
+                <input id="sourceName" required maxlength="100" placeholder="e.g. UTS Student Assistant">
+              </label>
+              <label>Income type
+                <select id="incomeType" required>
+                  <option>Salary</option><option>Freelance</option><option>Allowance</option>
+                  <option>Scholarship</option><option>Rental</option><option>Other</option>
+                </select>
+              </label>
+              <label>Standard amount (AUD)
+                <input id="standardAmount" required min="0.01" step="0.01" type="number" placeholder="920.00">
+              </label>
+              <label>Payment frequency
+                <select id="paymentFrequency" required>
+                  <option value="weekly">Weekly</option>
+                  <option value="fortnightly">Fortnightly</option>
+                  <option value="monthly">Monthly</option>
+                  <option value="quarterly">Quarterly</option>
+                  <option value="annually">Annually</option>
+                  <option value="one-off">One-off</option>
+                </select>
+              </label>
+              <label class="checkbox-label"><input id="sourceActive" type="checkbox" checked> Active income source</label>
+            </div>
+            <div class="form-actions">
+              <button class="button button-primary" type="submit">Save source</button>
+              <button class="button button-ghost" type="button" data-close="sourceForm">Cancel</button>
+            </div>
+          </form>
+
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Source</th><th>Type</th><th>Standard amount</th><th>Frequency</th><th>Status</th><th class="align-right">Actions</th></tr></thead>
+              <tbody id="sourceTableBody"><tr><td colspan="6" class="empty-cell">Loading income sources…</td></tr></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">CRUD 2</p>
+              <h2>Pay schedules</h2>
+              <p class="subtle">Track expected dates and compare them with payments actually received.</p>
+            </div>
+            <div class="button-row">
+              <button class="button button-secondary" type="button" id="generateButton">Generate dates</button>
+              <button class="button button-primary" type="button" id="newScheduleButton">+ Add payment</button>
+            </div>
+          </div>
+
+          <form id="generateForm" class="editor-form compact-editor" hidden>
+            <div class="form-title-row">
+              <h3>Generate expected pay dates</h3>
+              <button class="icon-button" type="button" data-close="generateForm" aria-label="Close generation form">×</button>
+            </div>
+            <p class="form-help">Dates and amounts are calculated from the selected source's frequency and standard amount.</p>
+            <div class="form-grid three-column">
+              <label>Income source<select id="generateSource" required></select></label>
+              <label>First pay date<input id="generateStart" type="date" required></label>
+              <label>Occurrences<input id="generateCount" type="number" min="1" max="24" value="3" required></label>
+            </div>
+            <div class="form-actions">
+              <button class="button button-primary" type="submit">Generate schedules</button>
+              <button class="button button-ghost" type="button" data-close="generateForm">Cancel</button>
+            </div>
+          </form>
+
+          <form id="scheduleForm" class="editor-form" hidden>
+            <input id="scheduleId" type="hidden">
+            <div class="form-title-row">
+              <h3 id="scheduleFormTitle">Add pay schedule</h3>
+              <button class="icon-button" type="button" data-close="scheduleForm" aria-label="Close schedule form">×</button>
+            </div>
+            <div class="form-grid three-column">
+              <label>Income source<select id="scheduleSource" required></select></label>
+              <label>Expected date<input id="expectedDate" type="date" required></label>
+              <label>Expected amount (AUD)<input id="expectedAmount" type="number" min="0.01" step="0.01" required></label>
+              <label>Status
+                <select id="paymentStatus" required>
+                  <option value="scheduled">Scheduled</option><option value="received">Received</option>
+                  <option value="late">Late</option><option value="cancelled">Cancelled</option>
+                </select>
+              </label>
+              <label>Received date<input id="receivedDate" type="date"></label>
+              <label>Actual amount (AUD)<input id="actualAmount" type="number" min="0.01" step="0.01"></label>
+              <label class="span-all">Notes<input id="scheduleNotes" maxlength="300" placeholder="Optional payment note"></label>
+            </div>
+            <div class="form-actions">
+              <button class="button button-primary" type="submit">Save payment</button>
+              <button class="button button-ghost" type="button" data-close="scheduleForm">Cancel</button>
+            </div>
+          </form>
+
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Expected date</th><th>Source</th><th>Expected</th><th>Actual</th><th>Status</th><th class="align-right">Actions</th></tr></thead>
+              <tbody id="scheduleTableBody"><tr><td colspan="6" class="empty-cell">Loading pay schedules…</td></tr></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
+      <aside class="panel ai-panel">
+        <div class="ai-heading">
+          <div class="ai-icon" aria-hidden="true">AI</div>
+          <div>
+            <p class="eyebrow">Qwen via Ollama</p>
+            <h2>AI Income Assistant</h2>
+          </div>
+          <span id="aiStatus" class="status-dot" title="AI status">Checking</span>
+        </div>
+        <p class="subtle">Ask questions about the income and pay schedules for the selected dashboard month.</p>
+        <div class="quick-prompts" aria-label="Suggested questions">
+          <button type="button" data-prompt="What is my largest income source this month?">Largest source</button>
+          <button type="button" data-prompt="Which expected payments are still outstanding or late?">Outstanding pay</button>
+          <button type="button" data-prompt="Compare received and expected income and explain the variance.">Explain variance</button>
+        </div>
+        <div id="chatMessages" class="chat-messages" aria-live="polite">
+          <div class="chat-bubble assistant">Hi! I can explain your income patterns using the selected month's records. I do not provide investment or financial advice.</div>
+        </div>
+        <form id="chatForm" class="chat-form">
+          <label class="sr-only" for="chatInput">Ask the AI Income Assistant</label>
+          <textarea id="chatInput" rows="3" maxlength="2000" required placeholder="Ask: When is my next expected payment?"></textarea>
+          <div class="chat-actions">
+            <button id="analyseButton" class="button button-secondary" type="button">Analyse month</button>
+            <button id="sendChatButton" class="button button-primary" type="submit">Send</button>
+          </div>
+        </form>
+        <p class="disclaimer">Educational budgeting prototype. No financial, investment, tax, or legal advice.</p>
+      </aside>
+    </section>
+  </main>
+
+  <script src="{{ url_for('static', filename='app.js') }}" defer></script>
+</body>
+</html>
