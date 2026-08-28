@@ -1,0 +1,47 @@
+services:
+
+  database:
+    build:
+      context: ./database
+    container_name: bill-tracker-db
+    environment:
+      POSTGRES_DB: bills
+      POSTGRES_USER: bills_user
+      POSTGRES_PASSWORD: bills_password
+    ports:
+      - "6004:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bills_user -d bills"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+    container_name: bill-tracker-backend
+    environment:
+      DATABASE_URL: postgresql://bills_user:bills_password@database:5432/bills
+      OLLAMA_URL: http://host.docker.internal:11434
+      OLLAMA_MODEL: qwen2.5:0.5b
+    ports:
+      - "5004:5004"
+    depends_on:
+      database:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: bill-tracker-frontend
+    ports:
+      - "3004:3004"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
