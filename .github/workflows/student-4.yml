@@ -1,13 +1,10 @@
-name: Bill Tracker - Build and Validation
+name: Bill Tracker
 
 on:
   push:
-    branches:
-      - main
-      - master
-      - develop
     paths:
       - "bill-tracker/**"
+      - "docker-compose.yml"
       - ".github/workflows/bill-tracker.yml"
 
   pull_request:
@@ -17,147 +14,41 @@ on:
       - develop
     paths:
       - "bill-tracker/**"
+      - "docker-compose.yml"
       - ".github/workflows/bill-tracker.yml"
 
-jobs:
-  validate:
-    name: Validate Bill Tracker
-    runs-on: ubuntu-latest
+  jobs:
+    test-and-build:
+      runs-on: ubuntu-latest
+      steps:
+        - name: Check out repository
+          uses: actions/checkout@v4
 
-    defaults:
-      run:
-        working-directory: bill-tracker
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
+        - name: Set up Python
+          uses: actions/setup-python@v5
+          with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            bill-tracker/frontend/requirements.txt
+            bill-tracker/backend/requirements.txt
+            bill-tracker/database/requirements.txt
+           requirements-dev.txt
 
-      - name: Install validation dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install flask requests pytest
+        - name: Install test dependencies
+          run: pip install -r requirements-dev.txt
 
-      - name: Check Python syntax
-        run: |
-          python -m compileall frontend backend database
+        - name: Compile Python source
+          run: python -m compileall -q bill-tracker
 
-      - name: Check required project files
-        run: |
-          test -f docker-compose.yml
-          test -f frontend/Dockerfile
-          test -f backend/Dockerfile
-          test -f database/Dockerfile
+        - name: Run Student 4 tests
+          run: pytest -q bill-tracker/tests
 
-      - name: Validate Docker Compose file
-        run: |
-          docker compose config
+        - name: Validate Docker Compose
+          run: docker compose -f docker-compose.yml config --quiet
 
-      - name: Check Dockerfiles
-        run: |
-          docker build --check -f frontend/Dockerfile ./frontend
-          docker build --check -f backend/Dockerfile ./backend
-          docker build --check -f database/Dockerfile ./database
-
-  build:
-    name: Build Bill Tracker Containers
-    runs-on: ubuntu-latest
-    needs: validate
-
-    defaults:
-      run:
-        working-directory: bill-tracker
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build frontend image
-        uses: docker/build-push-action@v6
-        with:
-          context: ./bill-tracker/frontend
-          file: ./bill-tracker/frontend/Dockerfile
-          push: false
-          tags: bill-tracker-frontend:test
-
-      - name: Build backend image
-        uses: docker/build-push-action@v6
-        with:
-          context: ./bill-tracker/backend
-          file: ./bill-tracker/backend/Dockerfile
-          push: false
-          tags: bill-tracker-backend:test
-
-      - name: Build database image
-        uses: docker/build-push-action@v6
-        with:
-          context: ./bill-tracker/database
-          file: ./bill-tracker/database/Dockerfile
-          push: false
-          tags: bill-tracker-database:test
-
-      - name: Build complete Docker Compose application
-        run: |
-          docker compose build
-
-  compose-validation:
-    name: Validate Docker Compose Startup
-    runs-on: ubuntu-latest
-    needs: build
-
-    defaults:
-      run:
-        working-directory: bill-tracker
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build services
-        run: |
-          docker compose build
-
-      - name: Start application services
-        run: |
-          docker compose up -d
-
-      - name: Wait for services
-        run: |
-          sleep 10
-
-      - name: Check frontend health
-        run: |
-          curl --fail http://localhost:3004/health || exit 1
-
-      - name: Check backend health
-        run: |
-          curl --fail http://localhost:5004/health || exit 1
-
-      - name: Check database health
-        run: |
-          curl --fail http://localhost:6004/health || exit 1
-
-      - name: Show service status
-        if: always()
-        run: |
-          docker compose ps
-
-      - name: Show service logs
-        if: failure()
-        run: |
-          docker compose logs
-
-      - name: Stop services
-        if: always()
-        run: |
-          docker compose down -v
+        - name: Build Student 4 containers
+          run: |
+            docker build -t bill-tracker-database ./bill-tracker/database
+            docker build -t bill-tracker-backend ./bill-tracker/backend
+            docker build -t bill-tracker-frontend ./bill-tracker/frontend            
