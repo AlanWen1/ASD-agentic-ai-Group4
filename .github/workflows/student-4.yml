@@ -12,40 +12,40 @@ on:
       - "bill-tracker/**"
       - "docker-compose.yml"
       - ".github/workflows/bill-tracker.yml"
-    workflow_dispatch:
+  workflow_dispatch:
 
-  jobs:
-    test-and-build:
-      runs-on: ubuntu-latest
-      steps:
-        - name: Check out repository
-          uses: actions/checkout@v4
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
 
-        - name: Set up Python
-          uses: actions/setup-python@v5
-          with:
-            python-version: "3.12"
-            cache: pip
-            cache-dependency-path: |
-              bill-tracker/frontend/requirements.txt
-              bill-tracker/backend/requirements.txt
-              bill-tracker/database/requirements.txt
-              requirements-dev.txt
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            bill-tracker/frontend/requirements.txt
+            bill-tracker/backend/requirements.txt
+            bill-tracker/database/requirements.txt
+            requirements-dev.txt
 
-        - name: Install test dependencies
-          run: pip install -r requirements-dev.txt
+      - name: Install test dependencies
+        run: pip install -r requirements-dev.txt
 
-        - name: Compile Python source
-          run: python -m compileall -q bill-tracker
+      - name: Compile Python source
+        run: python -m compileall -q bill-tracker
 
-        - name: Run Student 4 tests
-          run: pytest -q bill-tracker/tests
+      - name: Run Student 4 tests
+        run: pytest -q bill-tracker/tests
 
-        - name: Validate Docker Compose
-          run: docker compose -f docker-compose.yml config --quiet
+      - name: Validate Docker Compose
+        run: docker compose -f docker-compose.yml config --quiet
 
-        - name: Build Student 4 containers
-          run: |
-            docker build -t bill-tracker-database ./bill-tracker/database
-            docker build -t bill-tracker-backend ./bill-tracker/backend
-            docker build -t bill-tracker-frontend ./bill-tracker/frontend            
+      - name: Build Student 4 containers
+        run: |
+          docker build -t bill-tracker-database ./bill-tracker/database
+          docker build -t bill-tracker-backend ./bill-tracker/backend
+          docker build -t bill-tracker-frontend ./bill-tracker/frontend            
