@@ -1,0 +1,40 @@
+services:
+  database:
+    build: ./database
+    container_name: bill-tracker-database
+    ports:
+      - "6004:6004"
+    volumes:
+      - bill_data:/data
+    environment:
+      - DATABASE_PATH=/data/bills.db
+    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    container_name: bill-tracker-backend
+    ports:
+      - "5004:5004"
+    environment:
+      - DATABASE_URL=http://database:6004
+      - OLLAMA_URL=http://host.docker.internal:11434
+      - OLLAMA_MODEL=qwen2.5:0.5b
+    depends_on:
+      - database
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    container_name: bill-tracker-frontend
+    ports:
+      - "3004:3004"
+    environment:
+      - BACKEND_URL=http://backend:5004
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  bill_data:

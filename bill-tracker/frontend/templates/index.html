@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Bill Tracker</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>Bill Tracker</h1>
+      <p>Track recurring and one-time bills in one place.</p>
+    </div>
+    <div id="health" class="health">Checking services…</div>
+  </header>
+
+  <main class="layout">
+    <section class="panel dashboard">
+      <div class="section-heading">
+        <div>
+          <h2>Overview</h2>
+          <p id="last-updated">Loading…</p>
+        </div>
+        <button class="secondary" onclick="loadAll()">Refresh</button>
+      </div>
+      <div class="cards">
+        <div class="stat"><span>Total bills</span><strong id="bill-count">0</strong></div>
+        <div class="stat"><span>Total value</span><strong id="total-amount">$0.00</strong></div>
+        <div class="stat"><span>Pending</span><strong id="pending-amount">$0.00</strong></div>
+        <div class="stat"><span>Overdue</span><strong id="overdue-count">0</strong></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="section-heading">
+        <div><h2>Your bills</h2><p>Create, edit and delete bills.</p></div>
+        <button onclick="openCreate()">+ Add bill</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Bill</th><th>Amount</th><th>Due date</th><th>Frequency</th><th>Status</th><th>Actions</th></tr>
+          </thead>
+          <tbody id="bill-table"><tr><td colspan="6" class="empty">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel chat-panel">
+      <div class="section-heading">
+        <div><h2>AI assistant</h2><p>Ask questions about your bills. Uses your local Ollama model.</p></div>
+      </div>
+      <div id="chat-log" class="chat-log">
+        <div class="message assistant">Ask me things like “Which bills are overdue?” or “What is my total pending amount?”</div>
+      </div>
+      <form id="chat-form" class="chat-form">
+        <input id="chat-input" autocomplete="off" placeholder="Ask about your bills…" maxlength="4000" required>
+        <button type="submit">Send</button>
+      </form>
+    </section>
+  </main>
+
+  <dialog id="bill-dialog">
+    <form method="dialog" id="bill-form" class="form-card">
+      <div class="section-heading">
+        <div><h2 id="dialog-title">Add bill</h2><p>All fields are required.</p></div>
+        <button type="button" class="icon" onclick="closeDialog()">×</button>
+      </div>
+      <input type="hidden" id="bill-id">
+      <label>Bill name<input id="bill-name" required maxlength="120"></label>
+      <label>Amount<input id="bill-amount" type="number" min="0" step="0.01" required></label>
+      <label>Due date<input id="bill-due" type="date" required></label>
+      <label>Frequency
+        <select id="bill-frequency" required>
+          <option>Weekly</option><option selected>Monthly</option><option>Quarterly</option><option>Yearly</option><option>One-time</option>
+        </select>
+      </label>
+      <label>Status
+        <select id="bill-status" required>
+          <option selected>Pending</option><option>Paid</option><option>Overdue</option>
+        </select>
+      </label>
+      <div class="form-actions">
+        <button type="button" class="secondary" onclick="closeDialog()">Cancel</button>
+        <button type="submit">Save bill</button>
+      </div>
+      <div id="form-error" class="error"></div>
+    </form>
+  </dialog>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

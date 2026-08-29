@@ -1,0 +1,46 @@
+:root { font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #182230; background: #f5f7fb; }
+* { box-sizing: border-box; }
+body { margin: 0; }
+.topbar { background: #172033; color: white; padding: 26px max(22px, calc((100% - 1180px) / 2)); display: flex; justify-content: space-between; align-items: center; gap: 20px; }
+.topbar h1 { margin: 0 0 4px; font-size: 28px; }
+.topbar p { margin: 0; opacity: .78; }
+.health { padding: 8px 12px; border-radius: 999px; background: rgba(255,255,255,.12); font-size: 13px; }
+.layout { width: min(1180px, calc(100% - 32px)); margin: 28px auto 60px; display: grid; gap: 20px; }
+.panel { background: white; border: 1px solid #e3e8f0; border-radius: 16px; box-shadow: 0 8px 24px rgba(28, 39, 58, .05); padding: 22px; }
+.section-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+h2 { margin: 0 0 4px; font-size: 20px; }
+.section-heading p { margin: 0; color: #68758a; font-size: 14px; }
+button { border: 0; border-radius: 10px; padding: 10px 15px; font: inherit; cursor: pointer; background: #246bfd; color: #fff; }
+button:hover { filter: brightness(.96); }
+button.secondary { background: #eef2f7; color: #344155; }
+button.danger { background: #fff0f1; color: #bc263a; }
+button.icon { background: transparent; color: #667085; font-size: 26px; padding: 0 6px; }
+.cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.stat { padding: 16px; border-radius: 12px; background: #f8fafc; border: 1px solid #edf1f6; }
+.stat span { display: block; color: #68758a; font-size: 13px; margin-bottom: 7px; }
+.stat strong { font-size: 22px; }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; min-width: 760px; }
+th, td { text-align: left; padding: 13px 10px; border-bottom: 1px solid #edf0f5; font-size: 14px; }
+th { color: #68758a; font-weight: 600; }
+.actions { display: flex; gap: 7px; }
+.status { display: inline-flex; padding: 5px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+.status.Pending { background: #fff7de; color: #8b6300; }
+.status.Paid { background: #e9f8ef; color: #176a3a; }
+.status.Overdue { background: #ffe9eb; color: #9d2032; }
+.empty { text-align: center; color: #68758a; padding: 30px; }
+.chat-log { min-height: 220px; max-height: 420px; overflow-y: auto; display: grid; gap: 12px; padding: 12px; border: 1px solid #e2e7ee; border-radius: 12px; background: #f8fafc; }
+.message { max-width: 82%; padding: 11px 13px; border-radius: 12px; white-space: pre-wrap; line-height: 1.45; font-size: 14px; }
+.message.user { justify-self: end; background: #246bfd; color: white; border-bottom-right-radius: 4px; }
+.message.assistant { justify-self: start; background: white; border: 1px solid #e3e8f0; border-bottom-left-radius: 4px; }
+.chat-form { margin-top: 12px; display: flex; gap: 10px; }
+.chat-form input, label input, label select { width: 100%; border: 1px solid #d8e0ea; border-radius: 10px; padding: 11px 12px; font: inherit; background: white; }
+.chat-form input:focus, label input:focus, label select:focus { outline: 2px solid #bfd2ff; border-color: #246bfd; }
+dialog { border: 0; border-radius: 16px; padding: 0; width: min(500px, calc(100% - 24px)); box-shadow: 0 24px 70px rgba(24,34,48,.25); }
+dialog::backdrop { background: rgba(12, 19, 31, .48); }
+.form-card { padding: 22px; }
+label { display: grid; gap: 7px; margin: 14px 0; font-size: 13px; font-weight: 600; }
+.form-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 20px; }
+.error { color: #b42318; min-height: 20px; margin-top: 8px; font-size: 13px; }
+@media (max-width: 800px) { .topbar { align-items: flex-start; flex-direction: column; } .cards { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 520px) { .cards { grid-template-columns: 1fr; } .chat-form { flex-direction: column; } }
