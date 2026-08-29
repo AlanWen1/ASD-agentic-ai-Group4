@@ -8,14 +8,11 @@ on:
       - ".github/workflows/bill-tracker.yml"
 
   pull_request:
-    branches:
-      - main
-      - master
-      - develop
     paths:
       - "bill-tracker/**"
       - "docker-compose.yml"
       - ".github/workflows/bill-tracker.yml"
+    workflow_dispatch:
 
   jobs:
     test-and-build:
@@ -27,13 +24,13 @@ on:
         - name: Set up Python
           uses: actions/setup-python@v5
           with:
-          python-version: "3.12"
-          cache: pip
-          cache-dependency-path: |
-            bill-tracker/frontend/requirements.txt
-            bill-tracker/backend/requirements.txt
-            bill-tracker/database/requirements.txt
-            requirements-dev.txt
+            python-version: "3.12"
+            cache: pip
+            cache-dependency-path: |
+              bill-tracker/frontend/requirements.txt
+              bill-tracker/backend/requirements.txt
+              bill-tracker/database/requirements.txt
+              requirements-dev.txt
 
         - name: Install test dependencies
           run: pip install -r requirements-dev.txt
