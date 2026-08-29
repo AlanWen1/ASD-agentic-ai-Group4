@@ -1,6 +1,6 @@
 name: Bill Tracker - Build and Validation
 
-on:
+:
   push:
     branches:
       - main
