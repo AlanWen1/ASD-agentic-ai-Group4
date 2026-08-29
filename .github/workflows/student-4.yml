@@ -33,7 +33,7 @@ on:
             bill-tracker/frontend/requirements.txt
             bill-tracker/backend/requirements.txt
             bill-tracker/database/requirements.txt
-           requirements-dev.txt
+            requirements-dev.txt
 
         - name: Install test dependencies
           run: pip install -r requirements-dev.txt
