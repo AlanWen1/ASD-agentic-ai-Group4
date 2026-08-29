@@ -2,8 +2,10 @@
 import os
 import sqlite3
 from flask import Flask, request, jsonify, g
+from flask_cors import CORS
 
 app = Flask(__name__)
+CORS(app)
 
 DB_PATH = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "..", "database", "budget_manager.db"
