@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+    <h2>Add Category</h2>
+    <form hx-post="/categories" hx-target="#category-list-wrapper" hx-swap="outerHTML">
+        <label>Name
+            <input type="text" name="name" placeholder="e.g. Groceries" required>
+        </label>
+        <label>Type
+            <select name="type">
+                <option value="Essential">Essential</option>
+                <option value="Discretionary">Discretionary</option>
+            </select>
+        </label>
+        <button type="submit" class="primary">Add Category</button>
+    </form>
+</section>
+
+<section class="card">
+    <h2>All Categories</h2>
+    {% include "partials/category_list.html" %}
+</section>
+{% endblock %}
