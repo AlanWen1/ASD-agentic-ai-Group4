@@ -1,0 +1,176 @@
+# =============================================================================
+# Team-wide docker-compose.yml — AI-Assisted Personal Money Management System
+#
+# Port scheme (host machine ports — internal container ports stay 5000 for
+# every frontend/backend, Docker's internal network handles the rest):
+#
+#   Shared home page (main-ui, login-gated)            8080
+#   Shared AI service (Ollama)                          11434
+#   Student 1 (Vishal   - Budget Manager)               frontend 5011  backend 5010
+#   Student 2 (Yaolun    - Expense & Category Manager)  frontend 5021  backend 5020
+#   Student 3 (Yongjian  - Income & Pay Schedule Mgr)   frontend 5031  backend 5030
+#   Student 4 (Chang     - Bill & Subscription Mgr)     frontend 5041  backend 5040
+#   Student 5 (Naween    - Savings Goal Manager)        frontend 5051  backend 5050
+#
+# Run everything with:  docker compose up --build
+# Then open:             http://localhost:8080   (you'll land on the login page)
+# =============================================================================
+
+services:
+
+  # ---------------------------------------------------------------------
+  # Shared AI service — every student's backend calls this same instance
+  # ---------------------------------------------------------------------
+  ai-mode:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+
+  # ---------------------------------------------------------------------
+  # Shared unified home page — login/register gate + links to everyone
+  # ---------------------------------------------------------------------
+  main-ui:
+    build: ./shared/frontend
+    ports:
+      - "8080:5000"
+    environment:
+      - SECRET_KEY=change-this-to-something-random-before-cloud-deployment
+      - DB_PATH=/data/users.db
+    volumes:
+      - mainui_data:/data
+
+  # ---------------------------------------------------------------------
+  # Student 2 — Yaolun Wen — Expense & Category Manager  (READY)
+  # ---------------------------------------------------------------------
+  student2-backend:
+    build: ./student-2/backend
+    ports:
+      - "5020:5000"
+    environment:
+      - OLLAMA_HOST=http://ai-mode:11434
+      - OLLAMA_MODEL=qwen2.5:0.5b
+      - DB_PATH=/data/expenses.db
+    volumes:
+      - student2_data:/data
+    depends_on:
+      - ai-mode
+
+  student2-frontend:
+    build: ./student-2/frontend
+    ports:
+      - "5021:5000"
+    environment:
+      - BACKEND_URL=http://student2-backend:5000
+    depends_on:
+      - student2-backend
+
+  # ---------------------------------------------------------------------
+  # Student 1 — Vishal Jg — Budget Manager  (TEMPLATE — fill in once ready)
+  # ---------------------------------------------------------------------
+  # student1-backend:
+  #   build: ./student-1/backend
+  #   ports:
+  #     - "5010:5000"
+  #   environment:
+  #     - OLLAMA_HOST=http://ai-mode:11434
+  #     - OLLAMA_MODEL=qwen2.5:0.5b
+  #     - DB_PATH=/data/budgets.db
+  #   volumes:
+  #     - student1_data:/data
+  #   depends_on:
+  #     - ai-mode
+  #
+  # student1-frontend:
+  #   build: ./student-1/frontend
+  #   ports:
+  #     - "5011:5000"
+  #   environment:
+  #     - BACKEND_URL=http://student1-backend:5000
+  #   depends_on:
+  #     - student1-backend
+
+  # ---------------------------------------------------------------------
+  # Student 3 — Yongjian Zhou — Income & Pay Schedule Manager  (TEMPLATE)
+  # ---------------------------------------------------------------------
+  # student3-backend:
+  #   build: ./student-3/backend
+  #   ports:
+  #     - "5030:5000"
+  #   environment:
+  #     - OLLAMA_HOST=http://ai-mode:11434
+  #     - OLLAMA_MODEL=qwen2.5:0.5b
+  #     - DB_PATH=/data/income.db
+  #   volumes:
+  #     - student3_data:/data
+  #   depends_on:
+  #     - ai-mode
+  #
+  # student3-frontend:
+  #   build: ./student-3/frontend
+  #   ports:
+  #     - "5031:5000"
+  #   environment:
+  #     - BACKEND_URL=http://student3-backend:5000
+  #   depends_on:
+  #     - student3-backend
+
+  # ---------------------------------------------------------------------
+  # Student 4 — Chang Wang — Bill & Subscription Manager  (TEMPLATE)
+  # ---------------------------------------------------------------------
+  # student4-backend:
+  #   build: ./student-4/backend
+  #   ports:
+  #     - "5040:5000"
+  #   environment:
+  #     - OLLAMA_HOST=http://ai-mode:11434
+  #     - OLLAMA_MODEL=qwen2.5:0.5b
+  #     - DB_PATH=/data/bills.db
+  #   volumes:
+  #     - student4_data:/data
+  #   depends_on:
+  #     - ai-mode
+  #
+  # student4-frontend:
+  #   build: ./student-4/frontend
+  #   ports:
+  #     - "5041:5000"
+  #   environment:
+  #     - BACKEND_URL=http://student4-backend:5000
+  #   depends_on:
+  #     - student4-backend
+
+  # ---------------------------------------------------------------------
+  # Student 5 — Naween Samad — Savings Goal Manager  (TEMPLATE)
+  # ---------------------------------------------------------------------
+  # student5-backend:
+  #   build: ./student-5/backend
+  #   ports:
+  #     - "5050:5000"
+  #   environment:
+  #     - OLLAMA_HOST=http://ai-mode:11434
+  #     - OLLAMA_MODEL=qwen2.5:0.5b
+  #     - DB_PATH=/data/savings.db
+  #   volumes:
+  #     - student5_data:/data
+  #   depends_on:
+  #     - ai-mode
+  #
+  # student5-frontend:
+  #   build: ./student-5/frontend
+  #   ports:
+  #     - "5051:5000"
+  #   environment:
+  #     - BACKEND_URL=http://student5-backend:5000
+  #   depends_on:
+  #     - student5-backend
+
+volumes:
+  ollama_data:
+  mainui_data:
+  student2_data:
+  # student1_data:
+  # student3_data:
+  # student4_data:
+  # student5_data:

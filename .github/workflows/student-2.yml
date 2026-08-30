@@ -1,0 +1,37 @@
+name: Student 2 - Expense & Category Manager CI
+
+on:
+  push:
+    paths:
+      - 'student-2/**'
+  pull_request:
+    paths:
+      - 'student-2/**'
+
+jobs:
+  test-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install backend dependencies
+        run: pip install -r student-2/backend/requirements.txt
+
+      - name: Run pytest (pre-commit validation)
+        run: pytest student-2/backend/tests/ -v
+
+  build-docker:
+    runs-on: ubuntu-latest
+    needs: test-backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build backend image
+        run: docker build -t student2-backend ./student-2/backend
+
+      - name: Build frontend image
+        run: docker build -t student2-frontend ./student-2/frontend

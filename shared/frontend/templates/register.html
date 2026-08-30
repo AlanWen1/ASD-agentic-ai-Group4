@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="auth-wrapper">
+  <div class="auth-card">
+    <h1>Create an account</h1>
+    <p class="subtitle">AI-Assisted Personal Money Management System</p>
+    <form method="POST">
+      <label>Username
+        <input type="text" name="username" required autofocus>
+      </label>
+      <label>Password
+        <input type="password" name="password" required minlength="6">
+      </label>
+      <label>Confirm password
+        <input type="password" name="confirm_password" required minlength="6">
+      </label>
+      <button type="submit" class="primary">Register</button>
+    </form>
+    <p class="switch-link">Already have an account? <a href="{{ url_for('login') }}">Log in</a></p>
+  </div>
+</div>
+{% endblock %}
