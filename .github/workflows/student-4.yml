@@ -4,12 +4,12 @@ on:
   push:
     paths:
       - "bill-tracker/**"
-      - ".github/workflows/student-4.yml"
+      - ".github/workflows/bill-tracker.yml"
 
   pull_request:
     paths:
       - "bill-tracker/**"
-      - ".github/workflows/student-4.yml"
+      - ".github/workflows/bill-tracker.yml"
 
   workflow_dispatch:
 
