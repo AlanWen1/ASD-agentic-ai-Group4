@@ -17,6 +17,7 @@ services:
       - "5004:5004"
     environment:
       - DATABASE_URL=http://database:6004
+      - AUTH_DATABASE_URL=http://host.docker.internal:6000
       - OLLAMA_URL=http://host.docker.internal:11434
       - OLLAMA_MODEL=qwen2.5:0.5b
     depends_on:

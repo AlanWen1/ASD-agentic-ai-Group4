@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Finance Application</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <main class="shell">
+    <section id="auth-view" class="auth-card">
+      <div class="brand">Finance Application</div>
+      <h1 id="auth-title">Welcome back</h1>
+      <p id="auth-subtitle">Sign in to manage your personal finances.</p>
+      <form id="auth-form">
+        <div id="register-fields" hidden>
+          <label>Username<input id="username" minlength="3" autocomplete="username"></label>
+          <label>Email<input id="email" type="email" autocomplete="email"></label>
+        </div>
+        <label>Username or email<input id="identifier" autocomplete="username"></label>
+        <label>Password<input id="password" type="password" minlength="8" autocomplete="current-password"></label>
+        <button id="auth-submit" type="submit">Sign in</button>
+        <div id="auth-error" class="error"></div>
+      </form>
+      <button id="auth-switch" class="text-button" type="button">Create an account</button>
+    </section>
+
+    <section id="home-view" hidden>
+      <header class="topbar">
+        <div>
+          <div class="brand">Finance Application</div>
+          <h1>Home</h1>
+          <p>Welcome, <strong id="welcome-name"></strong>.</p>
+        </div>
+        <button id="logout" class="secondary">Log out</button>
+      </header>
+
+      <section class="hero panel">
+        <div>
+          <span class="eyebrow">YOUR FINANCES</span>
+          <h2>Everything in one place</h2>
+          <p>Use this dashboard as the starting point for your finance services.</p>
+        </div>
+        <div class="health" id="health">Checking services…</div>
+      </section>
+
+      <section class="service-grid">
+        <article class="service-card active">
+          <span class="service-icon">$</span>
+          <h3>Bill Tracker</h3>
+          <p>View and manage your bills. The Bill Tracker also includes the local AI assistant.</p>
+          <div class="service-actions">
+            <a id="bill-tracker-link" class="button-link" href="http://localhost:3004/">Open Bill Tracker</a>
+          </div>
+        </article>
+        <article class="service-card">
+          <span class="service-icon">+</span>
+          <h3>More services</h3>
+          <p>This home page is ready for additional finance microservices later.</p>
+          <span class="coming">Coming later</span>
+        </article>
+      </section>
+
+    </section>
+  </main>
+
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

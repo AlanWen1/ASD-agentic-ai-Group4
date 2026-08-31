@@ -1,0 +1,82 @@
+services:
+  finance-database:
+    build: ./finance-application/database
+    container_name: finance-application-database
+    ports:
+      - "6000:6000"
+    volumes:
+      - finance_data:/data
+    environment:
+      - DATABASE_PATH=/data/finance.db
+    restart: unless-stopped
+
+  finance-backend:
+    build: ./finance-application/backend
+    container_name: finance-application-backend
+    ports:
+      - "5000:5000"
+    environment:
+      - DATABASE_URL=http://finance-database:6000
+      - BILL_DATABASE_URL=http://bill-database:6004
+    depends_on:
+      - finance-database
+      - bill-database
+    restart: unless-stopped
+
+  finance-frontend:
+    build: ./finance-application/frontend
+    container_name: finance-application-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - BACKEND_URL=http://finance-backend:5000
+    depends_on:
+      - finance-backend
+    restart: unless-stopped
+
+  bill-database:
+    build: ./bill-tracker/database
+    container_name: bill-tracker-database
+    ports:
+      - "6004:6004"
+    volumes:
+      - bill_data:/data
+    environment:
+      - DATABASE_PATH=/data/bills.db
+    restart: unless-stopped
+
+  bill-backend:
+    build: ./bill-tracker/backend
+    container_name: bill-tracker-backend
+    ports:
+      - "5004:5004"
+    environment:
+      - DATABASE_URL=http://bill-database:6004
+      - AUTH_DATABASE_URL=http://finance-database:6000
+      - OLLAMA_URL=http://host.docker.internal:11434
+      - OLLAMA_MODEL=qwen2.5:0.5b
+    depends_on:
+      - bill-database
+      - finance-database
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  bill-frontend:
+    build: ./bill-tracker/frontend
+    container_name: bill-tracker-frontend
+    ports:
+      - "3004:3004"
+    environment:
+      - BACKEND_URL=http://bill-backend:5004
+    depends_on:
+      - bill-backend
+    restart: unless-stopped
+
+volumes:
+  finance_data:
+    name: finance-application-finance-data
+
+  bill_data:
+    name: finance-application-bill-data
+    

@@ -16,11 +16,15 @@ def index():
 def proxy(path):
     url = f"{BACKEND_URL}/{path}"
     try:
+        headers = {}
+        if request.headers.get("Authorization"):
+            headers["Authorization"] = request.headers["Authorization"]
         response = requests.request(
             request.method,
             url,
             params=request.args,
             json=request.get_json(silent=True) if request.method in {"POST", "PUT"} else None,
+            headers=headers,
             timeout=130 if path == "chat" else 30,
         )
         content_type = response.headers.get("Content-Type", "application/json")

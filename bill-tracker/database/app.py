@@ -1,7 +1,7 @@
 import os
 import sqlite3
 from contextlib import closing
-from datetime import date, datetime
+from datetime import datetime
 
 from flask import Flask, jsonify, request
 
@@ -25,6 +25,7 @@ def init_db():
             """
             CREATE TABLE IF NOT EXISTS bills (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
                 name TEXT NOT NULL,
                 amount REAL NOT NULL CHECK(amount >= 0),
                 due_date TEXT NOT NULL,
@@ -35,6 +36,10 @@ def init_db():
             )
             """
         )
+        columns = {row["name"] for row in conn.execute("PRAGMA table_info(bills)").fetchall()}
+        if "user_id" not in columns:
+            conn.execute("ALTER TABLE bills ADD COLUMN user_id INTEGER")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_bills_user_id ON bills(user_id)")
         conn.commit()
 
 
@@ -90,15 +95,21 @@ def health():
 
 @app.get("/bills")
 def list_bills():
+    user_id = request.args.get("user_id", type=int)
+    if not user_id:
+        return jsonify({"error": "user_id is required"}), 400
     with closing(get_db()) as conn:
-        rows = conn.execute("SELECT * FROM bills ORDER BY due_date ASC, id ASC").fetchall()
+        rows = conn.execute("SELECT * FROM bills WHERE user_id = ? ORDER BY due_date ASC, id ASC", (user_id,)).fetchall()
     return jsonify([row_to_dict(row) for row in rows])
 
 
 @app.get("/bills/<int:bill_id>")
 def get_bill(bill_id):
+    user_id = request.args.get("user_id", type=int)
+    if not user_id:
+        return jsonify({"error": "user_id is required"}), 400
     with closing(get_db()) as conn:
-        row = conn.execute("SELECT * FROM bills WHERE id = ?", (bill_id,)).fetchone()
+        row = conn.execute("SELECT * FROM bills WHERE id = ? AND user_id = ?", (bill_id, user_id)).fetchone()
     if not row:
         return jsonify({"error": "Bill not found"}), 404
     return jsonify(row_to_dict(row))
@@ -106,36 +117,32 @@ def get_bill(bill_id):
 
 @app.post("/bills")
 def create_bill():
+    user_id = request.args.get("user_id", type=int)
+    if not user_id:
+        return jsonify({"error": "user_id is required"}), 400
     payload = request.get_json(silent=True)
     error = validate_bill_payload(payload or {})
     if error:
         return jsonify({"error": error}), 400
 
     now = datetime.utcnow().isoformat(timespec="seconds") + "Z"
-    values = (
-        payload["name"].strip(),
-        float(payload["amount"]),
-        str(payload["due_date"]),
-        payload["frequency"],
-        payload["status"],
-        now,
-        now,
-    )
+    values = (user_id, payload["name"].strip(), float(payload["amount"]), str(payload["due_date"]), payload["frequency"], payload["status"], now, now)
     with closing(get_db()) as conn:
         cursor = conn.execute(
             """
-            INSERT INTO bills (name, amount, due_date, frequency, status, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            """,
-            values,
-        )
+            INSERT INTO bills (user_id, name, amount, due_date, frequency, status, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, values)
         conn.commit()
-        row = conn.execute("SELECT * FROM bills WHERE id = ?", (cursor.lastrowid,)).fetchone()
+        row = conn.execute("SELECT * FROM bills WHERE id = ? AND user_id = ?", (cursor.lastrowid, user_id)).fetchone()
     return jsonify(row_to_dict(row)), 201
 
 
 @app.put("/bills/<int:bill_id>")
 def update_bill(bill_id):
+    user_id = request.args.get("user_id", type=int)
+    if not user_id:
+        return jsonify({"error": "user_id is required"}), 400
     payload = request.get_json(silent=True)
     error = validate_bill_payload(payload or {}, partial=True)
     if error:
@@ -149,30 +156,50 @@ def update_bill(bill_id):
         changes["name"] = changes["name"].strip()
     if "amount" in changes:
         changes["amount"] = float(changes["amount"])
-
     changes["updated_at"] = datetime.utcnow().isoformat(timespec="seconds") + "Z"
     set_clause = ", ".join(f"{key} = ?" for key in changes)
-    values = list(changes.values()) + [bill_id]
+    values = list(changes.values()) + [bill_id, user_id]
 
     with closing(get_db()) as conn:
-        cursor = conn.execute(f"UPDATE bills SET {set_clause} WHERE id = ?", values)
+        cursor = conn.execute(f"UPDATE bills SET {set_clause} WHERE id = ? AND user_id = ?", values)
         if cursor.rowcount == 0:
             conn.rollback()
             return jsonify({"error": "Bill not found"}), 404
         conn.commit()
-        row = conn.execute("SELECT * FROM bills WHERE id = ?", (bill_id,)).fetchone()
+        row = conn.execute("SELECT * FROM bills WHERE id = ? AND user_id = ?", (bill_id, user_id)).fetchone()
     return jsonify(row_to_dict(row))
 
 
 @app.delete("/bills/<int:bill_id>")
 def delete_bill(bill_id):
+    user_id = request.args.get("user_id", type=int)
+    if not user_id:
+        return jsonify({"error": "user_id is required"}), 400
     with closing(get_db()) as conn:
-        cursor = conn.execute("DELETE FROM bills WHERE id = ?", (bill_id,))
+        cursor = conn.execute("DELETE FROM bills WHERE id = ? AND user_id = ?", (bill_id, user_id))
         if cursor.rowcount == 0:
             conn.rollback()
             return jsonify({"error": "Bill not found"}), 404
         conn.commit()
     return jsonify({"message": "Bill deleted", "id": bill_id})
+
+
+@app.get("/summary")
+def summary():
+    user_id = request.args.get("user_id", type=int)
+    if not user_id:
+        return jsonify({"error": "user_id is required"}), 400
+    with closing(get_db()) as conn:
+        rows = conn.execute("SELECT * FROM bills WHERE user_id = ? ORDER BY due_date ASC, id ASC", (user_id,)).fetchall()
+    bills = [row_to_dict(row) for row in rows]
+    total = round(sum(float(b.get("amount", 0)) for b in bills), 2)
+    pending = round(sum(float(b.get("amount", 0)) for b in bills if b.get("status") == "Pending"), 2)
+    return jsonify({
+        "bill_count": len(bills),
+        "total_amount": total,
+        "pending_amount": pending,
+        "overdue_count": sum(1 for b in bills if b.get("status") == "Overdue"),
+    })
 
 
 @app.errorhandler(Exception)
