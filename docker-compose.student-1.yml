@@ -8,7 +8,7 @@ services:
     environment:
       - DATABASE_PATH=/app/database/budget_manager.db
     networks:
-      - app-network
+      - budget-network
 
   budget-frontend:
     build: ./student-1-budget/frontend
@@ -17,8 +17,8 @@ services:
     depends_on:
       - budget-backend
     networks:
-      - app-network
+      - budget-network
 
 networks:
-  app-network:
+  budget-network:
     driver: bridge

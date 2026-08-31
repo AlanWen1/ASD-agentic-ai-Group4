@@ -1,9 +1,9 @@
 import os
 import sqlite3
+import requests
 from flask import Flask, request, jsonify, g
 from flask_cors import CORS
 from agent import run_agent_loop
-
 
 app = Flask(__name__)
 CORS(app)
@@ -28,18 +28,17 @@ def agent_chat():
         return jsonify({"error": str(e)}), 500
 
 
-DB_PATH = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "..", "database", "budget_manager.db"
-)
+DB_PATH = os.environ.get("DATABASE_PATH", os.path.join(os.path.dirname(__file__), "..", "database", "budget_manager.db"))
 
+def get_db_connection():
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
 
 def get_db():
-    if "db" not in g:
-        g.db = sqlite3.connect(DB_PATH)
-        g.db.row_factory = sqlite3.Row
-        g.db.execute("PRAGMA foreign_keys = ON;")
-    return g.db
-
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
 
 @app.teardown_appcontext
 def close_db(exception=None):
@@ -305,4 +304,4 @@ def health():
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5001)
+    app.run(debug=True, host="0.0.0.0", port=5001)

@@ -21,7 +21,7 @@ def init_db(reset: bool = True) -> None:
 
     with open(SEED_PATH, "r") as f:
         conn.executescript(f.read())
-    print("Seed data inserted (2 test records per table)")
+    print("Seed data inserted")
 
     conn.commit()
 

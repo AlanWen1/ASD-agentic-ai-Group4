@@ -2,12 +2,18 @@ import json
 import requests
 import sqlite3
 from pathlib import Path
+import os
 
 OLLAMA_URL = "http://localhost:11434/api/chat"
 OLLAMA_MODEL = "qwen2.5:7b"  # swap to "llama3.1" if that's what you pulled
 
-DB_PATH = Path(__file__).parent.parent / "database" / "budget_manager.db"
 
+DB_PATH = os.environ.get("DATABASE_PATH", os.path.join(os.path.dirname(__file__), "..", "database", "budget_manager.db"))
+
+def get_db_connection():
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
 TOOLS = [
     {
         "type": "function",
