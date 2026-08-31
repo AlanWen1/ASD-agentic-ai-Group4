@@ -1,11 +1,32 @@
-
 import os
 import sqlite3
 from flask import Flask, request, jsonify, g
 from flask_cors import CORS
+from agent import run_agent_loop
+
 
 app = Flask(__name__)
 CORS(app)
+
+@app.route("/api/agent/chat", methods=["POST"])
+def agent_chat():
+    student_id = request.headers.get("X-User-Id")
+    if not student_id:
+        return jsonify({"error": "X-User-Id header required"}), 400
+
+    body = request.get_json(silent=True) or {}
+    user_message = body.get("message", "").strip()
+    if not user_message:
+        return jsonify({"error": "message is required"}), 400
+
+    try:
+        result = run_agent_loop(user_message, student_id)
+        return jsonify(result), 200
+    except requests.exceptions.ConnectionError:
+        return jsonify({"error": "Could not reach Ollama. Is it running on localhost:11434?"}), 502
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 DB_PATH = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "..", "database", "budget_manager.db"

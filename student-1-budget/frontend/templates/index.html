@@ -79,6 +79,17 @@
         <tbody id="categoriesTableBody"></tbody>
       </table>
     </section>
+    <section class="panel" id="chatboxPanel">
+  <h2>Budget Assistant</h2>
+  <div id="chatMessages" class="chat-messages"></div>
+  <form id="chatForm">
+    <div class="form-row">
+      <input type="text" id="chatInput" placeholder="e.g. Review my August budget for unrealistic allocations" required />
+    </div>
+    <button type="submit">Send</button>
+  </form>
+  <p class="form-message" id="chatMessage"></p>
+</section>
   </main>
 
   <script src="{{ url_for('static', filename='app.js') }}"></script>

@@ -240,4 +240,45 @@ document.getElementById("closeCategoriesPanel").addEventListener("click", () => 
   activeBudgetId = null;
 });
 
+async function sendChatMessage(message) {
+  const res = await fetch(`${API_BASE}/agent/chat`, {
+    method: "POST",
+    headers: apiHeaders(),
+    body: JSON.stringify({ message }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `Chat failed (status ${res.status})`);
+  }
+  return res.json();
+}
+
+function appendChatBubble(role, text) {
+  const container = document.getElementById("chatMessages");
+  const bubble = document.createElement("div");
+  bubble.className = `chat-bubble ${role}`;
+  bubble.textContent = text;
+  container.appendChild(bubble);
+  container.scrollTop = container.scrollHeight;
+}
+
+document.getElementById("chatForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const input = document.getElementById("chatInput");
+  const message = input.value.trim();
+  if (!message) return;
+
+  appendChatBubble("user", message);
+  input.value = "";
+  showMessage("chatMessage", "Thinking...");
+
+  try {
+    const result = await sendChatMessage(message);
+    appendChatBubble("assistant", result.answer);
+    showMessage("chatMessage", "");
+  } catch (err) {
+    showMessage("chatMessage", err.message, true);
+  }
+});
+
 refreshBudgets();
