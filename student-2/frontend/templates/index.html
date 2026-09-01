@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+    <h2>Add Expense</h2>
+    <form hx-post="/expenses" hx-target="#expense-list-wrapper" hx-swap="outerHTML">
+        <label>Amount
+            <input type="number" step="0.01" name="amount" placeholder="e.g. 25.00" required>
+        </label>
+        <label>Description
+            <input type="text" name="description" id="description"
+                   placeholder="e.g. Coffee at Woolies" required>
+        </label>
+        <label>Merchant
+            <input type="text" name="merchant" id="merchant" placeholder="(optional)">
+        </label>
+        <label>Date
+            <input type="date" name="date" required>
+        </label>
+        <label>Category
+            <select name="category_id" id="category_id">
+                <option value="">-- select category --</option>
+                {% for c in categories %}
+                <option value="{{ c.id }}">{{ c.name }}</option>
+                {% endfor %}
+            </select>
+        </label>
+
+        <div class="ai-row">
+            <button type="button"
+                    class="ai-button"
+                    hx-post="/expenses/suggest-category"
+                    hx-include="#description,#merchant"
+                    hx-target="#ai-suggestion"
+                    hx-swap="innerHTML">
+                Suggest Category (AI)
+            </button>
+            <span id="ai-suggestion"></span>
+        </div>
+
+        <button type="submit" class="primary">Add Expense</button>
+    </form>
+</section>
+
+<section class="card">
+    <h2>All Expenses</h2>
+    {% include "partials/expense_list.html" %}
+</section>
+{% endblock %}
