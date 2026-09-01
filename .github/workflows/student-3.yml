@@ -1,0 +1,52 @@
+name: Student 3 - Income Manager
+
+on:
+  push:
+    paths:
+      - "student-3/**"
+      - "docker-compose.yml"
+      - "docker-compose.student-3.yml"
+      - ".github/workflows/student-3.yml"
+  pull_request:
+    paths:
+      - "student-3/**"
+      - "docker-compose.yml"
+      - "docker-compose.student-3.yml"
+      - ".github/workflows/student-3.yml"
+  workflow_dispatch:
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            student-3/frontend/requirements.txt
+            student-3/backend/requirements.txt
+            student-3/database/requirements.txt
+            requirements-dev.txt
+
+      - name: Install test dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Compile Python source
+        run: python -m compileall -q student-3
+
+      - name: Run Student 3 tests
+        run: pytest -q student-3/tests
+
+      - name: Validate Docker Compose
+        run: docker compose -f docker-compose.student-3.yml config --quiet
+
+      - name: Build Student 3 containers
+        run: |
+          docker build -t student-3-database ./student-3/database
+          docker build -t student-3-backend ./student-3/backend
+          docker build -t student-3-frontend ./student-3/frontend
