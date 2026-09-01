@@ -1,0 +1,17 @@
+<div id="category-list-wrapper">
+<ul id="category-list">
+    {% for c in categories %}
+    <li>
+        {{ c.name }} <span class="tag">{{ c.type }}</span>
+        <button hx-delete="/categories/{{ c.id }}"
+                hx-target="#category-list-wrapper"
+                hx-swap="outerHTML"
+                hx-confirm="Delete this category?">
+            Delete
+        </button>
+    </li>
+    {% else %}
+    <li>No categories yet.</li>
+    {% endfor %}
+</ul>
+</div>
