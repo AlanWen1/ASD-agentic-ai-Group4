@@ -1,0 +1,31 @@
+<div id="expense-list-wrapper">
+<table id="expense-list">
+    <thead>
+        <tr>
+            <th>Date</th><th>Description</th><th>Merchant</th>
+            <th>Category</th><th>Amount</th><th></th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for e in expenses %}
+        <tr id="expense-{{ e.id }}">
+            <td>{{ e.date }}</td>
+            <td>{{ e.description }}</td>
+            <td>{{ e.merchant }}</td>
+            <td>{{ e.category_name or "Uncategorised" }}</td>
+            <td>${{ "%.2f"|format(e.amount) }}</td>
+            <td>
+                <button hx-delete="/expenses/{{ e.id }}"
+                        hx-target="#expense-list-wrapper"
+                        hx-swap="outerHTML"
+                        hx-confirm="Delete this expense?">
+                    Delete
+                </button>
+            </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6">No expenses yet — add one above.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
