@@ -1,9 +1,13 @@
 from flask import Flask, send_from_directory, request
 import requests
+import os
 
 app = Flask(__name__)
 
-BACKEND_API_URL = "http://127.0.0.1:5005"
+BACKEND_API_URL = os.getenv(
+    "BACKEND_API_URL",
+    "http://127.0.0.1:5005"
+)
 
 
 @app.route("/")

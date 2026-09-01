@@ -1,13 +1,24 @@
 from flask import Flask, jsonify, request
 import requests
 from datetime import date
+import os
 
 app = Flask(__name__)
 
-DATABASE_API_URL = "http://127.0.0.1:6005"
+DATABASE_API_URL = os.getenv(
+    "DATABASE_API_URL",
+    "http://127.0.0.1:6005"
+)
 
-OLLAMA_API_URL = "http://127.0.0.1:11434/api/generate"
-OLLAMA_MODEL = "qwen2.5:0.5b"
+OLLAMA_API_URL = os.getenv(
+    "OLLAMA_API_URL",
+    "http://127.0.0.1:11434/api/generate"
+)
+
+OLLAMA_MODEL = os.getenv(
+    "OLLAMA_MODEL",
+    "qwen2.5:0.5b"
+)
 
 
 @app.route("/goals", methods=["GET"])
