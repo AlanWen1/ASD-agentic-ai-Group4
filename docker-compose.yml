@@ -93,10 +93,12 @@ services:
     ports:
       - "5002:5002"
     environment:
+      - AUTH_DATABASE_URL=http://finance-database:6000
       - DATABASE_URL=http://expense-database:6002
       - OLLAMA_URL=http://host.docker.internal:11434
       - OLLAMA_MODEL=qwen2.5:0.5b
     depends_on:
+      - finance-database  
       - expense-database
     extra_hosts:
       - "host.docker.internal:host-gateway"
