@@ -1,8 +1,28 @@
 const state = { sources: [], schedules: [], chatHistory: [] };
 const money = new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' });
 const $ = (selector) => document.querySelector(selector);
+const TOKEN_KEY = 'finance_token';
+
+function authToken() {
+  return localStorage.getItem(TOKEN_KEY) || '';
+}
+
+function captureSharedToken() {
+  const url = new URL(window.location.href);
+  const sharedToken = url.searchParams.get('token');
+  if (sharedToken) {
+    localStorage.setItem(TOKEN_KEY, sharedToken);
+    url.searchParams.delete('token');
+    history.replaceState({}, document.title, `${url.pathname}${url.search}${url.hash}`);
+  }
+}
 
 document.addEventListener('DOMContentLoaded', () => {
+  captureSharedToken();
+  if (!authToken()) {
+    window.location.replace('http://localhost:3000/');
+    return;
+  }
   const monthPicker = $('#monthPicker');
   if (!monthPicker.value) monthPicker.value = new Date().toISOString().slice(0, 7);
   bindEvents();
@@ -34,14 +54,20 @@ function bindEvents() {
 }
 
 async function api(path, options = {}) {
+  const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
+  if (authToken()) headers.Authorization = `Bearer ${authToken()}`;
   const response = await fetch(path, {
     ...options,
-    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+    headers,
   });
   let payload = null;
   if (response.status !== 204) {
     try { payload = await response.json(); }
     catch { payload = { error: 'The service returned an unreadable response.' }; }
+  }
+  if (response.status === 401) {
+    localStorage.removeItem(TOKEN_KEY);
+    window.location.replace('http://localhost:3000/');
   }
   if (!response.ok) throw new Error(payload?.error || `Request failed (${response.status})`);
   return payload;
