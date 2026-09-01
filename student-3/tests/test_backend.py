@@ -38,10 +38,15 @@ SCHEDULES = {
     ],
     "count": 3,
 }
+AUTH_HEADERS = {"Authorization": "Bearer valid-token"}
 
 
 def fake_database_request(method, url, **kwargs):
     path = urlparse(url).path
+    if path == "/sessions/valid-token" and method == "GET":
+        return FakeResponse({"user": {"id": 1, "username": "test-user"}})
+    if path.startswith("/sessions/") and method == "GET":
+        return FakeResponse({"error": "Session not found"}, 404)
     if path == "/api/income-sources" and method == "GET":
         return FakeResponse(SOURCES)
     if path == "/api/pay-schedules" and method == "GET":
@@ -55,14 +60,14 @@ def fake_database_request(method, url, **kwargs):
 
 def make_client(monkeypatch):
     monkeypatch.setattr(backend_module.requests, "request", fake_database_request)
-    app = backend_module.create_app("http://database.test")
+    app = backend_module.create_app("http://database.test", "http://auth.test")
     app.config.update(TESTING=True)
     return app.test_client()
 
 
 def test_dashboard_calculates_money_without_ai(monkeypatch):
     client = make_client(monkeypatch)
-    response = client.get("/api/dashboard?month=2026-08")
+    response = client.get("/api/dashboard?month=2026-08", headers=AUTH_HEADERS)
     assert response.status_code == 200
     summary = response.get_json()["summary"]
     assert summary["expected_total"] == 2500.0
@@ -84,6 +89,7 @@ def test_ai_chat_receives_calculated_context(monkeypatch):
     response = client.post(
         "/api/ai/chat",
         json={"message": "What is my largest source?", "month": "2026-08", "history": []},
+        headers=AUTH_HEADERS,
     )
     assert response.status_code == 200
     assert "largest" in response.get_json()["answer"]
@@ -95,6 +101,7 @@ def test_generate_schedule_dates_from_frequency(monkeypatch):
     response = client.post(
         "/api/pay-schedules/generate",
         json={"income_source_id": 1, "start_date": "2026-09-11", "count": 3},
+        headers=AUTH_HEADERS,
     )
     assert response.status_code == 201
     dates = [item["expected_pay_date"] for item in response.get_json()["items"]]
@@ -103,4 +110,15 @@ def test_generate_schedule_dates_from_frequency(monkeypatch):
 
 def test_invalid_month_is_rejected(monkeypatch):
     client = make_client(monkeypatch)
-    assert client.get("/api/dashboard?month=August").status_code == 400
+    assert client.get(
+        "/api/dashboard?month=August", headers=AUTH_HEADERS
+    ).status_code == 400
+
+
+def test_authentication_is_required(monkeypatch):
+    client = make_client(monkeypatch)
+    assert client.get("/api/income-sources").status_code == 401
+    assert client.get(
+        "/api/income-sources",
+        headers={"Authorization": "Bearer invalid-token"},
+    ).status_code == 401

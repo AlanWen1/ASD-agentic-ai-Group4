@@ -24,6 +24,7 @@ PRAGMA foreign_keys = ON;
 
 CREATE TABLE IF NOT EXISTS income_sources (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
     source_name TEXT NOT NULL,
     income_type TEXT NOT NULL,
     standard_amount REAL NOT NULL CHECK (standard_amount > 0),
@@ -37,6 +38,7 @@ CREATE TABLE IF NOT EXISTS income_sources (
 
 CREATE TABLE IF NOT EXISTS pay_schedules (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
     income_source_id INTEGER NOT NULL,
     expected_pay_date TEXT NOT NULL,
     expected_amount REAL NOT NULL CHECK (expected_amount > 0),
@@ -97,19 +99,38 @@ def get_connection() -> sqlite3.Connection:
     return connection
 
 
+def ensure_user_columns(connection: sqlite3.Connection) -> None:
+    """Migrate databases created before shared authentication was added."""
+    for table in ("income_sources", "pay_schedules"):
+        columns = {
+            row[1] for row in connection.execute(f"PRAGMA table_info({table})").fetchall()
+        }
+        if "user_id" not in columns:
+            connection.execute(
+                f"ALTER TABLE {table} ADD COLUMN user_id INTEGER NOT NULL DEFAULT 1"
+            )
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_income_sources_user ON income_sources(user_id)"
+    )
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_pay_schedules_user ON pay_schedules(user_id)"
+    )
+
+
 def initialise_database(app: Flask) -> None:
     database_path = Path(app.config["DATABASE_PATH"])
     database_path.parent.mkdir(parents=True, exist_ok=True)
     connection = sqlite3.connect(database_path)
     try:
         connection.executescript(SCHEMA)
+        ensure_user_columns(connection)
         source_count = connection.execute("SELECT COUNT(*) FROM income_sources").fetchone()[0]
         if source_count == 0:
             connection.executemany(
                 """
                 INSERT INTO income_sources
-                    (source_name, income_type, standard_amount, payment_frequency, active)
-                VALUES (?, ?, ?, ?, ?)
+                    (user_id, source_name, income_type, standard_amount, payment_frequency, active)
+                VALUES (1, ?, ?, ?, ?, ?)
                 """,
                 SEED_SOURCES,
             )
@@ -120,9 +141,9 @@ def initialise_database(app: Flask) -> None:
             connection.executemany(
                 """
                 INSERT INTO pay_schedules
-                    (income_source_id, expected_pay_date, expected_amount, received_date,
+                    (user_id, income_source_id, expected_pay_date, expected_amount, received_date,
                      actual_amount, status, notes)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                VALUES (1, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 SEED_SCHEDULES,
             )
@@ -215,12 +236,36 @@ def validate_schedule(
     }
 
 
-def fetch_source(connection: sqlite3.Connection, source_id: int) -> dict[str, Any] | None:
-    return row_to_dict(connection.execute("SELECT * FROM income_sources WHERE id = ?", (source_id,)).fetchone())
+def required_user_id() -> int:
+    try:
+        user_id = int(request.args.get("user_id", ""))
+    except (TypeError, ValueError) as exc:
+        raise ValueError("user_id must be a positive integer") from exc
+    if user_id <= 0:
+        raise ValueError("user_id must be a positive integer")
+    return user_id
 
 
-def fetch_schedule(connection: sqlite3.Connection, schedule_id: int) -> dict[str, Any] | None:
-    return row_to_dict(connection.execute("SELECT * FROM pay_schedules WHERE id = ?", (schedule_id,)).fetchone())
+def fetch_source(
+    connection: sqlite3.Connection, source_id: int, user_id: int
+) -> dict[str, Any] | None:
+    return row_to_dict(
+        connection.execute(
+            "SELECT * FROM income_sources WHERE id = ? AND user_id = ?",
+            (source_id, user_id),
+        ).fetchone()
+    )
+
+
+def fetch_schedule(
+    connection: sqlite3.Connection, schedule_id: int, user_id: int
+) -> dict[str, Any] | None:
+    return row_to_dict(
+        connection.execute(
+            "SELECT * FROM pay_schedules WHERE id = ? AND user_id = ?",
+            (schedule_id, user_id),
+        ).fetchone()
+    )
 
 
 def create_app(database_path: str | None = None) -> Flask:
@@ -237,8 +282,9 @@ def create_app(database_path: str | None = None) -> Flask:
 
     @app.get("/api/income-sources")
     def list_income_sources():
-        clauses: list[str] = []
-        values: list[Any] = []
+        user_id = required_user_id()
+        clauses: list[str] = ["user_id = ?"]
+        values: list[Any] = [user_id]
         if request.args.get("active") in {"0", "1"}:
             clauses.append("active = ?")
             values.append(int(request.args["active"]))
@@ -257,32 +303,36 @@ def create_app(database_path: str | None = None) -> Flask:
 
     @app.post("/api/income-sources")
     def create_income_source():
+        user_id = required_user_id()
         payload = validate_source(request.get_json(silent=True) or {})
         with closing(get_connection()) as connection:
             cursor = connection.execute(
                 """
                 INSERT INTO income_sources
-                    (source_name, income_type, standard_amount, payment_frequency, active)
-                VALUES (:source_name, :income_type, :standard_amount, :payment_frequency, :active)
+                    (user_id, source_name, income_type, standard_amount, payment_frequency, active)
+                VALUES (:user_id, :source_name, :income_type, :standard_amount,
+                        :payment_frequency, :active)
                 """,
-                payload,
+                {**payload, "user_id": user_id},
             )
             connection.commit()
-            created = fetch_source(connection, cursor.lastrowid)
+            created = fetch_source(connection, cursor.lastrowid, user_id)
         return jsonify(created), 201
 
     @app.get("/api/income-sources/<int:source_id>")
     def get_income_source(source_id: int):
+        user_id = required_user_id()
         with closing(get_connection()) as connection:
-            source = fetch_source(connection, source_id)
+            source = fetch_source(connection, source_id, user_id)
         if source is None:
             return jsonify({"error": "Income source not found"}), 404
         return jsonify(source)
 
     @app.put("/api/income-sources/<int:source_id>")
     def update_income_source(source_id: int):
+        user_id = required_user_id()
         with closing(get_connection()) as connection:
-            existing = fetch_source(connection, source_id)
+            existing = fetch_source(connection, source_id, user_id)
             if existing is None:
                 return jsonify({"error": "Income source not found"}), 404
             payload = validate_source(request.get_json(silent=True) or {}, existing)
@@ -295,19 +345,23 @@ def create_app(database_path: str | None = None) -> Flask:
                     payment_frequency = :payment_frequency,
                     active = :active,
                     updated_at = CURRENT_TIMESTAMP
-                WHERE id = :id
+                WHERE id = :id AND user_id = :user_id
                 """,
-                {**payload, "id": source_id},
+                {**payload, "id": source_id, "user_id": user_id},
             )
             connection.commit()
-            updated = fetch_source(connection, source_id)
+            updated = fetch_source(connection, source_id, user_id)
         return jsonify(updated)
 
     @app.delete("/api/income-sources/<int:source_id>")
     def delete_income_source(source_id: int):
+        user_id = required_user_id()
         try:
             with closing(get_connection()) as connection:
-                cursor = connection.execute("DELETE FROM income_sources WHERE id = ?", (source_id,))
+                cursor = connection.execute(
+                    "DELETE FROM income_sources WHERE id = ? AND user_id = ?",
+                    (source_id, user_id),
+                )
                 connection.commit()
         except sqlite3.IntegrityError:
             return jsonify({"error": "Delete this source's pay schedules first, or mark the source inactive"}), 409
@@ -317,8 +371,9 @@ def create_app(database_path: str | None = None) -> Flask:
 
     @app.get("/api/pay-schedules")
     def list_pay_schedules():
-        clauses: list[str] = []
-        values: list[Any] = []
+        user_id = required_user_id()
+        clauses: list[str] = ["p.user_id = ?"]
+        values: list[Any] = [user_id]
         month = request.args.get("month", "").strip()
         if month:
             try:
@@ -337,7 +392,8 @@ def create_app(database_path: str | None = None) -> Flask:
         query = f"""
             SELECT p.*, s.source_name, s.income_type, s.payment_frequency
             FROM pay_schedules p
-            JOIN income_sources s ON s.id = p.income_source_id
+            JOIN income_sources s
+              ON s.id = p.income_source_id AND s.user_id = p.user_id
             {where}
             ORDER BY p.expected_pay_date, p.id
         """
@@ -347,40 +403,43 @@ def create_app(database_path: str | None = None) -> Flask:
 
     @app.post("/api/pay-schedules")
     def create_pay_schedule():
+        user_id = required_user_id()
         payload = validate_schedule(request.get_json(silent=True) or {})
         with closing(get_connection()) as connection:
-            if fetch_source(connection, payload["income_source_id"]) is None:
+            if fetch_source(connection, payload["income_source_id"], user_id) is None:
                 return jsonify({"error": "Income source not found"}), 400
             cursor = connection.execute(
                 """
                 INSERT INTO pay_schedules
-                    (income_source_id, expected_pay_date, expected_amount, received_date,
+                    (user_id, income_source_id, expected_pay_date, expected_amount, received_date,
                      actual_amount, status, notes)
-                VALUES (:income_source_id, :expected_pay_date, :expected_amount, :received_date,
-                        :actual_amount, :status, :notes)
+                VALUES (:user_id, :income_source_id, :expected_pay_date, :expected_amount,
+                        :received_date, :actual_amount, :status, :notes)
                 """,
-                payload,
+                {**payload, "user_id": user_id},
             )
             connection.commit()
-            created = fetch_schedule(connection, cursor.lastrowid)
+            created = fetch_schedule(connection, cursor.lastrowid, user_id)
         return jsonify(created), 201
 
     @app.get("/api/pay-schedules/<int:schedule_id>")
     def get_pay_schedule(schedule_id: int):
+        user_id = required_user_id()
         with closing(get_connection()) as connection:
-            schedule = fetch_schedule(connection, schedule_id)
+            schedule = fetch_schedule(connection, schedule_id, user_id)
         if schedule is None:
             return jsonify({"error": "Pay schedule not found"}), 404
         return jsonify(schedule)
 
     @app.put("/api/pay-schedules/<int:schedule_id>")
     def update_pay_schedule(schedule_id: int):
+        user_id = required_user_id()
         with closing(get_connection()) as connection:
-            existing = fetch_schedule(connection, schedule_id)
+            existing = fetch_schedule(connection, schedule_id, user_id)
             if existing is None:
                 return jsonify({"error": "Pay schedule not found"}), 404
             payload = validate_schedule(request.get_json(silent=True) or {}, existing)
-            if fetch_source(connection, payload["income_source_id"]) is None:
+            if fetch_source(connection, payload["income_source_id"], user_id) is None:
                 return jsonify({"error": "Income source not found"}), 400
             connection.execute(
                 """
@@ -393,18 +452,22 @@ def create_app(database_path: str | None = None) -> Flask:
                     status = :status,
                     notes = :notes,
                     updated_at = CURRENT_TIMESTAMP
-                WHERE id = :id
+                WHERE id = :id AND user_id = :user_id
                 """,
-                {**payload, "id": schedule_id},
+                {**payload, "id": schedule_id, "user_id": user_id},
             )
             connection.commit()
-            updated = fetch_schedule(connection, schedule_id)
+            updated = fetch_schedule(connection, schedule_id, user_id)
         return jsonify(updated)
 
     @app.delete("/api/pay-schedules/<int:schedule_id>")
     def delete_pay_schedule(schedule_id: int):
+        user_id = required_user_id()
         with closing(get_connection()) as connection:
-            cursor = connection.execute("DELETE FROM pay_schedules WHERE id = ?", (schedule_id,))
+            cursor = connection.execute(
+                "DELETE FROM pay_schedules WHERE id = ? AND user_id = ?",
+                (schedule_id, user_id),
+            )
             connection.commit()
         if cursor.rowcount == 0:
             return jsonify({"error": "Pay schedule not found"}), 404

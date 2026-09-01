@@ -28,3 +28,26 @@ def test_frontend_health():
     response = app.test_client().get("/health")
     assert response.status_code == 200
     assert response.get_json()["service"] == "student-3-frontend"
+
+
+def test_frontend_proxy_forwards_authorization(monkeypatch):
+    captured = {}
+
+    class FakeResponse:
+        content = b'{"status":"ok"}'
+        status_code = 200
+        headers = {"Content-Type": "application/json"}
+
+    def fake_request(method, url, **kwargs):
+        captured.update({"method": method, "url": url, **kwargs})
+        return FakeResponse()
+
+    monkeypatch.setattr(frontend_module.requests, "request", fake_request)
+    app = frontend_module.create_app("http://backend.test")
+    app.config.update(TESTING=True)
+    response = app.test_client().get(
+        "/api/health",
+        headers={"Authorization": "Bearer valid-token"},
+    )
+    assert response.status_code == 200
+    assert captured["headers"]["Authorization"] == "Bearer valid-token"

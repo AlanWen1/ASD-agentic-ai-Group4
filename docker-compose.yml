@@ -133,10 +133,12 @@ services:
       - "5003:5003"
     environment:
       - DATABASE_SERVICE_URL=http://student-3-database:6003
+      - AUTH_DATABASE_URL=http://finance-database:6000
       - OLLAMA_BASE_URL=http://host.docker.internal:11434/v1
       - OLLAMA_MODEL=qwen2.5:0.5b
       - OLLAMA_TIMEOUT_SECONDS=90
     depends_on:
+      - finance-database
       - student-3-database
     extra_hosts:
       - "host.docker.internal:host-gateway"

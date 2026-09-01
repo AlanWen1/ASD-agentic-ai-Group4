@@ -48,6 +48,8 @@ def create_app(backend_url: str | None = None) -> Flask:
 
         if request.content_type:
             headers["Content-Type"] = request.content_type
+        if request.headers.get("Authorization"):
+            headers["Authorization"] = request.headers["Authorization"]
 
         try:
             upstream = requests.request(
