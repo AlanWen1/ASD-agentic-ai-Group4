@@ -73,10 +73,55 @@ services:
       - bill-backend
     restart: unless-stopped
 
+  
+
+
+  expense-database:
+    build: ./expense-category-tracker/database
+    container_name: expense-tracker-database
+    ports:
+      - "6002:6002"
+    volumes:
+      - expense_data:/data
+    environment:
+      - DATABASE_PATH=/data/expenses.db
+    restart: unless-stopped
+
+  expense-backend:
+    build: ./expense-category-tracker/backend
+    container_name: expense-tracker-backend
+    ports:
+      - "5002:5002"
+    environment:
+      - DATABASE_URL=http://expense-database:6002
+      - OLLAMA_URL=http://host.docker.internal:11434
+      - OLLAMA_MODEL=qwen2.5:0.5b
+    depends_on:
+      - expense-database
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  expense-frontend:
+    build: ./expense-category-tracker/frontend
+    container_name: expense-tracker-frontend
+    ports:
+      - "3002:3002"
+    environment:
+      - BACKEND_URL=http://expense-backend:5002
+    depends_on:
+      - expense-backend
+    restart: unless-stopped
+
 volumes:
   finance_data:
     name: finance-application-finance-data
 
   bill_data:
     name: finance-application-bill-data
+
+  expense_data:
+    name: finance-application-expense-data
+
+
     
