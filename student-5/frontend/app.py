@@ -1,4 +1,4 @@
-from flask import Flask, send_from_directory, request
+from flask import Flask, render_template, request
 import requests
 import os
 
@@ -12,7 +12,7 @@ BACKEND_API_URL = os.getenv(
 
 @app.route("/")
 def index():
-    return send_from_directory(".", "index.html")
+    return render_template("index.html")
 
 
 def render_goals():
@@ -27,8 +27,9 @@ def render_goals():
 
     for goal in goals:
         html += f"""
-        <div>
+        <div class="goal-card">
             <h3>{goal["goal_name"]}</h3>
+
             <p>Target: ${goal["target_amount"]:.2f}</p>
             <p>Saved: ${goal["current_amount"]:.2f}</p>
             <p>Progress: {goal["progress_percentage"]:.2f}%</p>
@@ -94,6 +95,7 @@ def render_goals():
             </details>
 
             <button
+                class="danger"
                 hx-delete="/goals/{goal["goal_id"]}"
                 hx-target="#goals"
                 hx-swap="innerHTML">
