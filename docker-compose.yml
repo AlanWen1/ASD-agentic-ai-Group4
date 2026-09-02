@@ -73,6 +73,24 @@ services:
       - bill-backend
     restart: unless-stopped
 
+  savings-database:
+    build: ./student-5/database
+    container_name: savings-goal-database
+    ports:
+      - "6005:6005"
+    restart: unless-stopped
+
+  savings-backend:
+    build: ./student-5/backend
+    container_name: savings-goal-backend
+    ports:
+      - "5005:5005"
+    environment:
+      - DATABASE_API_URL=http://savings-database:6005
+      - OLLAMA_API_URL=http://host.docker.internal:11434/api/generate
+      - OLLAMA_MODEL=qwen2.5:0.5b
+    depends_on:
+      - savings-database
   expense-database:
     build: ./expense-category-tracker/database
     container_name: expense-tracker-database
@@ -101,6 +119,15 @@ services:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped
 
+  savings-frontend:
+    build: ./student-5/frontend
+    container_name: savings-goal-frontend
+    ports:
+      - "3005:3005"
+    environment:
+      - BACKEND_API_URL=http://savings-backend:5005
+    depends_on:
+      - savings-backend
   expense-frontend:
     build: ./expense-category-tracker/frontend
     container_name: expense-tracker-frontend
