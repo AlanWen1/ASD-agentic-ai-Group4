@@ -1,0 +1,24 @@
+services:
+  budget-backend:
+    build: ./student-1-budget/backend
+    ports:
+      - "5001:5001"
+    volumes:
+      - ./student-1-budget/database:/app/database
+    environment:
+      - DATABASE_PATH=/app/database/budget_manager.db
+    networks:
+      - budget-network
+
+  budget-frontend:
+    build: ./student-1-budget/frontend
+    ports:
+      - "5000:5000"
+    depends_on:
+      - budget-backend
+    networks:
+      - budget-network
+
+networks:
+  budget-network:
+    driver: bridge

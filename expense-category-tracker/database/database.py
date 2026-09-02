@@ -1,7 +1,7 @@
 import sqlite3
 import os
 
-DB_PATH = os.environ.get("DB_PATH", "expenses.db")
+DB_PATH = os.environ.get("DATABASE_PATH", "expenses.db")
 
 
 def get_db():
@@ -12,8 +12,7 @@ def get_db():
 
 def init_db():
     conn = get_db()
-    cur = conn.cursor()
-    cur.execute(
+    conn.execute(
         """
         CREATE TABLE IF NOT EXISTS categories (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -22,7 +21,7 @@ def init_db():
         )
         """
     )
-    cur.execute(
+    conn.execute(
         """
         CREATE TABLE IF NOT EXISTS expenses (
             id INTEGER PRIMARY KEY AUTOINCREMENT,

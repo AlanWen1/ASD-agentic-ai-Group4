@@ -59,10 +59,16 @@ def calculate_payment_dates(start: date, frequency: str, count: int) -> list[dat
     raise ValueError("Unsupported payment frequency")
 
 
-def create_app(database_url: str | None = None) -> Flask:
+def create_app(
+    database_url: str | None = None,
+    auth_url: str | None = None,
+) -> Flask:
     app = Flask(__name__)
     app.config["DATABASE_SERVICE_URL"] = (
         database_url or os.getenv("DATABASE_SERVICE_URL", "http://student-3-database:6003")
+    ).rstrip("/")
+    app.config["AUTH_DATABASE_URL"] = (
+        auth_url or os.getenv("AUTH_DATABASE_URL", "http://finance-database:6000")
     ).rstrip("/")
 
     def database_request(method: str, path: str, **kwargs) -> requests.Response:
@@ -87,8 +93,36 @@ def create_app(database_url: str | None = None) -> Flask:
             payload = {"error": "Database service returned invalid JSON"}
         return payload, response.status_code
 
-    def forward(method: str, path: str):
-        kwargs: dict[str, Any] = {"params": request.args}
+    def current_user():
+        header = request.headers.get("Authorization", "")
+        token = header[7:].strip() if header.lower().startswith("bearer ") else ""
+        if not token:
+            return None, (jsonify({"error": "Authentication required"}), 401)
+
+        try:
+            response = requests.request(
+                "GET",
+                f"{app.config['AUTH_DATABASE_URL']}/sessions/{token}",
+                timeout=10,
+            )
+        except requests.RequestException:
+            return None, (jsonify({"error": "Authentication service unavailable"}), 503)
+
+        if response.status_code != 200:
+            return None, (jsonify({"error": "Invalid or expired session"}), 401)
+        try:
+            user = response.json()["user"]
+        except (KeyError, TypeError, ValueError):
+            return None, (jsonify({"error": "Authentication service returned invalid data"}), 503)
+        return user, None
+
+    def user_params(user_id: int, extra: Any = None) -> dict[str, Any]:
+        params = dict(extra or {})
+        params["user_id"] = user_id
+        return params
+
+    def forward(method: str, path: str, user_id: int):
+        kwargs: dict[str, Any] = {"params": user_params(user_id, request.args)}
         if request.is_json:
             kwargs["json"] = request.get_json(silent=True)
         payload, status = database_json(method, path, **kwargs)
@@ -96,13 +130,15 @@ def create_app(database_url: str | None = None) -> Flask:
             return Response(status=204)
         return jsonify(payload), status
 
-    def build_summary(month: str) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    def build_summary(month: str, user_id: int) -> tuple[dict[str, Any], list[dict[str, Any]]]:
         schedule_payload, schedule_status = database_json(
-            "GET", "/api/pay-schedules", params={"month": month}
+            "GET", "/api/pay-schedules", params={"month": month, "user_id": user_id}
         )
         if schedule_status != 200:
             raise RuntimeError(schedule_payload.get("error", "Could not load pay schedules"))
-        source_payload, source_status = database_json("GET", "/api/income-sources")
+        source_payload, source_status = database_json(
+            "GET", "/api/income-sources", params={"user_id": user_id}
+        )
         if source_status != 200:
             raise RuntimeError(source_payload.get("error", "Could not load income sources"))
 
@@ -179,28 +215,46 @@ def create_app(database_url: str | None = None) -> Flask:
 
     @app.route("/api/income-sources", methods=["GET", "POST"])
     def income_sources():
-        return forward(request.method, "/api/income-sources")
+        user, error = current_user()
+        if error:
+            return error
+        return forward(request.method, "/api/income-sources", user["id"])
 
     @app.route("/api/income-sources/<int:source_id>", methods=["GET", "PUT", "DELETE"])
     def income_source(source_id: int):
-        return forward(request.method, f"/api/income-sources/{source_id}")
+        user, error = current_user()
+        if error:
+            return error
+        return forward(request.method, f"/api/income-sources/{source_id}", user["id"])
 
     @app.route("/api/pay-schedules", methods=["GET", "POST"])
     def pay_schedules():
-        return forward(request.method, "/api/pay-schedules")
+        user, error = current_user()
+        if error:
+            return error
+        return forward(request.method, "/api/pay-schedules", user["id"])
 
     @app.route("/api/pay-schedules/<int:schedule_id>", methods=["GET", "PUT", "DELETE"])
     def pay_schedule(schedule_id: int):
-        return forward(request.method, f"/api/pay-schedules/{schedule_id}")
+        user, error = current_user()
+        if error:
+            return error
+        return forward(request.method, f"/api/pay-schedules/{schedule_id}", user["id"])
 
     @app.get("/api/dashboard")
     def dashboard():
+        user, error = current_user()
+        if error:
+            return error
         selected_month = parse_month(request.args.get("month"))
-        summary, schedules = build_summary(selected_month)
+        summary, schedules = build_summary(selected_month, user["id"])
         return jsonify({"summary": summary, "schedules": schedules})
 
     @app.post("/api/pay-schedules/generate")
     def generate_pay_schedules():
+        user, error = current_user()
+        if error:
+            return error
         payload = request.get_json(silent=True) or {}
         try:
             source_id = int(payload.get("income_source_id"))
@@ -214,7 +268,11 @@ def create_app(database_url: str | None = None) -> Flask:
         except ValueError as exc:
             raise ValueError("start_date must use YYYY-MM-DD format") from exc
 
-        source, source_status = database_json("GET", f"/api/income-sources/{source_id}")
+        source, source_status = database_json(
+            "GET",
+            f"/api/income-sources/{source_id}",
+            params={"user_id": user["id"]},
+        )
         if source_status != 200:
             return jsonify(source), source_status
         dates = calculate_payment_dates(start, source["payment_frequency"], count)
@@ -223,6 +281,7 @@ def create_app(database_url: str | None = None) -> Flask:
             schedule, status = database_json(
                 "POST",
                 "/api/pay-schedules",
+                params={"user_id": user["id"]},
                 json={
                     "income_source_id": source_id,
                     "expected_pay_date": expected_date.isoformat(),
@@ -238,14 +297,20 @@ def create_app(database_url: str | None = None) -> Flask:
 
     @app.get("/api/ai/status")
     def ai_status():
+        _user, error = current_user()
+        if error:
+            return error
         result = check_ollama()
         return jsonify(result), (200 if result["available"] else 503)
 
     @app.post("/api/ai/analyse")
     def analyse_income():
+        user, error = current_user()
+        if error:
+            return error
         payload = request.get_json(silent=True) or {}
         selected_month = parse_month(payload.get("month"))
-        summary, schedules = build_summary(selected_month)
+        summary, schedules = build_summary(selected_month, user["id"])
         question = (
             "Summarise my income pattern for the selected month. Identify the main sources, "
             "received versus expected income, outstanding or late payments, and any clear variance."
@@ -255,6 +320,9 @@ def create_app(database_url: str | None = None) -> Flask:
 
     @app.post("/api/ai/chat")
     def ai_chat():
+        user, error = current_user()
+        if error:
+            return error
         payload = request.get_json(silent=True) or {}
         question = str(payload.get("message", "")).strip()
         if not question:
@@ -262,7 +330,7 @@ def create_app(database_url: str | None = None) -> Flask:
         if len(question) > 2000:
             raise ValueError("message must be 2000 characters or fewer")
         selected_month = parse_month(payload.get("month"))
-        summary, schedules = build_summary(selected_month)
+        summary, schedules = build_summary(selected_month, user["id"])
         history = payload.get("history", [])
         if not isinstance(history, list):
             raise ValueError("history must be a list")

@@ -60,9 +60,31 @@ function updateBillTrackerLink() {
     ? `http://localhost:3004/?token=${encodeURIComponent(currentToken)}`
     : "http://localhost:3004/";
 }
+function updateExpenseTrackerLink() {
+  const link = $("expense-tracker-link");
+  if (!link) return;
+  const currentToken = token();
+  link.href = currentToken
+    ? `http://localhost:3002/?token=${encodeURIComponent(currentToken)}`
+    : "http://localhost:3002/";
+}
+
+function updateIncomeManagerLink() {
+  const link = $("income-manager-link");
+  if (!link) return;
+
+  const currentToken = token();
+
+  link.href = currentToken
+    ? `http://localhost:3003/?token=${encodeURIComponent(currentToken)}`
+    : "http://localhost:3003/";
+}
 
 function showHome() {
   updateBillTrackerLink();
+  updateExpenseTrackerLink();
+  updateIncomeManagerLink();
+
   $("auth-view").hidden = true;
   $("home-view").hidden = false;
   loadHome();

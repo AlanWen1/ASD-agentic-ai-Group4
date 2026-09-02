@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign in required</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <main style="max-width:640px;margin:12vh auto;padding:32px;font-family:system-ui;text-align:center">
+        <h1>Sign in required</h1>
+        {% if error %}<p style="color:#b3261e">{{ error }}</p>{% endif %}
+        <p>Open the Expense &amp; Category Manager from the Finance Application home page.</p>
+        <a href="{{ finance_url }}" style="display:inline-block;margin-top:12px;padding:10px 20px;background:#246bfd;color:white;border-radius:10px;text-decoration:none">
+            Return to Finance Application
+        </a>
+    </main>
+</body>
+</html>

@@ -17,10 +17,15 @@ def make_client(tmp_path):
     return app.test_client()
 
 
+def user_path(path, user_id=1):
+    separator = "&" if "?" in path else "?"
+    return f"{path}{separator}user_id={user_id}"
+
+
 def test_seed_data_has_at_least_ten_rows_per_table(tmp_path):
     client = make_client(tmp_path)
-    sources = client.get("/api/income-sources").get_json()
-    schedules = client.get("/api/pay-schedules").get_json()
+    sources = client.get(user_path("/api/income-sources")).get_json()
+    schedules = client.get(user_path("/api/pay-schedules")).get_json()
     assert sources["count"] >= 10
     assert schedules["count"] >= 10
 
@@ -28,7 +33,7 @@ def test_seed_data_has_at_least_ten_rows_per_table(tmp_path):
 def test_income_source_crud(tmp_path):
     client = make_client(tmp_path)
     created = client.post(
-        "/api/income-sources",
+        user_path("/api/income-sources"),
         json={
             "source_name": "Test Contract",
             "income_type": "Freelance",
@@ -40,22 +45,25 @@ def test_income_source_crud(tmp_path):
     assert created.status_code == 201
     source_id = created.get_json()["id"]
 
-    fetched = client.get(f"/api/income-sources/{source_id}")
+    fetched = client.get(user_path(f"/api/income-sources/{source_id}"))
     assert fetched.get_json()["source_name"] == "Test Contract"
 
-    updated = client.put(f"/api/income-sources/{source_id}", json={"standard_amount": 300})
+    updated = client.put(
+        user_path(f"/api/income-sources/{source_id}"),
+        json={"standard_amount": 300},
+    )
     assert updated.status_code == 200
     assert updated.get_json()["standard_amount"] == 300
 
-    deleted = client.delete(f"/api/income-sources/{source_id}")
+    deleted = client.delete(user_path(f"/api/income-sources/{source_id}"))
     assert deleted.status_code == 204
-    assert client.get(f"/api/income-sources/{source_id}").status_code == 404
+    assert client.get(user_path(f"/api/income-sources/{source_id}")).status_code == 404
 
 
 def test_pay_schedule_crud_and_validation(tmp_path):
     client = make_client(tmp_path)
     source = client.post(
-        "/api/income-sources",
+        user_path("/api/income-sources"),
         json={
             "source_name": "Test Salary",
             "income_type": "Salary",
@@ -65,7 +73,7 @@ def test_pay_schedule_crud_and_validation(tmp_path):
         },
     ).get_json()
     invalid = client.post(
-        "/api/pay-schedules",
+        user_path("/api/pay-schedules"),
         json={
             "income_source_id": source["id"],
             "expected_pay_date": "2026-08-28",
@@ -76,7 +84,7 @@ def test_pay_schedule_crud_and_validation(tmp_path):
     assert invalid.status_code == 400
 
     created = client.post(
-        "/api/pay-schedules",
+        user_path("/api/pay-schedules"),
         json={
             "income_source_id": source["id"],
             "expected_pay_date": "2026-08-28",
@@ -89,7 +97,7 @@ def test_pay_schedule_crud_and_validation(tmp_path):
     schedule_id = created.get_json()["id"]
 
     updated = client.put(
-        f"/api/pay-schedules/{schedule_id}",
+        user_path(f"/api/pay-schedules/{schedule_id}"),
         json={
             "status": "received",
             "received_date": "2026-08-28",
@@ -98,10 +106,38 @@ def test_pay_schedule_crud_and_validation(tmp_path):
     )
     assert updated.status_code == 200
     assert updated.get_json()["actual_amount"] == 1020
-    assert client.delete(f"/api/pay-schedules/{schedule_id}").status_code == 204
+    assert client.delete(user_path(f"/api/pay-schedules/{schedule_id}")).status_code == 204
 
 
 def test_source_with_schedules_cannot_be_deleted(tmp_path):
     client = make_client(tmp_path)
-    response = client.delete("/api/income-sources/1")
+    response = client.delete(user_path("/api/income-sources/1"))
     assert response.status_code == 409
+
+
+def test_users_cannot_access_each_others_income_sources(tmp_path):
+    client = make_client(tmp_path)
+    created = client.post(
+        user_path("/api/income-sources", user_id=2),
+        json={
+            "source_name": "Second User Salary",
+            "income_type": "Salary",
+            "standard_amount": 800,
+            "payment_frequency": "monthly",
+            "active": True,
+        },
+    )
+    assert created.status_code == 201
+    source_id = created.get_json()["id"]
+
+    assert client.get(
+        user_path(f"/api/income-sources/{source_id}", user_id=2)
+    ).status_code == 200
+    assert client.get(
+        user_path(f"/api/income-sources/{source_id}", user_id=1)
+    ).status_code == 404
+
+    user_two_sources = client.get(
+        user_path("/api/income-sources", user_id=2)
+    ).get_json()
+    assert user_two_sources["count"] == 1

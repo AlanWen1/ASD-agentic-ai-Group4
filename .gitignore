@@ -3,6 +3,10 @@
 .env
 *.db
 *.sqlite3
+.venv/
 venv/
 .vscode/
 node_modules/
+
+*.db
+*.sqlite3

@@ -91,6 +91,30 @@ services:
       - OLLAMA_MODEL=qwen2.5:0.5b
     depends_on:
       - savings-database
+  expense-database:
+    build: ./expense-category-tracker/database
+    container_name: expense-tracker-database
+    ports:
+      - "6002:6002"
+    volumes:
+      - expense_data:/data
+    environment:
+      - DATABASE_PATH=/data/expenses.db
+    restart: unless-stopped
+
+  expense-backend:
+    build: ./expense-category-tracker/backend
+    container_name: expense-tracker-backend
+    ports:
+      - "5002:5002"
+    environment:
+      - AUTH_DATABASE_URL=http://finance-database:6000
+      - DATABASE_URL=http://expense-database:6002
+      - OLLAMA_URL=http://host.docker.internal:11434
+      - OLLAMA_MODEL=qwen2.5:0.5b
+    depends_on:
+      - finance-database
+      - expense-database
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped
@@ -104,6 +128,91 @@ services:
       - BACKEND_API_URL=http://savings-backend:5005
     depends_on:
       - savings-backend
+  expense-frontend:
+    build: ./expense-category-tracker/frontend
+    container_name: expense-tracker-frontend
+    ports:
+      - "3002:3002"
+    environment:
+      - BACKEND_URL=http://expense-backend:5002
+    depends_on:
+      - expense-backend
+    restart: unless-stopped
+
+  student-3-database:
+    build: ./student-3/database
+    container_name: student-3-database
+    ports:
+      - "6003:6003"
+    volumes:
+      - student_3_data:/data
+    environment:
+      - DATABASE_PATH=/data/student-3-income.db
+    restart: unless-stopped
+
+  student-3-backend:
+    build: ./student-3/backend
+    container_name: student-3-backend
+    ports:
+      - "5003:5003"
+    environment:
+      - DATABASE_SERVICE_URL=http://student-3-database:6003
+      - AUTH_DATABASE_URL=http://finance-database:6000
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434/v1
+      - OLLAMA_MODEL=qwen2.5:0.5b
+      - OLLAMA_TIMEOUT_SECONDS=90
+    depends_on:
+      - finance-database
+      - student-3-database
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  student-3-frontend:
+    build: ./student-3/frontend
+    container_name: student-3-frontend
+    ports:
+      - "3003:3003"
+    environment:
+      - BACKEND_SERVICE_URL=http://student-3-backend:5003
+    depends_on:
+      - student-3-backend
+    restart: unless-stopped
+
+  budget-database-init:
+    build: ./student-1-budget/database
+    container_name: student-1-budget-database-init
+    volumes:
+      - ./student-1-budget/database:/app/database
+    restart: "no"
+
+  budget-backend:
+    build: ./student-1-budget/backend
+    container_name: student-1-budget-backend
+    ports:
+      - "5001:5001"
+    volumes:
+      - ./student-1-budget/database:/app/database
+    environment:
+      - DATABASE_PATH=/app/database/budget_manager.db
+      - OLLAMA_URL=http://host.docker.internal:11434
+      - OLLAMA_MODEL=qwen2.5:0.5b
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      budget-database-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  budget-frontend:
+    build: ./student-1-budget/frontend
+    container_name: student-1-budget-frontend
+    ports:
+      - "3001:5000"
+    environment:
+      - BACKEND_URL=http://budget-backend:5001
+    depends_on:
+      - budget-backend
     restart: unless-stopped
 
 volumes:
@@ -112,4 +221,9 @@ volumes:
 
   bill_data:
     name: finance-application-bill-data
-    
+
+  expense_data:
+    name: finance-application-expense-data
+
+  student_3_data:
+    name: finance-application-student-3-data
