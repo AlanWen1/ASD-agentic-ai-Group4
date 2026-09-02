@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Budget Manager</title>
+<link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+<header class="app-header">
+  <h1>Budget Manager</h1>
+  <div class="user-switch">
+    <label for="userIdInput">User ID</label>
+    <input type="text" id="userIdInput" value="test01" />
+    <button id="userIdApply">Apply</button>
+  </div>
+</header>
+
+<div class="app-layout">
+
+  <aside class="side-column">
+    <section class="panel compact-panel" id="createBudgetPanel">
+      <h2>Create Budget</h2>
+      <form id="createBudgetForm">
+        <div class="form-row">
+          <label for="budgetMonth">Month &amp; Year</label>
+          <input type="month" id="budgetMonth" required />
+        </div>
+        <div class="form-row toggle-row">
+          <label for="status">Archived</label>
+          <label class="switch">
+            <input type="checkbox" id="status" />
+            <span class="slider"></span>
+          </label>
+        </div>
+        <button type="submit">Create Budget</button>
+      </form>
+      <p class="form-message" id="createBudgetMessage"></p>
+    </section>
+  </aside>
+
+  <main>
+    <section class="panel" id="budgetsPanel">
+      <h2>Your Budgets</h2>
+      <button id="refreshBudgets">Refresh</button>
+      <div id="budgetsList" class="budgets-list"></div>
+    </section>
+
+    <section class="panel hidden" id="categoriesPanel">
+      <h2>Categories for Budget <span id="activeBudgetLabel"></span></h2>
+      <button id="closeCategoriesPanel">Close</button>
+      <form id="createCategoryForm">
+        <div class="form-row">
+          <label for="categoryName">Category name</label>
+          <input type="text" id="categoryName" required />
+        </div>
+        <div class="form-row">
+          <label for="allocatedAmount">Allocated amount</label>
+          <input type="number" id="allocatedAmount" min="0" step="0.01" required />
+        </div>
+        <div class="form-row">
+          <label for="categoryNotes">Notes</label>
+          <input type="text" id="categoryNotes" />
+        </div>
+        <button type="submit">Add Category</button>
+      </form>
+      <p class="form-message" id="createCategoryMessage"></p>
+      <table class="categories-table">
+        <thead>
+          <tr><th>Category</th><th>Allocated</th><th>Notes</th><th>Actions</th></tr>
+        </thead>
+        <tbody id="categoriesTableBody"></tbody>
+      </table>
+    </section>
+  </main>
+
+  <aside class="chat-sidebar panel" id="chatboxPanel">
+    <h2>Budget Assistant</h2>
+    <div id="chatMessages" class="chat-messages"></div>
+    <form id="chatForm">
+      <div class="form-row">
+        <input type="text" id="chatInput" placeholder="e.g. Review my August budget for unrealistic allocations" required />
+      </div>
+      <button type="submit">Send</button>
+    </form>
+    <p class="form-message" id="chatMessage"></p>
+  </aside>
+
+</div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
