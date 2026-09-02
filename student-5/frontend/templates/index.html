@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Savings Goal Manager</title>
+
+    <link rel="stylesheet" href="/static/styles.css">
+    <script src="https://unpkg.com/htmx.org@2.0.7"></script>
+</head>
+
+<body>
+    <header>
+        <h1>Savings Goal Manager</h1>
+        <p>Create and manage your savings goals.</p>
+    </header>
+
+    <main>
+        <section class="panel">
+            <h2>Create Savings Goal</h2>
+
+            <form
+                hx-post="/goals"
+                hx-target="#goals"
+                hx-swap="innerHTML"
+                hx-on::after-request="if(event.detail.successful) this.reset()">
+
+                <label for="user_id">User ID:</label>
+                <input type="number" id="user_id" name="user_id" required>
+
+                <label for="goal_name">Goal Name:</label>
+                <input type="text" id="goal_name" name="goal_name" required>
+
+                <label for="target_amount">Target Amount:</label>
+                <input
+                    type="number"
+                    id="target_amount"
+                    name="target_amount"
+                    step="0.01"
+                    required>
+
+                <label for="current_amount">Current Amount:</label>
+                <input
+                    type="number"
+                    id="current_amount"
+                    name="current_amount"
+                    step="0.01"
+                    required>
+
+                <label for="target_date">Target Date:</label>
+                <input
+                    type="date"
+                    id="target_date"
+                    name="target_date"
+                    required>
+
+                <button type="submit">Create Goal</button>
+            </form>
+        </section>
+
+        <section class="panel">
+            <h2>Your Savings Goals</h2>
+
+            <button
+                hx-get="/goals"
+                hx-target="#goals"
+                hx-swap="innerHTML">
+                Load Savings Goals
+            </button>
+
+            <div id="goals">
+                <p>No savings goals loaded yet.</p>
+            </div>
+        </section>
+    </main>
+</body>
+</html>
