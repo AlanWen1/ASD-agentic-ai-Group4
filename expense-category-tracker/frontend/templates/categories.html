@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="card">
+<section class="panel">
     <h2>Add Category</h2>
     <form hx-post="/categories" hx-target="#category-list-wrapper" hx-swap="outerHTML">
         <label>Name
@@ -12,11 +12,11 @@
                 <option value="Discretionary">Discretionary</option>
             </select>
         </label>
-        <button type="submit" class="primary">Add Category</button>
+        <button type="submit">Add Category</button>
     </form>
 </section>
 
-<section class="card">
+<section class="panel">
     <h2>All Categories</h2>
     {% include "partials/category_list.html" %}
 </section>

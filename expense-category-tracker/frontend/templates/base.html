@@ -8,16 +8,18 @@
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-    <header>
-        <h1>Expense &amp; Category Manager</h1>
-        <nav>
-            <a href="/">Expenses</a>
-            <a href="/categories">Categories</a>
-            <a href="/logout" style="float:right">Log out</a>
-        </nav>
-    </header>
-    <main>
+    <div class="shell">
+        <div class="topbar">
+            <div>
+                <h1>Expense &amp; Category Manager</h1>
+            </div>
+            <nav style="display:flex;gap:16px;align-items:center">
+                <a href="/" style="color:white;text-decoration:none;font-weight:600;opacity:.9">Expenses</a>
+                <a href="/categories" style="color:white;text-decoration:none;font-weight:600;opacity:.9">Categories</a>
+                <a href="/logout" style="color:white;text-decoration:none;font-weight:600;opacity:.9">Log out</a>
+            </nav>
+        </div>
         {% block content %}{% endblock %}
-    </main>
+    </div>
 </body>
 </html>

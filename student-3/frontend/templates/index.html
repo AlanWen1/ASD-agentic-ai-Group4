@@ -6,6 +6,7 @@
   <meta name="description" content="Manage income sources, pay schedules, received payments, and AI income summaries.">
   <title>Income & Pay Schedule Manager</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='theme.css') }}">
 </head>
 <body>
   <header class="topbar">
@@ -21,7 +22,7 @@
         <span>Dashboard month</span>
         <input id="monthPicker" type="month" value="2026-08">
       </label>
-      <button class="button button-secondary" id="refreshButton" type="button">Refresh</button>
+      <button class="secondary" id="refreshButton" type="button">Refresh</button>
     </div>
   </header>
 
@@ -60,7 +61,7 @@
               <h2>Income sources</h2>
               <p class="subtle">Manage the recurring or one-off sources that produce your income.</p>
             </div>
-            <button class="button button-primary" type="button" id="newSourceButton">+ Add source</button>
+            <button id="newSourceButton">+ Add source</button>
           </div>
 
           <form id="sourceForm" class="editor-form" hidden>
@@ -95,8 +96,8 @@
               <label class="checkbox-label"><input id="sourceActive" type="checkbox" checked> Active income source</label>
             </div>
             <div class="form-actions">
-              <button class="button button-primary" type="submit">Save source</button>
-              <button class="button button-ghost" type="button" data-close="sourceForm">Cancel</button>
+              <button type="submit">Save source</button>
+              <button class="secondary" type="button" data-close="sourceForm">Cancel</button>
             </div>
           </form>
 
@@ -116,8 +117,8 @@
               <p class="subtle">Track expected dates and compare them with payments actually received.</p>
             </div>
             <div class="button-row">
-              <button class="button button-secondary" type="button" id="generateButton">Generate dates</button>
-              <button class="button button-primary" type="button" id="newScheduleButton">+ Add payment</button>
+              <button class="secondary" type="button" id="generateButton">Generate dates</button>
+              <button id="newScheduleButton">+ Add payment</button>
             </div>
           </div>
 
@@ -133,8 +134,8 @@
               <label>Occurrences<input id="generateCount" type="number" min="1" max="24" value="3" required></label>
             </div>
             <div class="form-actions">
-              <button class="button button-primary" type="submit">Generate schedules</button>
-              <button class="button button-ghost" type="button" data-close="generateForm">Cancel</button>
+              <button type="submit">Generate schedules</button>
+              <button class="secondary" type="button" data-close="generateForm">Cancel</button>
             </div>
           </form>
 
@@ -159,8 +160,8 @@
               <label class="span-all">Notes<input id="scheduleNotes" maxlength="300" placeholder="Optional payment note"></label>
             </div>
             <div class="form-actions">
-              <button class="button button-primary" type="submit">Save payment</button>
-              <button class="button button-ghost" type="button" data-close="scheduleForm">Cancel</button>
+              <button type="submit">Save payment</button>
+              <button class="secondary" type="button" data-close="scheduleForm">Cancel</button>
             </div>
           </form>
 
@@ -195,8 +196,8 @@
           <label class="sr-only" for="chatInput">Ask the AI Income Assistant</label>
           <textarea id="chatInput" rows="3" maxlength="2000" required placeholder="Ask: When is my next expected payment?"></textarea>
           <div class="chat-actions">
-            <button id="analyseButton" class="button button-secondary" type="button">Analyse month</button>
-            <button id="sendChatButton" class="button button-primary" type="submit">Send</button>
+            <button id="analyseButton" class="secondary" type="button">Analyse month</button>
+            <button id="sendChatButton" type="submit">Send</button>
           </div>
         </form>
         <p class="disclaimer">Educational budgeting prototype. No financial, investment, tax, or legal advice.</p>

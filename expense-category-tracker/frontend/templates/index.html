@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="card">
+<section class="panel">
     <h2>Add Expense</h2>
     <form hx-post="/expenses" hx-target="#expense-list-wrapper" hx-swap="outerHTML">
         <label>Amount
@@ -25,9 +25,9 @@
             </select>
         </label>
 
-        <div class="ai-row">
+        <div style="display:flex;align-items:center;gap:12px;margin:12px 0">
             <button type="button"
-                    class="ai-button"
+                    class="secondary"
                     hx-post="/expenses/suggest-category"
                     hx-include="#description,#merchant"
                     hx-target="#ai-suggestion"
@@ -37,11 +37,11 @@
             <span id="ai-suggestion"></span>
         </div>
 
-        <button type="submit" class="primary">Add Expense</button>
+        <button type="submit">Add Expense</button>
     </form>
 </section>
 
-<section class="card">
+<section class="panel">
     <h2>All Expenses</h2>
     {% include "partials/expense_list.html" %}
 </section>

@@ -2,7 +2,8 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-COPY . .
+COPY student-5/frontend/. .
+COPY shared/theme.css ./static/theme.css
 
 RUN pip install --no-cache-dir flask requests
 

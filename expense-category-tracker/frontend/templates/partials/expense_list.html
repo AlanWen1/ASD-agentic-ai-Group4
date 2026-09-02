@@ -1,4 +1,5 @@
 <div id="expense-list-wrapper">
+<div class="table-wrap">
 <table id="expense-list">
     <thead>
         <tr>
@@ -18,14 +19,16 @@
                 <button hx-delete="/expenses/{{ e.id }}"
                         hx-target="#expense-list-wrapper"
                         hx-swap="outerHTML"
-                        hx-confirm="Delete this expense?">
+                        hx-confirm="Delete this expense?"
+                        class="danger">
                     Delete
                 </button>
             </td>
         </tr>
         {% else %}
-        <tr><td colspan="6">No expenses yet — add one above.</td></tr>
+        <tr><td colspan="6" class="empty">No expenses yet — add one above.</td></tr>
         {% endfor %}
     </tbody>
 </table>
+</div>
 </div>

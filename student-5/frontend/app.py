@@ -27,20 +27,33 @@ def render_goals():
 
     for goal in goals:
         html += f"""
-        <div>
+        <div class="panel">
             <h3>{goal["goal_name"]}</h3>
-            <p>Target: ${goal["target_amount"]:.2f}</p>
-            <p>Saved: ${goal["current_amount"]:.2f}</p>
-            <p>Progress: {goal["progress_percentage"]:.2f}%</p>
-            <p>Remaining: ${goal["remaining_amount"]:.2f}</p>
+
+            <div class="cards">
+                <div class="stat"><span>Target</span><strong>${goal["target_amount"]:.2f}</strong></div>
+                <div class="stat"><span>Saved</span><strong>${goal["current_amount"]:.2f}</strong></div>
+                <div class="stat"><span>Progress</span><strong>{goal["progress_percentage"]:.2f}%</strong></div>
+                <div class="stat"><span>Remaining</span><strong>${goal["remaining_amount"]:.2f}</strong></div>
+            </div>
             <p>Required monthly contribution: ${goal["required_monthly_contribution"]:.2f}</p>
 
-            <button
-                hx-get="/goals/{goal["goal_id"]}/explanation"
-                hx-target="#explanation-{goal["goal_id"]}"
-                hx-swap="innerHTML">
-                AI Explanation
-            </button>
+            <div class="actions">
+                <button
+                    class="secondary"
+                    hx-get="/goals/{goal["goal_id"]}/explanation"
+                    hx-target="#explanation-{goal["goal_id"]}"
+                    hx-swap="innerHTML">
+                    AI Explanation
+                </button>
+                <button
+                    class="danger"
+                    hx-delete="/goals/{goal["goal_id"]}"
+                    hx-target="#goals"
+                    hx-swap="innerHTML">
+                    Delete
+                </button>
+            </div>
 
             <div id="explanation-{goal["goal_id"]}"></div>
 
@@ -89,16 +102,11 @@ def render_goals():
                         value="{goal["target_date"]}"
                         required>
 
-                    <button type="submit">Save Changes</button>
+                    <div class="form-actions">
+                        <button type="submit">Save Changes</button>
+                    </div>
                 </form>
             </details>
-
-            <button
-                hx-delete="/goals/{goal["goal_id"]}"
-                hx-target="#goals"
-                hx-swap="innerHTML">
-                Delete
-            </button>
         </div>
         """
 

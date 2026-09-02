@@ -7,13 +7,14 @@
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-    <main style="max-width:640px;margin:12vh auto;padding:32px;font-family:system-ui;text-align:center">
-        <h1>Sign in required</h1>
-        {% if error %}<p style="color:#b3261e">{{ error }}</p>{% endif %}
-        <p>Open the Expense &amp; Category Manager from the Finance Application home page.</p>
-        <a href="{{ finance_url }}" style="display:inline-block;margin-top:12px;padding:10px 20px;background:#246bfd;color:white;border-radius:10px;text-decoration:none">
-            Return to Finance Application
-        </a>
-    </main>
+    <div class="shell">
+        <div class="auth-card" style="text-align:center">
+            <p class="brand">Expense &amp; Category Manager</p>
+            <h1>Sign in required</h1>
+            {% if error %}<p class="error">{{ error }}</p>{% endif %}
+            <p>Open the Expense &amp; Category Manager from the Finance Application home page.</p>
+            <a href="{{ finance_url }}" class="button-link" style="margin-top:12px">Return to Finance Application</a>
+        </div>
+    </div>
 </body>
 </html>
