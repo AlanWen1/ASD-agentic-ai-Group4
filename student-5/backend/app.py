@@ -3,12 +3,19 @@ import requests
 from datetime import date
 import os
 
+from agent import run_agent_loop
+
 app = Flask(__name__)
 
 DATABASE_API_URL = os.getenv(
     "DATABASE_API_URL",
     "http://127.0.0.1:6005"
-)
+).rstrip("/")
+
+AUTH_DATABASE_URL = os.getenv(
+    "AUTH_DATABASE_URL",
+    "http://finance-database:6000"
+).rstrip("/")
 
 OLLAMA_API_URL = os.getenv(
     "OLLAMA_API_URL",
@@ -21,71 +28,75 @@ OLLAMA_MODEL = os.getenv(
 )
 
 
-@app.route("/goals", methods=["GET"])
-def get_goals():
-    response = requests.get(f"{DATABASE_API_URL}/goals")
+def current_user():
+    header = request.headers.get("Authorization", "")
 
-    if response.status_code != 200:
-        return jsonify({"error": "Could not retrieve savings goals"}), 500
+    token = (
+        header[7:].strip()
+        if header.lower().startswith("bearer ")
+        else ""
+    )
 
-    goals = response.json()
-
-    for goal in goals:
-        target_amount = goal["target_amount"]
-        current_amount = goal["current_amount"]
-
-        if target_amount > 0:
-            progress_percentage = (current_amount / target_amount) * 100
-        else:
-            progress_percentage = 0
-
-        remaining_amount = max(target_amount - current_amount, 0)
-
-        target_date = date.fromisoformat(goal["target_date"])
-        today = date.today()
-
-        months_remaining = (
-            (target_date.year - today.year) * 12
-            + (target_date.month - today.month)
+    if not token:
+        return None, (
+            jsonify({"error": "Authentication required"}),
+            401
         )
 
-        if months_remaining > 0:
-            required_monthly_contribution = remaining_amount / months_remaining
-        else:
-            required_monthly_contribution = remaining_amount
-
-        goal["progress_percentage"] = round(progress_percentage, 2)
-        goal["remaining_amount"] = round(remaining_amount, 2)
-        goal["required_monthly_contribution"] = round(
-            required_monthly_contribution, 2
+    try:
+        response = requests.get(
+            f"{AUTH_DATABASE_URL}/sessions/{token}",
+            timeout=10
+        )
+    except requests.RequestException:
+        return None, (
+            jsonify({
+                "error": "Authentication service unavailable"
+            }),
+            503
         )
 
-    return jsonify(goals)
-
-
-@app.route("/goals/<int:goal_id>", methods=["GET"])
-def get_goal(goal_id):
-    response = requests.get(f"{DATABASE_API_URL}/goals/{goal_id}")
-
-    if response.status_code == 404:
-        return jsonify({"error": "Savings goal not found"}), 404
-
     if response.status_code != 200:
-        return jsonify({"error": "Could not retrieve savings goal"}), 500
+        return None, (
+            jsonify({
+                "error": "Invalid or expired session"
+            }),
+            401
+        )
 
-    goal = response.json()
+    try:
+        user = response.json()["user"]
+    except (KeyError, TypeError, ValueError):
+        return None, (
+            jsonify({
+                "error": "Authentication service returned invalid data"
+            }),
+            503
+        )
 
+    return user, None
+
+
+def calculate_goal_fields(goal):
     target_amount = goal["target_amount"]
     current_amount = goal["current_amount"]
 
     if target_amount > 0:
-        progress_percentage = (current_amount / target_amount) * 100
+        progress_percentage = (
+            current_amount / target_amount
+        ) * 100
     else:
         progress_percentage = 0
 
-    remaining_amount = max(target_amount - current_amount, 0)
+    remaining_amount = max(
+        target_amount - current_amount,
+        0
+    )
 
-    target_date = date.fromisoformat(goal["target_date"])
+    target_date = date.fromisoformat(
+        goal["target_date"]
+    )
+
     today = date.today()
 
     months_remaining = (
@@ -94,75 +105,225 @@ def get_goal(goal_id):
     )
 
     if months_remaining > 0:
-        required_monthly_contribution = remaining_amount / months_remaining
+        required_monthly_contribution = (
+            remaining_amount / months_remaining
+        )
     else:
         required_monthly_contribution = remaining_amount
 
-    goal["progress_percentage"] = round(progress_percentage, 2)
-    goal["remaining_amount"] = round(remaining_amount, 2)
-    goal["required_monthly_contribution"] = round(
-        required_monthly_contribution, 2
+    goal["progress_percentage"] = round(
+        progress_percentage,
+        2
     )
+
+    goal["remaining_amount"] = round(
+        remaining_amount,
+        2
+    )
+
+    goal["required_monthly_contribution"] = round(
+        required_monthly_contribution,
+        2
+    )
+
+    return goal
+
+
+def get_owned_goal(goal_id, user_id):
+    response = requests.get(
+        f"{DATABASE_API_URL}/goals/{goal_id}"
+    )
+
+    if response.status_code == 404:
+        return None, (
+            jsonify({
+                "error": "Savings goal not found"
+            }),
+            404
+        )
+
+    if response.status_code != 200:
+        return None, (
+            jsonify({
+                "error": "Could not retrieve savings goal"
+            }),
+            500
+        )
+
+    goal = response.json()
+
+    if goal.get("user_id") != user_id:
+        return None, (
+            jsonify({
+                "error": "Savings goal not found"
+            }),
+            404
+        )
+
+    return goal, None
+
+
+@app.route("/goals", methods=["GET"])
+def get_goals():
+    user, error = current_user()
+
+    if error:
+        return error
+
+    response = requests.get(
+        f"{DATABASE_API_URL}/goals"
+    )
+
+    if response.status_code != 200:
+        return jsonify({
+            "error": "Could not retrieve savings goals"
+        }), 500
+
+    goals = response.json()
+
+    user_goals = [
+        goal
+        for goal in goals
+        if goal.get("user_id") == user["id"]
+    ]
+
+    for goal in user_goals:
+        calculate_goal_fields(goal)
+
+    return jsonify(user_goals)
+
+
+@app.route("/goals/<int:goal_id>", methods=["GET"])
+def get_goal(goal_id):
+    user, error = current_user()
+
+    if error:
+        return error
+
+    goal, error = get_owned_goal(
+        goal_id,
+        user["id"]
+    )
+
+    if error:
+        return error
+
+    calculate_goal_fields(goal)
 
     return jsonify(goal)
 
 
 @app.route("/goals", methods=["POST"])
 def create_goal():
-    data = request.get_json()
+    user, error = current_user()
+
+    if error:
+        return error
+
+    data = request.get_json(silent=True) or {}
+
+    data["user_id"] = user["id"]
 
     response = requests.post(
         f"{DATABASE_API_URL}/goals",
         json=data
     )
 
-    return jsonify(response.json()), response.status_code
+    return jsonify(
+        response.json()
+    ), response.status_code
 
 
 @app.route("/goals/<int:goal_id>", methods=["PUT"])
 def update_goal(goal_id):
-    data = request.get_json()
+    user, error = current_user()
+
+    if error:
+        return error
+
+    goal, error = get_owned_goal(
+        goal_id,
+        user["id"]
+    )
+
+    if error:
+        return error
+
+    data = request.get_json(silent=True) or {}
+
+    data["user_id"] = user["id"]
 
     response = requests.put(
         f"{DATABASE_API_URL}/goals/{goal_id}",
         json=data
     )
 
-    return jsonify(response.json()), response.status_code
+    return jsonify(
+        response.json()
+    ), response.status_code
 
 
 @app.route("/goals/<int:goal_id>", methods=["DELETE"])
 def delete_goal(goal_id):
+    user, error = current_user()
+
+    if error:
+        return error
+
+    goal, error = get_owned_goal(
+        goal_id,
+        user["id"]
+    )
+
+    if error:
+        return error
+
     response = requests.delete(
         f"{DATABASE_API_URL}/goals/{goal_id}"
     )
 
-    return jsonify(response.json()), response.status_code
+    return jsonify(
+        response.json()
+    ), response.status_code
 
 
-@app.route("/goals/<int:goal_id>/explanation", methods=["GET"])
+@app.route(
+    "/goals/<int:goal_id>/explanation",
+    methods=["GET"]
+)
 def get_goal_explanation(goal_id):
-    response = requests.get(f"{DATABASE_API_URL}/goals/{goal_id}")
+    user, error = current_user()
 
-    if response.status_code == 404:
-        return jsonify({"error": "Savings goal not found"}), 404
+    if error:
+        return error
 
-    if response.status_code != 200:
-        return jsonify({"error": "Could not retrieve savings goal"}), 500
+    goal, error = get_owned_goal(
+        goal_id,
+        user["id"]
+    )
 
-    goal = response.json()
+    if error:
+        return error
 
     target_amount = goal["target_amount"]
     current_amount = goal["current_amount"]
 
     if target_amount > 0:
-        progress_percentage = (current_amount / target_amount) * 100
+        progress_percentage = (
+            current_amount / target_amount
+        ) * 100
     else:
         progress_percentage = 0
 
-    remaining_amount = max(target_amount - current_amount, 0)
+    remaining_amount = max(
+        target_amount - current_amount,
+        0
+    )
 
-    target_date = date.fromisoformat(goal["target_date"])
+    target_date = date.fromisoformat(
+        goal["target_date"]
+    )
+
     today = date.today()
 
     months_remaining = (
@@ -171,7 +332,9 @@ def get_goal_explanation(goal_id):
     )
 
     if months_remaining > 0:
-        required_monthly_contribution = remaining_amount / months_remaining
+        required_monthly_contribution = (
+            remaining_amount / months_remaining
+        )
     else:
         required_monthly_contribution = remaining_amount
 
@@ -202,7 +365,9 @@ Do not provide investment or financial product advice.
     )
 
     if ollama_response.status_code != 200:
-        return jsonify({"error": "Could not generate AI explanation"}), 500
+        return jsonify({
+            "error": "Could not generate AI explanation"
+        }), 500
 
     explanation = ollama_response.json()["response"]
 
@@ -213,5 +378,36 @@ Do not provide investment or financial product advice.
     })
 
 
+@app.route("/agent", methods=["POST"])
+def savings_agent():
+    data = request.get_json()
+
+    if not data or "message" not in data:
+        return jsonify({
+            "error": "Message is required"
+        }), 400
+
+    try:
+        result = run_agent_loop(
+            data["message"]
+        )
+
+        return jsonify(result)
+
+    except requests.RequestException:
+        return jsonify({
+            "error": "Could not communicate with the AI service"
+        }), 500
+
+    except Exception as error:
+        return jsonify({
+            "error": str(error)
+        }), 500
+
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5005, debug=True)
+    app.run(
+        host="0.0.0.0",
+        port=5005,
+        debug=True
+    )

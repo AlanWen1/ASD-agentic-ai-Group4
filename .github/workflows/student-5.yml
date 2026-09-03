@@ -24,13 +24,18 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install flask requests
+          pip install flask requests pytest
 
       - name: Check Python syntax
         run: |
           python -m py_compile student-5/database/app.py
           python -m py_compile student-5/backend/app.py
+          python -m py_compile student-5/backend/agent.py
           python -m py_compile student-5/frontend/app.py
+
+      - name: Run Student 5 tests
+        run: |
+          python -m pytest student-5/tests/test_ci.py -v
 
       - name: Validate Docker Compose
         run: docker compose config

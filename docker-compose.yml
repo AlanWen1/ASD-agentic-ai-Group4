@@ -78,6 +78,10 @@ services:
     container_name: savings-goal-database
     ports:
       - "6005:6005"
+    volumes:
+      - savings_data:/data
+    environment:
+      - DATABASE_PATH=/data/savings.db
     restart: unless-stopped
 
   savings-backend:
@@ -235,3 +239,6 @@ volumes:
 
   student_3_data:
     name: finance-application-student-3-data
+    
+  savings_data:
+    name: finance-application-savings-data
