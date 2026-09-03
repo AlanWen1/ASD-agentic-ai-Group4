@@ -2,6 +2,10 @@
 Populates the categories and expenses tables with sample data so each
 table meets the assignment's "minimum 10 records" requirement.
 
+All seed rows are attached to DEMO_USER_ID since every row now belongs
+to a specific user (see database.py) — this just gives the first/demo
+account something to look at, it doesn't seed data for every user.
+
 Run with:  python seed_data.py
 """
 from database import get_db, init_db
@@ -9,6 +13,8 @@ from datetime import date, timedelta
 import random
 
 init_db()
+
+DEMO_USER_ID = 1
 
 CATEGORIES = [
     ("Groceries", "Essential"),
@@ -45,23 +51,25 @@ def run():
 
     for name, ctype in CATEGORIES:
         cur.execute(
-            "INSERT OR IGNORE INTO categories (name, type) VALUES (?, ?)",
-            (name, ctype),
+            "INSERT OR IGNORE INTO categories (user_id, name, type) VALUES (?, ?, ?)",
+            (DEMO_USER_ID, name, ctype),
         )
     conn.commit()
 
     cat_ids = {
         row["name"]: row["id"]
-        for row in cur.execute("SELECT id, name FROM categories").fetchall()
+        for row in cur.execute(
+            "SELECT id, name FROM categories WHERE user_id = ?", (DEMO_USER_ID,)
+        ).fetchall()
     }
 
     today = date.today()
     for amount, desc, merchant, cat_name in EXPENSES:
         expense_date = (today - timedelta(days=random.randint(0, 30))).isoformat()
         cur.execute(
-            "INSERT INTO expenses (amount, description, merchant, category_id, date) "
-            "VALUES (?, ?, ?, ?, ?)",
-            (amount, desc, merchant, cat_ids.get(cat_name), expense_date),
+            "INSERT INTO expenses (user_id, amount, description, merchant, category_id, date) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (DEMO_USER_ID, amount, desc, merchant, cat_ids.get(cat_name), expense_date),
         )
     conn.commit()
     conn.close()

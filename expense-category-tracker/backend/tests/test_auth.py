@@ -39,6 +39,28 @@ def test_categories_with_valid_token_forwards(mock_request, client):
     assert resp.get_json()[0]["name"] == "Groceries"
 
 
+@patch("app.requests.request")
+def test_categories_forwards_current_users_id_to_database(mock_request, client):
+    """The user-isolation fix: expense-backend must tell expense-database
+    which user is asking, on every category/expense call."""
+    calls = []
+
+    def side_effect(method, url, **kwargs):
+        if "/sessions/" in url:
+            return MagicMock(ok=True, status_code=200, json=lambda: {"user": {"id": 42, "username": "alan"}})
+        calls.append((method, url, kwargs.get("params")))
+        return MagicMock(ok=True, status_code=200, json=lambda: [])
+
+    mock_request.side_effect = side_effect
+    client.get("/api/categories", headers={"Authorization": "Bearer goodtoken"})
+    client.get("/api/expenses", headers={"Authorization": "Bearer goodtoken"})
+
+    database_calls = [c for c in calls if "/categories" in c[1] or "/expenses" in c[1]]
+    assert database_calls, "expected at least one call to expense-database"
+    for _, _, params in database_calls:
+        assert params.get("user_id") == 42
+
+
 def test_suggest_category_requires_auth(client):
     resp = client.post("/api/expenses/suggest-category", json={"description": "coffee"})
     assert resp.status_code == 401

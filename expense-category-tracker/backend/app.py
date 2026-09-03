@@ -37,7 +37,10 @@ def service_request(base, method, path, **kwargs):
         return None
 
 
-def forward(method, path, body=None, params=None):
+def forward(method, path, body=None, params=None, user_id=None):
+    params = dict(params or {})
+    if user_id is not None:
+        params["user_id"] = user_id
     response = service_request(DATABASE_URL, method, path, json=body, params=params)
     if response is None:
         return jsonify({"error": "Expense database service unavailable"}), 503
@@ -94,8 +97,8 @@ def categories():
     if error:
         return error
     if request.method == "GET":
-        return forward("GET", "/categories")
-    return forward("POST", "/categories", body=request.get_json(silent=True) or {})
+        return forward("GET", "/categories", user_id=user["id"])
+    return forward("POST", "/categories", body=request.get_json(silent=True) or {}, user_id=user["id"])
 
 
 @app.route("/api/categories/<int:cat_id>", methods=["PUT", "DELETE"])
@@ -104,7 +107,7 @@ def category_item(cat_id):
     if error:
         return error
     body = request.get_json(silent=True) if request.method == "PUT" else None
-    return forward(request.method, f"/categories/{cat_id}", body=body)
+    return forward(request.method, f"/categories/{cat_id}", body=body, user_id=user["id"])
 
 
 # ---------------------------------------------------------------------
@@ -118,8 +121,8 @@ def expenses():
         return error
     if request.method == "GET":
         params = {"category_id": request.args["category_id"]} if "category_id" in request.args else None
-        return forward("GET", "/expenses", params=params)
-    return forward("POST", "/expenses", body=request.get_json(silent=True) or {})
+        return forward("GET", "/expenses", params=params, user_id=user["id"])
+    return forward("POST", "/expenses", body=request.get_json(silent=True) or {}, user_id=user["id"])
 
 
 @app.route("/api/expenses/<int:expense_id>", methods=["GET", "PUT", "DELETE"])
@@ -128,7 +131,7 @@ def expense_item(expense_id):
     if error:
         return error
     body = request.get_json(silent=True) if request.method == "PUT" else None
-    return forward(request.method, f"/expenses/{expense_id}", body=body)
+    return forward(request.method, f"/expenses/{expense_id}", body=body, user_id=user["id"])
 
 
 # ---------------------------------------------------------------------

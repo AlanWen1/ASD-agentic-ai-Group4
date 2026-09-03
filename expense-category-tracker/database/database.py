@@ -16,8 +16,10 @@ def init_db():
         """
         CREATE TABLE IF NOT EXISTS categories (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL UNIQUE,
-            type TEXT NOT NULL DEFAULT 'Discretionary'
+            user_id INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            type TEXT NOT NULL DEFAULT 'Discretionary',
+            UNIQUE (user_id, name)
         )
         """
     )
@@ -25,6 +27,7 @@ def init_db():
         """
         CREATE TABLE IF NOT EXISTS expenses (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
             amount REAL NOT NULL,
             description TEXT NOT NULL,
             merchant TEXT,
