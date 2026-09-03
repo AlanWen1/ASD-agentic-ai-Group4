@@ -146,3 +146,19 @@ button.danger {
     background: #fff0f1;
     color: #bc263a;
 }
+
+.top-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.home-button {
+    background: #246bfd;
+    color: white;
+    text-decoration: none;
+    padding: 10px 15px;
+    border-radius: 10px;
+    font: inherit;
+}
+
