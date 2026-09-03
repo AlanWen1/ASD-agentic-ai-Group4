@@ -23,6 +23,13 @@ header {
     padding: 20px 24px;
 }
 
+.page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+}
+
 header h1 { margin: 0 0 8px 0; font-size: 20px; }
 
 nav a {

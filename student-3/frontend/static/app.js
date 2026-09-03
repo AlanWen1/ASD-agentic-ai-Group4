@@ -118,8 +118,8 @@ function renderSources() {
       <td>${titleCase(source.payment_frequency)}</td>
       <td><span class="tag ${source.active ? 'active' : 'inactive'}">${source.active ? 'Active' : 'Inactive'}</span></td>
       <td class="align-right">
-        <button class="table-action" type="button" onclick="editSource(${source.id})">Edit</button>
-        <button class="table-action danger" type="button" onclick="deleteSource(${source.id})">Delete</button>
+        <button class="secondary" type="button" onclick="editSource(${source.id})">Edit</button>
+        <button class="danger" type="button" onclick="deleteSource(${source.id})">Delete</button>
       </td>
     </tr>`).join('');
 }
@@ -138,8 +138,8 @@ function renderSchedules() {
       <td class="money">${schedule.actual_amount == null ? '—' : money.format(schedule.actual_amount)}</td>
       <td><span class="tag ${escapeHtml(schedule.status)}">${escapeHtml(schedule.status)}</span></td>
       <td class="align-right">
-        <button class="table-action" type="button" onclick="editSchedule(${schedule.id})">Edit</button>
-        <button class="table-action danger" type="button" onclick="deleteSchedule(${schedule.id})">Delete</button>
+        <button class="secondary" type="button" onclick="editSchedule(${schedule.id})">Edit</button>
+        <button class="danger" type="button" onclick="deleteSchedule(${schedule.id})">Delete</button>
       </td>
     </tr>`).join('');
 }

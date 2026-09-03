@@ -77,6 +77,7 @@ def index():
         "index.html",
         expenses=expenses_resp.json(),
         categories=categories_resp.json(),
+        finance_url=FINANCE_URL,
     )
 
 
@@ -134,7 +135,7 @@ def categories_page():
     resp = api_get("/api/categories")
     if resp.status_code == 401:
         return session_expired()
-    return render_template("categories.html", categories=resp.json())
+    return render_template("categories.html", categories=resp.json(), finance_url=FINANCE_URL)
 
 
 @app.route("/categories", methods=["POST"])

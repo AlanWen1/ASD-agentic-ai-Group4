@@ -1,0 +1,235 @@
+/* ============================================================
+   Canonical shared theme â€” verbatim copy of finance-application's
+   real styles.css (confirmed identical to bill-tracker's too),
+   just reformatted for readability. This is the ONE source of truth
+   every frontend's Dockerfile should copy in at build time.
+
+   IMPORTANT: use these exact class names in your HTML â€” .panel (not
+   .card), .topbar (not header/nav), plain <button> (not button.primary),
+   button.secondary (not .ai-button), .status/.status.Pending etc.
+   (not .tag). If your template uses different class names, the CSS
+   rules below simply won't match anything.
+   ============================================================ */
+
+:root {
+    font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    color: #182230;
+    background: #f5f7fb;
+}
+
+* { box-sizing: border-box; }
+
+body { margin: 0; }
+
+.shell {
+    width: min(1180px, calc(100% - 32px));
+    margin: auto;
+}
+
+/* Login / auth card */
+.auth-card {
+    width: min(460px, 100%);
+    margin: 9vh auto;
+    background: white;
+    border: 1px solid #e3e8f0;
+    border-radius: 20px;
+    box-shadow: 0 18px 50px rgba(28, 39, 58, .08);
+    padding: 34px;
+}
+
+.brand {
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: #246bfd;
+}
+
+.auth-card h1 { margin: 8px 0 4px; font-size: 30px; }
+.auth-card > p { margin: 0 0 24px; color: #68758a; }
+
+/* Navy top bar (replaces plain <header>) */
+.topbar {
+    margin: 25px 0 20px;
+    padding: 26px 28px;
+    background: #172033;
+    color: white;
+    border-radius: 18px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+}
+.topbar h1 { margin: 4px 0; }
+.topbar p { margin: 0; opacity: .82; }
+
+/* White card (replaces .card) */
+.panel {
+    background: white;
+    border: 1px solid #e3e8f0;
+    border-radius: 16px;
+    box-shadow: 0 8px 24px rgba(28, 39, 58, .05);
+    padding: 22px;
+    margin: 20px 0;
+}
+
+.hero {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+}
+.eyebrow { font-size: 12px; font-weight: 800; letter-spacing: .08em; color: #246bfd; }
+.hero h2 { margin: 6px 0; }
+.hero p { margin: 0; color: #68758a; }
+
+.health {
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: #eef2f7;
+    color: #344155;
+    font-size: 13px;
+}
+
+/* Home page service cards */
+.service-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+}
+.service-card {
+    background: white;
+    border: 1px solid #e3e8f0;
+    border-radius: 16px;
+    padding: 24px;
+}
+.service-card.active {
+    border-color: #c9d8ff;
+    box-shadow: 0 8px 24px rgba(36, 107, 253, .08);
+}
+.service-icon {
+    display: inline-grid;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    background: #eef4ff;
+    color: #246bfd;
+    font-weight: 800;
+}
+.service-card h3 { margin: 15px 0 5px; }
+.service-card p { margin: 0 0 16px; color: #68758a; line-height: 1.45; }
+.coming { font-size: 13px; color: #68758a; }
+
+.section-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+h2 { margin: 0 0 4px; font-size: 20px; }
+.section-heading p { margin: 0; color: #68758a; font-size: 14px; }
+
+/* Buttons â€” plain <button> is already the primary (blue) style */
+button {
+    border: 0;
+    border-radius: 10px;
+    padding: 10px 15px;
+    font: inherit;
+    cursor: pointer;
+    background: #246bfd;
+    color: #fff;
+}
+button:hover { filter: brightness(.96); }
+button.secondary { background: #eef2f7; color: #344155; }
+button.danger { background: #fff0f1; color: #bc263a; }
+.text-button { background: none; color: #246bfd; padding: 12px 0; }
+
+/* A link that needs to look like a button (e.g. "Open Expense Tracker") */
+.button-link {
+    border: 0;
+    border-radius: 10px;
+    padding: 10px 15px;
+    font: inherit;
+    cursor: pointer;
+    background: #246bfd;
+    color: #fff;
+    text-decoration: none;
+    display: inline-block;
+}
+
+/* Stat tiles */
+.cards {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+}
+.stat {
+    padding: 16px;
+    border-radius: 12px;
+    background: #f8fafc;
+    border: 1px solid #edf1f6;
+}
+.stat span { display: block; color: #68758a; font-size: 13px; margin-bottom: 7px; }
+.stat strong { font-size: 22px; }
+
+/* Tables */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; min-width: 760px; }
+th, td { text-align: left; padding: 13px 10px; border-bottom: 1px solid #edf0f5; font-size: 14px; }
+th { color: #68758a; }
+.actions { display: flex; gap: 7px; }
+
+/* Status pills (replaces .tag) */
+.status { display: inline-flex; padding: 5px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+.status.Pending { background: #fff7de; color: #8b6300; }
+.status.Paid { background: #e9f8ef; color: #176a3a; }
+.status.Overdue { background: #ffe9eb; color: #9d2032; }
+/* NEW â€” added for Expense Category Manager's category "type" pills.
+   Same pattern as the Bills statuses above, colors reused from
+   elsewhere in this file (not invented). Propose to the team before
+   relying on this if other modules also start adding .status modifiers. */
+.status.Essential { background: #eef4ff; color: #246bfd; }
+.status.Discretionary { background: #eef2f7; color: #344155; }
+
+.empty { text-align: center; color: #68758a; padding: 30px; }
+
+/* Forms */
+label { display: grid; gap: 7px; margin: 14px 0; font-size: 13px; font-weight: 600; }
+input, select {
+    width: 100%;
+    border: 1px solid #d8e0ea;
+    border-radius: 10px;
+    padding: 11px 12px;
+    font: inherit;
+    background: white;
+}
+input:focus, select:focus { outline: 2px solid #bfd2ff; border-color: #246bfd; }
+.form-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 20px; }
+.error { color: #b42318; min-height: 20px; margin-top: 8px; font-size: 13px; }
+
+/* Modals */
+dialog {
+    border: 0;
+    border-radius: 16px;
+    padding: 0;
+    width: min(500px, calc(100% - 24px));
+    box-shadow: 0 24px 70px rgba(24, 34, 48, .25);
+}
+dialog::backdrop { background: rgba(12, 19, 31, .48); }
+.form-card { padding: 22px; }
+button.icon { background: transparent; color: #667085; font-size: 26px; padding: 0 6px; }
+
+/* Responsive */
+@media (max-width: 800px) {
+    .service-grid { grid-template-columns: 1fr; }
+    .cards { grid-template-columns: repeat(2, 1fr); }
+    .hero { align-items: flex-start; flex-direction: column; }
+}
+@media (max-width: 520px) {
+    .cards { grid-template-columns: 1fr; }
+    .topbar { align-items: flex-start; flex-direction: column; }
+    .auth-card { margin-top: 24px; }
+}

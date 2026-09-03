@@ -120,7 +120,9 @@ services:
     restart: unless-stopped
 
   savings-frontend:
-    build: ./student-5/frontend
+    build:
+      context: .
+      dockerfile: student-5/frontend/Dockerfile
     container_name: savings-goal-frontend
     ports:
       - "3005:3005"
@@ -129,7 +131,9 @@ services:
     depends_on:
       - savings-backend
   expense-frontend:
-    build: ./expense-category-tracker/frontend
+    build:
+      context: .
+      dockerfile: expense-category-tracker/frontend/Dockerfile
     container_name: expense-tracker-frontend
     ports:
       - "3002:3002"
@@ -169,7 +173,9 @@ services:
     restart: unless-stopped
 
   student-3-frontend:
-    build: ./student-3/frontend
+    build:
+      context: .
+      dockerfile: student-3/frontend/Dockerfile
     container_name: student-3-frontend
     ports:
       - "3003:3003"
@@ -205,7 +211,9 @@ services:
     restart: unless-stopped
 
   budget-frontend:
-    build: ./student-1-budget/frontend
+    build:
+      context: .
+      dockerfile: student-1-budget/frontend/Dockerfile
     container_name: student-1-budget-frontend
     ports:
       - "3001:5000"

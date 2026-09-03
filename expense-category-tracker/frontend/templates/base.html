@@ -6,15 +6,18 @@
     <title>Expense &amp; Category Manager</title>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/theme.css">
 </head>
 <body>
-    <header>
-        <h1>Expense &amp; Category Manager</h1>
-        <nav>
-            <a href="/">Expenses</a>
-            <a href="/categories">Categories</a>
-            <a href="/logout" style="float:right">Log out</a>
-        </nav>
+    <header class="page-header">
+        <div>
+            <h1>Expense &amp; Category Manager</h1>
+            <nav>
+                <a href="/">Expenses</a>
+                <a href="/categories">Categories</a>
+            </nav>
+        </div>
+        <a href="{{ finance_url }}" class="button-link">Home</a>
     </header>
     <main>
         {% block content %}{% endblock %}
