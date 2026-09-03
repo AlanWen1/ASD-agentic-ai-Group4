@@ -83,6 +83,39 @@
                 <p>No savings goals loaded yet.</p>
             </div>
         </section>
+
+        <section class="panel">
+            <h2>AI Savings Assistant</h2>
+
+            <p>
+                Ask questions about your savings goals using the AI assistant.
+            </p>
+
+            <div id="chat-response" class="chat-response">
+                <p>
+                    Some questions you could ask are “Which goal needs the most money?” or “How much more do I need to save?”
+                </p>
+            </div>
+
+            <form
+                class="chat-form"
+                hx-post="/chat"
+                hx-target="#chat-response"
+                hx-swap="innerHTML"
+                hx-on::after-request="if(event.detail.successful) this.reset()">
+
+                <input
+                    type="text"
+                    id="message"
+                    name="message"
+                    placeholder="Ask about your savings goals..."
+                    required>
+
+                <button type="submit" class="primary-action">
+                    Send
+                </button>
+            </form>
+        </section>
     </main>
 
     <script src="/static/app.js"></script>
