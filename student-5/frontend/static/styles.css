@@ -162,3 +162,7 @@ button.danger {
     font: inherit;
 }
 
+.primary-action {
+    margin-top: 8px;
+}
+
