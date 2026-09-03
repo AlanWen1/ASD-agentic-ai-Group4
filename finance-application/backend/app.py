@@ -33,23 +33,6 @@ def session_user(required=True):
     return response.json()["user"], None
 
 
-def forward_bill(method, path="", body=None, user_id=None):
-    params = {"user_id": user_id} if user_id is not None else None
-    response = call(
-        f"{BILL_DATABASE_URL}/bills{path}",
-        method,
-        params=params,
-        json=body,
-    )
-    if response is None:
-        return jsonify({"error": "Bill database service unavailable"}), 503
-    try:
-        data = response.json()
-    except ValueError:
-        data = {"error": response.text or "Bill database request failed"}
-    return jsonify(data), response.status_code
-
-
 @app.get("/health")
 def health():
     database = call(f"{DATABASE_URL}/health")
@@ -106,42 +89,6 @@ def update_me():
     response = call(f"{DATABASE_URL}/users/{user['id']}", "PUT", json=request.get_json(silent=True) or {})
     if response is None:
         return jsonify({"error": "Authentication database unavailable"}), 503
-    return jsonify(response.json()), response.status_code
-
-
-@app.get("/bills")
-def list_bills():
-    user, error = session_user()
-    if error:
-        return error
-    return forward_bill("GET", user_id=user["id"])
-
-
-@app.post("/bills")
-def create_bill():
-    user, error = session_user()
-    if error:
-        return error
-    return forward_bill("POST", body=request.get_json(silent=True) or {}, user_id=user["id"])
-
-
-@app.route("/bills/<int:bill_id>", methods=["GET", "PUT", "DELETE"])
-def bill_item(bill_id):
-    user, error = session_user()
-    if error:
-        return error
-    body = request.get_json(silent=True) if request.method == "PUT" else None
-    return forward_bill(request.method, f"/{bill_id}", body=body, user_id=user["id"])
-
-
-@app.get("/summary")
-def summary():
-    user, error = session_user()
-    if error:
-        return error
-    response = call(f"{BILL_DATABASE_URL}/summary", params={"user_id": user["id"]})
-    if response is None:
-        return jsonify({"error": "Bill database service unavailable"}), 503
     return jsonify(response.json()), response.status_code
 
 
