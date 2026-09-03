@@ -24,6 +24,10 @@ there and clicking through to a module carries the session token along, so
 users don't have to log in again per module (see each module's `FINANCE_URL`
 handling in its frontend `app.py`).
 
+There is also a sixth, shared (non-feature) service: `ai-mode-service`
+(`ai-services/ai-mode/`, port `:5099`). It's the only thing every backend
+above talks to for AI calls — see `ai-services/ai-mode/README.md`.
+
 ## Prerequisites
 
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Docker + Docker Compose)
@@ -92,9 +96,10 @@ exact startup sequence if a test fails with a connection error here.
 - `docs/` — architecture notes, planning documents, and per-release
   submission evidence (see the README in each subfolder for what belongs
   there and what's still missing).
-- `ai-services/` — placeholder for the shared AI-mode/MCP/RAG/Multi-Agent
-  services described in the project spec; see `ai-services/README.md` for
-  the current state.
+- `ai-services/` — shared AI-mode/MCP/RAG/Multi-Agent services described in
+  the project spec; `ai-mode/` is implemented as a running shared service
+  every backend's AI calls go through, the rest are still placeholders —
+  see `ai-services/README.md` for the current state.
 - `scripts/` — build and test helper scripts.
 
 ## AI-assisted development

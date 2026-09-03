@@ -1,4 +1,22 @@
 services:
+  ai-mode-service:
+    build: ./ai-services/ai-mode
+    container_name: ai-mode-service
+    environment:
+      OLLAMA_URL: http://ollama:11434
+      OLLAMA_MODEL: qwen2.5:0.5b
+    ports:
+      - "5099:5099"
+    depends_on:
+      ollama-model-loader:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5099/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    restart: unless-stopped
+
   student-3-database:
     build: ./student-3/database
     container_name: student-3-database
@@ -20,7 +38,7 @@ services:
     container_name: student-3-backend
     environment:
       DATABASE_SERVICE_URL: http://student-3-database:6003
-      OLLAMA_BASE_URL: http://ollama:11434/v1
+      OLLAMA_BASE_URL: http://ai-mode-service:5099/v1
       OLLAMA_MODEL: qwen2.5:0.5b
       OLLAMA_TIMEOUT_SECONDS: 90
     ports:
@@ -28,8 +46,8 @@ services:
     depends_on:
       student-3-database:
         condition: service_healthy
-      ollama-model-loader:
-        condition: service_completed_successfully
+      ai-mode-service:
+        condition: service_started
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5003/health')"]
       interval: 5s
