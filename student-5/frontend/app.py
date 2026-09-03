@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request
+from markupsafe import escape
 import requests
 import os
 
@@ -204,6 +205,40 @@ def goal_explanation(goal_id):
     <div>
         <strong>AI Explanation:</strong>
         <p>{data["explanation"]}</p>
+    </div>
+    """
+
+
+@app.route("/chat", methods=["POST"])
+def chat():
+    message = request.form.get("message", "").strip()
+
+    if not message:
+        return "<p>Please enter a message.</p>"
+
+    try:
+        response = requests.post(
+            f"{BACKEND_API_URL}/agent",
+            json={"message": message},
+            headers=auth_headers(),
+            timeout=120
+        )
+    except requests.RequestException:
+        return "<p>Could not connect to the AI assistant.</p>"
+
+    if response.status_code == 401:
+        return "<p>Authentication required.</p>"
+
+    if response.status_code != 200:
+        return "<p>Could not get a response from the AI assistant.</p>"
+
+    data = response.json()
+    answer = escape(data.get("answer", "No response generated."))
+
+    return f"""
+    <div class="chat-message assistant-message">
+        <strong>Savings Assistant:</strong>
+        <p>{answer}</p>
     </div>
     """
 
