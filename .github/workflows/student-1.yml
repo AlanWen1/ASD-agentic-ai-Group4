@@ -86,5 +86,5 @@ jobs:
       - name: Build Student 1 containers
         run: |
           docker build -t student-1-budget-backend ./student-1-budget/backend
-          docker build -t student-1-budget-frontend ./student-1-budget/frontend
+          docker build -t student-1-budget-frontend -f student-1-budget/frontend/Dockerfile .
           docker build -t student-1-budget-database ./student-1-budget/database

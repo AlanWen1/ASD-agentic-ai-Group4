@@ -49,4 +49,4 @@ jobs:
         run: |
           docker build -t student-3-database ./student-3/database
           docker build -t student-3-backend ./student-3/backend
-          docker build -t student-3-frontend ./student-3/frontend
+          docker build -t student-3-frontend -f student-3/frontend/Dockerfile .
