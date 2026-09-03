@@ -5,19 +5,18 @@ The project spec's reference repository structure calls for a shared
 team application: `ai-mode/`, `mcp-server/`, `rag-server/`, and
 `multi-agent-server/`.
 
-**Current state (honest note, not aspirational):** this directory did not
-exist before — each student's backend currently calls Ollama directly from
-its own code (see e.g. `expense-category-tracker/backend/app.py`,
-`bill-tracker/backend/app.py`, `student-3/backend/app.py`,
-`student-1-budget/backend/agent.py`). That works functionally (every module
-can reach the shared Ollama runtime at `host.docker.internal:11434` and use
-an approved LLM), but it means there is no single shared AI service the way
-the reference architecture diagrams it. This folder is a placeholder that
-documents the gap and gives each sub-folder a home once the team decides
-whether to centralise this logic.
+**Current state:** `ai-mode/` is now a real, running shared service
+(`ai-mode-service` in `docker-compose.yml`, port 5099) that every backend
+is pointed at instead of talking to the shared Ollama runtime directly —
+see `ai-mode/README.md` for exactly how each of the five backends was
+repointed and why no backend code had to change to adopt it.
+`mcp-server/`, `rag-server/`, and `multi-agent-server/` are still
+placeholders that give each sub-folder a home once the team gets to those
+releases.
 
 - `ai-mode/` — Release 0 requirement: AI-mode + Ollama runtime + approved
-  LLM(s). Not centralised yet; see the per-backend Ollama calls above.
+  LLM(s). Implemented as a shared proxy service every backend now calls —
+  see `ai-mode/README.md`.
 - `mcp-server/` — Release 1 requirement. Not implemented yet.
 - `rag-server/` — Release 1 requirement. Not implemented yet.
 - `multi-agent-server/` — Release 2 requirement (Planner/Worker/Reviewer

@@ -25,6 +25,7 @@ MODULES=(
   "expense-category-tracker"
   "student-3"
   "student-5"
+  "ai-services"
 )
 
 failures=0
