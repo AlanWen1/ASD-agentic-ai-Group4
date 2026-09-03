@@ -1,4 +1,16 @@
 services:
+  ai-mode-service:
+    build: ../ai-services/ai-mode
+    container_name: ai-mode-service
+    ports:
+      - "5099:5099"
+    environment:
+      - OLLAMA_URL=http://host.docker.internal:11434
+      - OLLAMA_MODEL=qwen2.5:0.5b
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
   database:
     build: ./database
     container_name: bill-tracker-database
@@ -18,10 +30,11 @@ services:
     environment:
       - DATABASE_URL=http://database:6004
       - AUTH_DATABASE_URL=http://host.docker.internal:6000
-      - OLLAMA_URL=http://host.docker.internal:11434
+      - OLLAMA_URL=http://ai-mode-service:5099
       - OLLAMA_MODEL=qwen2.5:0.5b
     depends_on:
       - database
+      - ai-mode-service
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped
