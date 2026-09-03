@@ -166,3 +166,46 @@ button.danger {
     margin-top: 8px;
 }
 
+.chat-response {
+    background: #f8fafc;
+    border: 1px solid #edf1f6;
+    border-radius: 12px;
+    padding: 16px;
+    margin: 16px 0;
+    min-height: 70px;
+}
+
+.chat-response p {
+    margin: 0;
+}
+
+.chat-form {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.chat-form input {
+    flex: 1;
+}
+
+.chat-form button {
+    margin-top: 0;
+    white-space: nowrap;
+}
+
+.chat-message {
+    background: #f8fafc;
+    border-radius: 10px;
+    padding: 12px;
+}
+
+.chat-message strong {
+    display: block;
+    margin-bottom: 6px;
+}
+
+.assistant-message p {
+    margin: 0;
+}
+
