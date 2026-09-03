@@ -38,7 +38,9 @@ services:
     restart: unless-stopped
 
   student-3-frontend:
-    build: ./student-3/frontend
+    build:
+      context: .
+      dockerfile: student-3/frontend/Dockerfile
     container_name: student-3-frontend
     environment:
       BACKEND_SERVICE_URL: http://student-3-backend:5003
