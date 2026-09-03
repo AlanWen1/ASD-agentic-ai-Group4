@@ -1,4 +1,4 @@
-﻿__pycache__/
+__pycache__/
 *.pyc
 .env
 *.db
@@ -7,6 +7,4 @@
 venv/
 .vscode/
 node_modules/
-
-*.db
-*.sqlite3
+.DS_Store
