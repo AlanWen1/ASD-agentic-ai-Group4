@@ -2,7 +2,11 @@ import sqlite3
 import os
 from flask import Flask, jsonify, request
 
-DATABASE = os.path.join(os.path.dirname(__file__), "savings.db")
+DATABASE = os.getenv(
+    "DATABASE_PATH",
+    os.path.join(os.path.dirname(__file__), "savings.db")
+)
+
 app = Flask(__name__)
 
 

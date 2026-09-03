@@ -7,7 +7,18 @@ app = Flask(__name__)
 BACKEND_API_URL = os.getenv(
     "BACKEND_API_URL",
     "http://127.0.0.1:5005"
-)
+).rstrip("/")
+
+
+def auth_headers():
+    headers = {}
+
+    authorization = request.headers.get("Authorization")
+
+    if authorization:
+        headers["Authorization"] = authorization
+
+    return headers
 
 
 @app.route("/")
@@ -16,7 +27,13 @@ def index():
 
 
 def render_goals():
-    response = requests.get(f"{BACKEND_API_URL}/goals")
+    response = requests.get(
+        f"{BACKEND_API_URL}/goals",
+        headers=auth_headers()
+    )
+
+    if response.status_code == 401:
+        return "<p>Authentication required.</p>"
 
     if response.status_code != 200:
         return "<p>Could not load savings goals.</p>"
@@ -52,13 +69,6 @@ def render_goals():
                     hx-put="/goals/{goal["goal_id"]}"
                     hx-target="#goals"
                     hx-swap="innerHTML">
-
-                    <label>User ID:</label>
-                    <input
-                        type="number"
-                        name="user_id"
-                        value="{goal["user_id"]}"
-                        required>
 
                     <label>Goal Name:</label>
                     <input
@@ -111,7 +121,6 @@ def render_goals():
 def goals():
     if request.method == "POST":
         data = {
-            "user_id": int(request.form["user_id"]),
             "goal_name": request.form["goal_name"],
             "target_amount": float(request.form["target_amount"]),
             "current_amount": float(request.form["current_amount"]),
@@ -120,8 +129,12 @@ def goals():
 
         create_response = requests.post(
             f"{BACKEND_API_URL}/goals",
-            json=data
+            json=data,
+            headers=auth_headers()
         )
+
+        if create_response.status_code == 401:
+            return "<p>Authentication required.</p>"
 
         if create_response.status_code != 201:
             return "<p>Could not create savings goal.</p>"
@@ -132,7 +145,6 @@ def goals():
 @app.route("/goals/<int:goal_id>", methods=["PUT"])
 def update_goal(goal_id):
     data = {
-        "user_id": int(request.form["user_id"]),
         "goal_name": request.form["goal_name"],
         "target_amount": float(request.form["target_amount"]),
         "current_amount": float(request.form["current_amount"]),
@@ -141,8 +153,12 @@ def update_goal(goal_id):
 
     update_response = requests.put(
         f"{BACKEND_API_URL}/goals/{goal_id}",
-        json=data
+        json=data,
+        headers=auth_headers()
     )
+
+    if update_response.status_code == 401:
+        return "<p>Authentication required.</p>"
 
     if update_response.status_code != 200:
         return "<p>Could not update savings goal.</p>"
@@ -153,8 +169,12 @@ def update_goal(goal_id):
 @app.route("/goals/<int:goal_id>", methods=["DELETE"])
 def delete_goal(goal_id):
     delete_response = requests.delete(
-        f"{BACKEND_API_URL}/goals/{goal_id}"
+        f"{BACKEND_API_URL}/goals/{goal_id}",
+        headers=auth_headers()
     )
+
+    if delete_response.status_code == 401:
+        return "<p>Authentication required.</p>"
 
     if delete_response.status_code != 200:
         return "<p>Could not delete savings goal.</p>"
@@ -165,8 +185,12 @@ def delete_goal(goal_id):
 @app.route("/goals/<int:goal_id>/explanation", methods=["GET"])
 def goal_explanation(goal_id):
     response = requests.get(
-        f"{BACKEND_API_URL}/goals/{goal_id}/explanation"
+        f"{BACKEND_API_URL}/goals/{goal_id}/explanation",
+        headers=auth_headers()
     )
+
+    if response.status_code == 401:
+        return "<p>Authentication required.</p>"
 
     if response.status_code == 404:
         return "<p>Savings goal not found.</p>"
@@ -185,4 +209,8 @@ def goal_explanation(goal_id):
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=3005, debug=True)
+    app.run(
+        host="0.0.0.0",
+        port=3005,
+        debug=True
+    )

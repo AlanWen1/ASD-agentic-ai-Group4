@@ -32,11 +32,12 @@
                 hx-swap="innerHTML"
                 hx-on::after-request="if(event.detail.successful) this.reset()">
 
-                <label for="user_id">User ID:</label>
-                <input type="number" id="user_id" name="user_id" required>
-
                 <label for="goal_name">Goal Name:</label>
-                <input type="text" id="goal_name" name="goal_name" required>
+                <input
+                    type="text"
+                    id="goal_name"
+                    name="goal_name"
+                    required>
 
                 <label for="target_amount">Target Amount:</label>
                 <input
@@ -80,5 +81,7 @@
             </div>
         </section>
     </main>
+
+    <script src="/static/app.js"></script>
 </body>
 </html>

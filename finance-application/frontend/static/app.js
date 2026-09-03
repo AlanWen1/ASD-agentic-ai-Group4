@@ -80,10 +80,22 @@ function updateIncomeManagerLink() {
     : "http://localhost:3003/";
 }
 
+function updateSavingsGoalLink() {
+  const link = $("savings-goal-link");
+  if (!link) return;
+
+  const currentToken = token();
+
+  link.href = currentToken
+    ? `http://localhost:3005/?token=${encodeURIComponent(currentToken)}`
+    : "http://localhost:3005/";
+}
+
 function showHome() {
   updateBillTrackerLink();
   updateExpenseTrackerLink();
   updateIncomeManagerLink();
+  updateSavingsGoalLink();
 
   $("auth-view").hidden = true;
   $("home-view").hidden = false;
