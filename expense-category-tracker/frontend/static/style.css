@@ -114,6 +114,24 @@ button.primary:hover { filter: brightness(0.96); }
     color: #246bfd;
 }
 
+.assistant-hint {
+    font-size: 13px;
+    color: #68758a;
+    margin-top: -4px;
+}
+
+.assistant-trace {
+    font-size: 12px;
+    color: #68758a;
+    margin: 12px 0 4px;
+}
+
+.assistant-message {
+    font-size: 14px;
+    line-height: 1.5;
+    margin: 4px 0 0;
+}
+
 table { width: 100%; border-collapse: collapse; margin-top: 8px; }
 th, td { text-align: left; padding: 13px 10px; border-bottom: 1px solid #edf0f5; font-size: 14px; }
 th { color: #68758a; }

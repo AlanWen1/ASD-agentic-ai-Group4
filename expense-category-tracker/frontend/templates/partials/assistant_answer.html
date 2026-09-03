@@ -1,0 +1,8 @@
+<div id="assistant-answer">
+    {% if trace %}
+    <p class="assistant-trace">
+        {% for t in trace %}{% if t.type == 'tool_call' %}🔧 checked <code>{{ t.tool }}</code>{% if not loop.last %} → {% endif %}{% endif %}{% endfor %}
+    </p>
+    {% endif %}
+    <p class="assistant-message">{{ answer }}</p>
+</div>

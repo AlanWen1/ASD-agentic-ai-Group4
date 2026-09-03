@@ -64,3 +64,39 @@ def test_categories_forwards_current_users_id_to_database(mock_request, client):
 def test_suggest_category_requires_auth(client):
     resp = client.post("/api/expenses/suggest-category", json={"description": "coffee"})
     assert resp.status_code == 401
+
+
+def test_assistant_requires_auth(client):
+    resp = client.post("/api/expenses/assistant", json={"message": "hi"})
+    assert resp.status_code == 401
+
+
+@patch("app.requests.request")
+@patch("app.run_agent_loop")
+def test_assistant_runs_agent_loop_for_authenticated_user(mock_run_agent_loop, mock_request, client):
+    mock_request.return_value = MagicMock(
+        ok=True, status_code=200, json=lambda: {"user": {"id": 7, "username": "alan"}}
+    )
+    mock_run_agent_loop.return_value = {
+        "answer": "You have 3 expenses this month.",
+        "trace": [{"step": 0, "type": "tool_call", "tool": "get_expenses", "args": {}}],
+    }
+
+    resp = client.post(
+        "/api/expenses/assistant",
+        json={"message": "How many expenses do I have?"},
+        headers={"Authorization": "Bearer goodtoken"},
+    )
+
+    assert resp.status_code == 200
+    assert resp.get_json()["answer"] == "You have 3 expenses this month."
+    mock_run_agent_loop.assert_called_once_with("How many expenses do I have?", 7)
+
+
+def test_assistant_requires_a_message(client):
+    with patch("app.requests.request") as mock_request:
+        mock_request.return_value = MagicMock(ok=True, status_code=200, json=lambda: {"user": {"id": 1}})
+        resp = client.post(
+            "/api/expenses/assistant", json={}, headers={"Authorization": "Bearer goodtoken"}
+        )
+    assert resp.status_code == 400

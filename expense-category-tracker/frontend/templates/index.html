@@ -42,6 +42,18 @@
 </section>
 
 <section class="card">
+    <h2>Ask AI about your spending</h2>
+    <p class="assistant-hint">The assistant looks at your real expenses and categories before answering — it can check more than one thing if it needs to.</p>
+    <form hx-post="/assistant" hx-target="#assistant-answer" hx-swap="outerHTML">
+        <label>Question
+            <input type="text" name="message" placeholder="e.g. Which category am I spending the most on?" required>
+        </label>
+        <button type="submit" class="primary">Ask</button>
+    </form>
+    <div id="assistant-answer"></div>
+</section>
+
+<section class="card">
     <h2>All Expenses</h2>
     {% include "partials/expense_list.html" %}
 </section>

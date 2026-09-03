@@ -128,6 +128,31 @@ def suggest_category():
     return f"AI suggests: <strong>{category}</strong>"
 
 
+@app.route("/assistant", methods=["POST"])
+def assistant():
+    if not signed_in():
+        return gate()
+    message = request.form.get("message", "").strip()
+    if not message:
+        return render_template("partials/assistant_answer.html", answer="Please enter a question.", trace=[])
+    try:
+        resp = api_post("/api/expenses/assistant", json={"message": message}, timeout=60)
+    except requests.exceptions.RequestException:
+        return render_template(
+            "partials/assistant_answer.html",
+            answer="Could not reach the assistant service. Try again in a moment.",
+            trace=[],
+        )
+    if resp.status_code == 401:
+        return session_expired()
+    data = resp.json()
+    return render_template(
+        "partials/assistant_answer.html",
+        answer=data.get("answer", "Sorry, I couldn't come up with an answer."),
+        trace=data.get("trace", []),
+    )
+
+
 @app.route("/categories")
 def categories_page():
     if not signed_in():

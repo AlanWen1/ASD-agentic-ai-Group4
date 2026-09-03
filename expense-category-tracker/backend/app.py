@@ -14,6 +14,8 @@ import os
 import requests
 from flask import Flask, jsonify, request
 
+from agent import run_agent_loop
+
 app = Flask(__name__)
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "http://expense-database:6002").rstrip("/")
@@ -170,6 +172,30 @@ def suggest_category():
 
     matched = next((c for c in ALLOWED_CATEGORIES if c.lower() in raw.lower()), "Other")
     return jsonify({"category": matched, "raw_response": raw})
+
+
+# ---------------------------------------------------------------------
+# AI: Spending Assistant (Plan -> Act -> Observe -> Adapt agentic loop —
+# see agent.py. Distinct from suggest_category above, which is a one-shot
+# classifier and doesn't need multiple reasoning steps.)
+# ---------------------------------------------------------------------
+
+@app.route("/api/expenses/assistant", methods=["POST"])
+def expenses_assistant():
+    user, error = current_user()
+    if error:
+        return error
+
+    data = request.get_json(silent=True) or {}
+    message = (data.get("message") or "").strip()
+    if not message:
+        return jsonify({"error": "message is required"}), 400
+
+    try:
+        result = run_agent_loop(message, user["id"])
+        return jsonify(result), 200
+    except requests.exceptions.RequestException as exc:
+        return jsonify({"error": f"Assistant unavailable: {exc}"}), 502
 
 
 @app.errorhandler(Exception)
