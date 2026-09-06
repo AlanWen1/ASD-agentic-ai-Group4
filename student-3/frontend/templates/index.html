@@ -193,6 +193,10 @@
         <div id="chatMessages" class="chat-messages" aria-live="polite">
           <div class="chat-bubble assistant">Hi! I can explain your income patterns using the selected month's records. I do not provide investment or financial advice.</div>
         </div>
+        <details id="agentTracePanel" class="agent-trace-panel" open hidden>
+          <summary>Agent execution trace</summary>
+          <div id="agentTrace" class="agent-trace" aria-live="polite"></div>
+        </details>
         <form id="chatForm" class="chat-form">
           <label class="sr-only" for="chatInput">Ask the AI Income Assistant</label>
           <textarea id="chatInput" rows="3" maxlength="2000" required placeholder="Ask: When is my next expected payment?"></textarea>

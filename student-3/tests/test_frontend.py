@@ -21,6 +21,7 @@ def test_frontend_home_contains_crud_and_ai_chat():
     assert "Income sources" in page
     assert "Pay schedules" in page
     assert "AI Income Assistant" in page
+    assert "Agent execution trace" in page
 
 
 def test_frontend_health():
