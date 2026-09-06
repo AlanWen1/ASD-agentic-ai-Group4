@@ -121,6 +121,14 @@ tbody tr:last-child td { border-bottom: 0; }
 .chat-bubble.assistant { align-self: flex-start; color: #233955; background: white; border: 1px solid #dfe4ec; border-bottom-left-radius: 4px; }
 .chat-bubble.user { align-self: flex-end; color: white; background: var(--primary); border-bottom-right-radius: 4px; }
 .chat-bubble.error { color: var(--danger); background: #fff1f0; border-color: #f5b7b1; }
+.agent-trace-panel { margin-top: 11px; padding: 10px 12px; border: 1px solid #c9d8ff; border-radius: 12px; background: #f8faff; }
+.agent-trace-panel summary { cursor: pointer; color: var(--primary-dark); font-size: .76rem; font-weight: 800; }
+.agent-trace { display: grid; gap: 7px; margin-top: 9px; }
+.agent-trace-row { display: grid; grid-template-columns: 60px 1fr; gap: 8px; align-items: start; color: #475467; font-size: .7rem; line-height: 1.4; }
+.agent-phase { color: var(--primary-dark); text-transform: uppercase; letter-spacing: .03em; }
+.agent-phase.act { color: #7a5c00; }
+.agent-phase.observe { color: #08745f; }
+.agent-phase.adapt { color: #6941c6; }
 .chat-form { margin-top: 11px; }
 .chat-form textarea { resize: vertical; }
 .chat-actions { justify-content: space-between; margin-top: 9px; }
