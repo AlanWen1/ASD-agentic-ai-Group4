@@ -149,6 +149,21 @@ jobs:
           echo "AI Mode Service did not become healthy in time."
           exit 1
 
+      - name: Warm up Qwen model
+        run: |
+          curl -fsS \
+            --max-time 180 \
+            -X POST http://localhost:5099/api/generate \
+            -H "Content-Type: application/json" \
+            -d '{
+              "model": "qwen2.5:0.5b",
+              "prompt": "Reply with OK.",
+              "stream": false
+            }' \
+            > /dev/null
+
+          echo "Qwen model warm-up completed."
+
       - name: Run Student 5 integration tests
         run: |
           python -m pytest student-5/tests/test_savings_goal_api.py -v
