@@ -56,8 +56,19 @@ jobs:
 
       - name: Start Ollama
         run: |
-          ollama serve > /tmp/ollama.log 2>&1 &
-          sleep 5
+          OLLAMA_HOST=0.0.0.0:11434 ollama serve > /tmp/ollama.log 2>&1 &
+
+          for i in {1..30}; do
+            if curl -fsS http://127.0.0.1:11434/api/tags > /dev/null; then
+              echo "Ollama is ready."
+              exit 0
+            fi
+            sleep 2
+          done
+
+          echo "Ollama did not start in time."
+          cat /tmp/ollama.log
+          exit 1
 
       - name: Pull Qwen model
         run: |
@@ -73,7 +84,7 @@ jobs:
       - name: Wait for Finance Backend
         run: |
           for i in {1..30}; do
-            status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/auth/login || true)
+            status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/ || true)
             if [ "$status" != "000" ]; then
               echo "Finance Backend is responding."
               exit 0
