@@ -50,16 +50,34 @@ jobs:
         run: |
           docker compose build savings-database savings-backend savings-frontend
 
-      - name: Install Ollama
+      - name: Create CI Ollama override
         run: |
-          curl -fsSL https://ollama.com/install.sh | sh
+          cat > docker-compose.ci.yml <<'EOF'
+          services:
+            ollama:
+              image: ollama/ollama:latest
+
+            ai-mode-service:
+              environment:
+                OLLAMA_URL: http://ollama:11434
+              depends_on:
+                - ollama
+          EOF
 
       - name: Start Ollama
         run: |
-          OLLAMA_HOST=0.0.0.0:11434 ollama serve > /tmp/ollama.log 2>&1 &
+          docker compose \
+            -f docker-compose.yml \
+            -f docker-compose.ci.yml \
+            up -d ollama
 
-          for i in {1..30}; do
-            if curl -fsS http://127.0.0.1:11434/api/tags > /dev/null; then
+      - name: Wait for Ollama
+        run: |
+          for i in {1..60}; do
+            if docker compose \
+              -f docker-compose.yml \
+              -f docker-compose.ci.yml \
+              exec -T ollama ollama list > /dev/null 2>&1; then
               echo "Ollama is ready."
               exit 0
             fi
@@ -67,19 +85,28 @@ jobs:
           done
 
           echo "Ollama did not start in time."
-          cat /tmp/ollama.log
+          docker compose \
+            -f docker-compose.yml \
+            -f docker-compose.ci.yml \
+            logs ollama
           exit 1
 
       - name: Pull Qwen model
         run: |
-          ollama pull qwen2.5:0.5b
+          docker compose \
+            -f docker-compose.yml \
+            -f docker-compose.ci.yml \
+            exec -T ollama ollama pull qwen2.5:0.5b
 
       - name: Start integration test services
         run: |
-          docker compose up -d \
-            ai-mode-service \
-            finance-backend \
-            savings-backend
+          docker compose \
+            -f docker-compose.yml \
+            -f docker-compose.ci.yml \
+            up -d \
+              ai-mode-service \
+              finance-backend \
+              savings-backend
 
       - name: Wait for Finance Backend
         run: |
@@ -91,6 +118,7 @@ jobs:
             fi
             sleep 2
           done
+
           echo "Finance Backend did not start in time."
           exit 1
 
@@ -104,18 +132,20 @@ jobs:
             fi
             sleep 2
           done
+
           echo "Savings Backend did not start in time."
           exit 1
 
       - name: Wait for AI Mode Service
         run: |
           for i in {1..30}; do
-            if curl -f http://localhost:5099/health; then
+            if curl -fsS http://localhost:5099/health > /dev/null; then
               echo "AI Mode Service is healthy."
               exit 0
             fi
             sleep 2
           done
+
           echo "AI Mode Service did not become healthy in time."
           exit 1
 
@@ -125,4 +155,8 @@ jobs:
 
       - name: Show Docker logs on failure
         if: failure()
-        run: docker compose logs
+        run: |
+          docker compose \
+            -f docker-compose.yml \
+            -f docker-compose.ci.yml \
+            logs
