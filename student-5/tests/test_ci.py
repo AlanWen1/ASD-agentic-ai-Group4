@@ -1,15 +1,18 @@
 import os
-import sys
 import tempfile
+import importlib.util
 
-sys.path.insert(
-    0,
-    os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "..", "database")
-    )
+DATABASE_PATH = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..", "database", "app.py")
 )
 
-import app as database_app
+spec = importlib.util.spec_from_file_location(
+    "student5_database_app",
+    DATABASE_PATH
+)
+
+database_app = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(database_app)
 
 
 def setup_module():
