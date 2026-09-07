@@ -203,7 +203,7 @@ services:
     build: ./student-1-budget/database
     container_name: student-1-budget-database-init
     volumes:
-      - ./student-1-budget/database:/app/database
+      - ./student-1-budget/database:/app
     restart: "no"
 
   budget-backend:
