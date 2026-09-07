@@ -7,6 +7,7 @@ on:
   pull_request:
     branches:
       - main
+  workflow_dispatch:
 
 jobs:
   student-5-ci:
@@ -33,9 +34,14 @@ jobs:
           python -m py_compile student-5/backend/agent.py
           python -m py_compile student-5/frontend/app.py
 
-      - name: Run Student 5 tests
+      - name: Run Student 5 self-contained tests
         run: |
-          python -m pytest student-5/tests/test_ci.py -v
+          python -m pytest \
+            student-5/tests/test_ci.py \
+            student-5/tests/test_auth.py \
+            student-5/tests/test_agent.py \
+            student-5/tests/test_frontend.py \
+            -v
 
       - name: Validate Docker Compose
         run: docker compose config
@@ -43,3 +49,69 @@ jobs:
       - name: Build Student 5 Docker images
         run: |
           docker compose build savings-database savings-backend savings-frontend
+
+      - name: Install Ollama
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+
+      - name: Start Ollama
+        run: |
+          ollama serve > /tmp/ollama.log 2>&1 &
+          sleep 5
+
+      - name: Pull Qwen model
+        run: |
+          ollama pull qwen2.5:0.5b
+
+      - name: Start integration test services
+        run: |
+          docker compose up -d \
+            ai-mode-service \
+            finance-backend \
+            savings-backend
+
+      - name: Wait for Finance Backend
+        run: |
+          for i in {1..30}; do
+            status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/auth/login || true)
+            if [ "$status" != "000" ]; then
+              echo "Finance Backend is responding."
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Finance Backend did not start in time."
+          exit 1
+
+      - name: Wait for Savings Backend
+        run: |
+          for i in {1..30}; do
+            status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5005/goals || true)
+            if [ "$status" != "000" ]; then
+              echo "Savings Backend is responding."
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Savings Backend did not start in time."
+          exit 1
+
+      - name: Wait for AI Mode Service
+        run: |
+          for i in {1..30}; do
+            if curl -f http://localhost:5099/health; then
+              echo "AI Mode Service is healthy."
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "AI Mode Service did not become healthy in time."
+          exit 1
+
+      - name: Run Student 5 integration tests
+        run: |
+          python -m pytest student-5/tests/test_savings_goal_api.py -v
+
+      - name: Show Docker logs on failure
+        if: failure()
+        run: docker compose logs
