@@ -266,7 +266,8 @@ async function sendChat(event) {
   try {
     const result = await api('/api/ai/chat', { method: 'POST', body: JSON.stringify({ message, month: $('#monthPicker').value, history: priorHistory }) });
     addChatBubble(result.answer, 'assistant'); state.chatHistory.push({ role: 'assistant', content: result.answer });
-  } catch (error) { addChatBubble(error.message, 'assistant error'); }
+    renderAgentTrace(result.trace);
+  } catch (error) { renderAgentTrace([]); addChatBubble(error.message, 'assistant error'); }
   finally { setBusy($('#sendChatButton'), false, 'Send'); }
 }
 
@@ -283,6 +284,21 @@ async function analyseMonth() {
 function addChatBubble(text, className) {
   const bubble = document.createElement('div'); bubble.className = `chat-bubble ${className}`; bubble.textContent = text;
   $('#chatMessages').appendChild(bubble); $('#chatMessages').scrollTop = $('#chatMessages').scrollHeight;
+}
+
+function renderAgentTrace(trace = []) {
+  const panel = $('#agentTracePanel'); const container = $('#agentTrace');
+  container.innerHTML = '';
+  panel.hidden = !Array.isArray(trace) || trace.length === 0;
+  if (panel.hidden) return;
+  trace.forEach((item) => {
+    const row = document.createElement('div'); row.className = 'agent-trace-row';
+    const phase = document.createElement('strong'); phase.className = `agent-phase ${String(item.phase || '').toLowerCase()}`;
+    phase.textContent = item.phase || 'Step';
+    const detail = document.createElement('span'); detail.textContent = item.detail || '';
+    row.append(phase, detail); container.appendChild(row);
+  });
+  panel.open = true;
 }
 
 function notify(message, isError = false) {

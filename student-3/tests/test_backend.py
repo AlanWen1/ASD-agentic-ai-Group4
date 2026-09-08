@@ -12,6 +12,7 @@ SPEC = importlib.util.spec_from_file_location("student3_backend_app", BACKEND_DI
 backend_module = importlib.util.module_from_spec(SPEC)
 assert SPEC and SPEC.loader
 SPEC.loader.exec_module(backend_module)
+import ai_service as ai_service_module
 
 
 class FakeResponse:
@@ -21,6 +22,10 @@ class FakeResponse:
 
     def json(self):
         return self._payload
+
+    def raise_for_status(self):
+        if self.status_code >= 400:
+            raise RuntimeError(f"HTTP {self.status_code}")
 
 
 SOURCES = {
@@ -77,23 +82,98 @@ def test_dashboard_calculates_money_without_ai(monkeypatch):
     assert summary["late_count"] == 1
 
 
-def test_ai_chat_receives_calculated_context(monkeypatch):
+def test_ai_chat_runs_user_scoped_agent_tools(monkeypatch):
     client = make_client(monkeypatch)
     captured = {}
 
-    def fake_ai(question, context, history=None):
-        captured.update({"question": question, "context": context, "history": history})
-        return "Your Job income is the largest source this month."
+    def fake_agent(question, selected_month, execute_tool, history=None):
+        captured.update(
+            {
+                "question": question,
+                "month": selected_month,
+                "summary": execute_tool("get_month_summary", {}),
+                "outstanding": execute_tool("get_outstanding_payments", {}),
+                "history": history,
+            }
+        )
+        return {
+            "answer": "Two payments totalling AUD 1500.00 are outstanding.",
+            "trace": [
+                {"step": 1, "phase": "Plan", "detail": "Selected an income tool."},
+                {"step": 1, "phase": "Act", "detail": "Executed the tool."},
+                {"step": 1, "phase": "Observe", "detail": "Observed the result."},
+                {"step": 1, "phase": "Adapt", "detail": "Produced the answer."},
+            ],
+            "completed": True,
+        }
 
-    monkeypatch.setattr(backend_module, "ask_ollama", fake_ai)
+    monkeypatch.setattr(backend_module, "run_agent_loop", fake_agent)
     response = client.post(
         "/api/ai/chat",
-        json={"message": "What is my largest source?", "month": "2026-08", "history": []},
+        json={"message": "What is outstanding?", "month": "2026-08", "history": []},
         headers=AUTH_HEADERS,
     )
     assert response.status_code == 200
-    assert "largest" in response.get_json()["answer"]
-    assert captured["context"]["summary"]["received_total"] == 1020.0
+    assert response.get_json()["completed"] is True
+    assert response.get_json()["trace"][2]["phase"] == "Observe"
+    assert captured["month"] == "2026-08"
+    assert captured["summary"]["received_total"] == 1020.0
+    assert captured["outstanding"]["outstanding_total"] == 1500.0
+    assert captured["outstanding"]["count"] == 2
+
+
+def test_agent_loop_executes_tool_and_returns_visible_trace(monkeypatch):
+    model_responses = iter(
+        [
+            {
+                "message": {
+                    "role": "assistant",
+                    "content": "",
+                    "tool_calls": [
+                        {
+                            "function": {
+                                "name": "get_outstanding_payments",
+                                "arguments": {},
+                            }
+                        }
+                    ],
+                }
+            },
+            {
+                "message": {
+                    "role": "assistant",
+                    "content": "Two payments totalling AUD 1500.00 are outstanding.",
+                }
+            },
+        ]
+    )
+    requested_urls = []
+
+    def fake_post(url, **_kwargs):
+        requested_urls.append(url)
+        return FakeResponse(next(model_responses))
+
+    observed_calls = []
+
+    def execute_tool(name, arguments):
+        observed_calls.append((name, arguments))
+        return {"count": 2, "outstanding_total": 1500.0, "payments": []}
+
+    monkeypatch.setattr(ai_service_module.requests, "post", fake_post)
+    result = ai_service_module.run_agent_loop(
+        "What is outstanding?",
+        "2026-08",
+        execute_tool,
+        base_url="http://ollama.test/v1",
+    )
+
+    assert requested_urls == ["http://ollama.test/api/chat"] * 2
+    assert observed_calls == [("get_outstanding_payments", {})]
+    assert result["completed"] is True
+    assert "AUD 1500.00" in result["answer"]
+    assert {item["phase"] for item in result["trace"]} == {
+        "Plan", "Act", "Observe", "Adapt"
+    }
 
 
 def test_generate_schedule_dates_from_frequency(monkeypatch):

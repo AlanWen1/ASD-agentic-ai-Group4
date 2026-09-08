@@ -7,6 +7,7 @@ on:
   pull_request:
     branches:
       - main
+  workflow_dispatch:
 
 jobs:
   student-5-ci:
@@ -33,9 +34,14 @@ jobs:
           python -m py_compile student-5/backend/agent.py
           python -m py_compile student-5/frontend/app.py
 
-      - name: Run Student 5 tests
+      - name: Run Student 5 self-contained tests
         run: |
-          python -m pytest student-5/tests/test_ci.py -v
+          python -m pytest \
+            student-5/tests/test_ci.py \
+            student-5/tests/test_auth.py \
+            student-5/tests/test_agent.py \
+            student-5/tests/test_frontend.py \
+            -v
 
       - name: Validate Docker Compose
         run: docker compose config
@@ -43,3 +49,129 @@ jobs:
       - name: Build Student 5 Docker images
         run: |
           docker compose build savings-database savings-backend savings-frontend
+
+      - name: Create CI Ollama override
+        run: |
+          cat > docker-compose.ci.yml <<'EOF'
+          services:
+            ollama:
+              image: ollama/ollama:latest
+
+            ai-mode-service:
+              environment:
+                OLLAMA_URL: http://ollama:11434
+              depends_on:
+                - ollama
+          EOF
+
+      - name: Start Ollama
+        run: |
+          docker compose \
+            -f docker-compose.yml \
+            -f docker-compose.ci.yml \
+            up -d ollama
+
+      - name: Wait for Ollama
+        run: |
+          for i in {1..60}; do
+            if docker compose \
+              -f docker-compose.yml \
+              -f docker-compose.ci.yml \
+              exec -T ollama ollama list > /dev/null 2>&1; then
+              echo "Ollama is ready."
+              exit 0
+            fi
+            sleep 2
+          done
+
+          echo "Ollama did not start in time."
+          docker compose \
+            -f docker-compose.yml \
+            -f docker-compose.ci.yml \
+            logs ollama
+          exit 1
+
+      - name: Pull Qwen model
+        run: |
+          docker compose \
+            -f docker-compose.yml \
+            -f docker-compose.ci.yml \
+            exec -T ollama ollama pull qwen2.5:0.5b
+
+      - name: Start integration test services
+        run: |
+          docker compose \
+            -f docker-compose.yml \
+            -f docker-compose.ci.yml \
+            up -d \
+              ai-mode-service \
+              finance-backend \
+              savings-backend
+
+      - name: Wait for Finance Backend
+        run: |
+          for i in {1..30}; do
+            status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/ || true)
+            if [ "$status" != "000" ]; then
+              echo "Finance Backend is responding."
+              exit 0
+            fi
+            sleep 2
+          done
+
+          echo "Finance Backend did not start in time."
+          exit 1
+
+      - name: Wait for Savings Backend
+        run: |
+          for i in {1..30}; do
+            status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5005/goals || true)
+            if [ "$status" != "000" ]; then
+              echo "Savings Backend is responding."
+              exit 0
+            fi
+            sleep 2
+          done
+
+          echo "Savings Backend did not start in time."
+          exit 1
+
+      - name: Wait for AI Mode Service
+        run: |
+          for i in {1..30}; do
+            if curl -fsS http://localhost:5099/health > /dev/null; then
+              echo "AI Mode Service is healthy."
+              exit 0
+            fi
+            sleep 2
+          done
+
+          echo "AI Mode Service did not become healthy in time."
+          exit 1
+
+      - name: Warm up Qwen model
+        run: |
+          curl -fsS \
+            --max-time 180 \
+            -X POST http://localhost:5099/api/generate \
+            -H "Content-Type: application/json" \
+            -d '{
+              "model": "qwen2.5:0.5b",
+              "prompt": "Reply with OK.",
+              "stream": false
+            }' \
+            > /dev/null
+
+          echo "Qwen model warm-up completed."
+
+      - name: Run Student 5 integration tests
+        run: |
+          python -m pytest student-5/tests/test_savings_goal_api.py -v
+
+      - name: Show Docker logs on failure
+        if: failure()
+        run: |
+          docker compose \
+            -f docker-compose.yml \
+            -f docker-compose.ci.yml \
+            logs

@@ -12,7 +12,7 @@ from typing import Any
 import requests
 from flask import Flask, Response, jsonify, request
 
-from ai_service import AIServiceError, ask_ollama, check_ollama
+from ai_service import AIServiceError, ask_ollama, check_ollama, run_agent_loop
 
 
 MONEY = Decimal("0.01")
@@ -202,6 +202,50 @@ def create_app(
         }
         return summary, schedules
 
+    def execute_income_tool(
+        tool_name: str,
+        _arguments: dict[str, Any],
+        user_id: int,
+        selected_month: str,
+    ) -> dict[str, Any]:
+        """Execute an agent tool without allowing the model to choose the user or month."""
+        if tool_name == "get_income_sources":
+            payload, status = database_json(
+                "GET", "/api/income-sources", params={"user_id": user_id}
+            )
+            if status != 200:
+                return {"error": payload.get("error", "Could not load income sources")}
+            return {
+                "month": selected_month,
+                "count": payload["count"],
+                "items": payload["items"],
+            }
+
+        if tool_name in {"get_month_summary", "get_outstanding_payments"}:
+            summary, schedules = build_summary(selected_month, user_id)
+            if tool_name == "get_month_summary":
+                return summary
+
+            outstanding = [
+                {
+                    "id": item["id"],
+                    "source_name": item["source_name"],
+                    "expected_pay_date": item["expected_pay_date"],
+                    "expected_amount": item["expected_amount"],
+                    "status": item["status"],
+                }
+                for item in schedules
+                if item["status"] in {"scheduled", "late"}
+            ]
+            return {
+                "month": selected_month,
+                "count": len(outstanding),
+                "outstanding_total": summary["outstanding_total"],
+                "payments": outstanding,
+            }
+
+        return {"error": f"Unsupported income tool: {tool_name}"}
+
     @app.get("/health")
     def health():
         database_health, status = database_json("GET", "/health")
@@ -330,16 +374,21 @@ def create_app(
         if len(question) > 2000:
             raise ValueError("message must be 2000 characters or fewer")
         selected_month = parse_month(payload.get("month"))
-        summary, schedules = build_summary(selected_month, user["id"])
         history = payload.get("history", [])
         if not isinstance(history, list):
             raise ValueError("history must be a list")
-        answer = ask_ollama(
+        result = run_agent_loop(
             question,
-            {"summary": summary, "schedules": schedules},
+            selected_month,
+            lambda tool_name, arguments: execute_income_tool(
+                tool_name,
+                arguments,
+                user["id"],
+                selected_month,
+            ),
             history=history,
         )
-        return jsonify({"answer": answer, "month": selected_month})
+        return jsonify({**result, "month": selected_month})
 
     @app.errorhandler(ValueError)
     def handle_validation_error(error: ValueError):

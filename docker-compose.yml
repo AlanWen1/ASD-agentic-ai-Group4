@@ -104,6 +104,7 @@ services:
       - DATABASE_API_URL=http://savings-database:6005
       - OLLAMA_API_URL=http://ai-mode-service:5099/api/generate
       - OLLAMA_MODEL=qwen2.5:0.5b
+      - AGENT_MODEL=qwen2.5:0.5b
     depends_on:
       - savings-database
       - ai-mode-service
