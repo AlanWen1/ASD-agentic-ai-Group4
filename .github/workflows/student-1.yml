@@ -5,13 +5,13 @@ on:
     branches: [ main, budget-vishal ]
     paths:
       - 'student-1-budget/**'
-      - 'docker-compose.student-1.yml'
+      - 'docker-compose.yml'
       - '.github/workflows/student-1.yml'
   pull_request:
     branches: [ main ]
     paths:
       - 'student-1-budget/**'
-      - 'docker-compose.student-1.yml'
+      - 'docker-compose.yml'
       - '.github/workflows/student-1.yml'
   workflow_dispatch:
 
@@ -30,61 +30,43 @@ jobs:
           cache: pip
           cache-dependency-path: |
             student-1-budget/backend/requirements.txt
-            student-1-budget/frontend/requirements.txt
+            student-1-budget/database/requirements.txt
             student-1-budget/requirements-dev.txt
 
-      - name: Install backend dependencies
-        working-directory: student-1-budget/backend
+      - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-
-      - name: Install test dependencies
-        working-directory: student-1-budget
-        run: pip install -r requirements-dev.txt
+          pip install -r student-1-budget/backend/requirements.txt
+          pip install -r student-1-budget/database/requirements.txt
+          pip install -r student-1-budget/requirements-dev.txt
 
       - name: Compile-check Python source
         run: python -m compileall -q student-1-budget
 
-      - name: Build database from schema and seed
-        working-directory: student-1-budget/database
-        run: python init_db.py
-
-      - name: Verify seed data meets minimum record requirement
-        working-directory: student-1-budget/database
+      - name: Start budget-database and budget-backend
+        working-directory: student-1-budget
+        env:
+          DATABASE_PATH: ${{ github.workspace }}/student-1-budget/database/budget_manager.db
+          DATABASE_URL: http://localhost:6001
         run: |
-          python -c "
-          import sqlite3
-          conn = sqlite3.connect('budget_manager.db')
-          cur = conn.cursor()
-          for table in ['budgets', 'budget_categories']:
-              cur.execute(f'SELECT COUNT(*) FROM {table}')
-              count = cur.fetchone()[0]
-              print(f'{table}: {count} records')
-              assert count >= 10, f'{table} has fewer than 10 records'
-          conn.close()
-          print('Seed data check passed.')
-          "
-
-      - name: Start backend for integration tests
-        working-directory: student-1-budget/backend
-        run: |
-          nohup python app.py > backend.log 2>&1 &
-          sleep 3
+          (cd database && python db_service.py &)
+          sleep 2
+          (cd backend && python app.py &)
+          sleep 2
 
       - name: Run Student 1 API tests
         working-directory: student-1-budget
+        env:
+          DATABASE_URL: http://localhost:6001
         run: pytest tests/test_budget_api.py -v
 
-      - name: Show backend log if tests failed
-        if: failure()
-        run: cat student-1-budget/backend/backend.log
+      - name: Validate root Docker Compose configuration
+        run: docker compose -f docker-compose.yml config --quiet
 
-      - name: Validate Docker Compose configuration
-        run: docker compose -f docker-compose.student-1.yml config --quiet
+      - name: Build backend image
+        run: docker build -t student-1-budget-backend ./student-1-budget/backend
 
-      - name: Build Student 1 containers
-        run: |
-          docker build -t student-1-budget-backend ./student-1-budget/backend
-          docker build -t student-1-budget-frontend -f student-1-budget/frontend/Dockerfile .
-          docker build -t student-1-budget-database ./student-1-budget/database
+      - name: Build frontend image
+        run: docker build -t student-1-budget-frontend -f student-1-budget/frontend/Dockerfile .
+
+      - name: Build database image
+        run: docker build -t student-1-budget-database -f student-1-budget/database/Dockerfile.database ./student-1-budget/database
