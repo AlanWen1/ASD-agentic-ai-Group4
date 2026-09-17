@@ -1,19 +1,11 @@
 import json
 import requests
-import sqlite3
-from pathlib import Path
 import os
 
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
 OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "qwen2.5:7b")
+DATABASE_URL = os.environ.get("DATABASE_URL", "http://budget-database:6001")
 
-
-DB_PATH = os.environ.get("DATABASE_PATH", os.path.join(os.path.dirname(__file__), "..", "database", "budget_manager.db"))
-
-def get_db_connection():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
 TOOLS = [
     {
         "type": "function",
@@ -47,37 +39,41 @@ for something essential like rent/food). Explain briefly why something looks off
 Keep answers short and concrete. Always base answers only on tool results, not assumptions."""
 
 
-def _get_db():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
-
-
 def get_budgets(student_id):
-    conn = _get_db()
-    rows = conn.execute(
-        "SELECT budget_id, month, year, status FROM budgets WHERE student_id = ?",
-        (student_id,),
-    ).fetchall()
-    conn.close()
-    return [dict(r) for r in rows]
+    """Fetch budgets via budget-database's REST API, not direct SQLite access."""
+    try:
+        resp = requests.get(
+            f"{DATABASE_URL}/api/budgets", params={"student_id": student_id}, timeout=5
+        )
+        resp.raise_for_status()
+        budgets = resp.json()
+        return [
+            {"budget_id": b["budget_id"], "month": b["month"], "year": b["year"], "status": b["status"]}
+            for b in budgets
+        ]
+    except requests.exceptions.RequestException as e:
+        return {"error": f"Could not reach budget-database: {e}"}
 
 
 def get_categories(student_id, budget_id):
-    conn = _get_db()
-    owns = conn.execute(
-        "SELECT 1 FROM budgets WHERE budget_id = ? AND student_id = ?",
-        (budget_id, student_id),
-    ).fetchone()
-    if not owns:
-        conn.close()
-        return {"error": "Budget not found or not owned by this user."}
-    rows = conn.execute(
-        "SELECT category_name, allocated_amount, notes FROM budget_categories WHERE budget_id = ?",
-        (budget_id,),
-    ).fetchall()
-    conn.close()
-    return [dict(r) for r in rows]
+    """Fetch categories via budget-database's REST API, checking ownership first."""
+    try:
+        budget_resp = requests.get(f"{DATABASE_URL}/api/budgets/{budget_id}", timeout=5)
+        if budget_resp.status_code == 404:
+            return {"error": "Budget not found."}
+        budget_resp.raise_for_status()
+        if budget_resp.json().get("student_id") != student_id:
+            return {"error": "Budget not found or not owned by this user."}
+
+        cat_resp = requests.get(f"{DATABASE_URL}/api/budgets/{budget_id}/categories", timeout=5)
+        cat_resp.raise_for_status()
+        categories = cat_resp.json()
+        return [
+            {"category_name": c["category_name"], "allocated_amount": c["allocated_amount"], "notes": c["notes"]}
+            for c in categories
+        ]
+    except requests.exceptions.RequestException as e:
+        return {"error": f"Could not reach budget-database: {e}"}
 
 
 def _call_tool(name, args, student_id):

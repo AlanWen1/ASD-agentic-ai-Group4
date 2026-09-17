@@ -161,7 +161,7 @@ services:
   student-3-database:
     build: ./student-3/database
     container_name: student-3-database
-    ports:
+    ports:  
       - "6003:6003"
     volumes:
       - student_3_data:/data
@@ -199,29 +199,31 @@ services:
       - student-3-backend
     restart: unless-stopped
 
-  budget-database-init:
-    build: ./student-1-budget/database
-    container_name: student-1-budget-database-init
+  budget-database:
+    build:
+      context: ./student-1-budget/database
+      dockerfile: Dockerfile
+    container_name: student-1-budget-database
+    ports:
+      - "6001:6001"
     volumes:
-      - ./student-1-budget/database:/app
-    restart: "no"
+      - budget_data:/data
+    environment:
+      - DATABASE_PATH=/data/budget_manager.db
+    restart: unless-stopped
 
   budget-backend:
     build: ./student-1-budget/backend
     container_name: student-1-budget-backend
     ports:
       - "5001:5001"
-    volumes:
-      - ./student-1-budget/database:/app/database
     environment:
-      - DATABASE_PATH=/app/database/budget_manager.db
+      - DATABASE_URL=http://budget-database:6001
       - OLLAMA_URL=http://ai-mode-service:5099
       - OLLAMA_MODEL=qwen2.5:0.5b
     depends_on:
-      budget-database-init:
-        condition: service_completed_successfully
-      ai-mode-service:
-        condition: service_started
+      - budget-database
+      - ai-mode-service
     restart: unless-stopped
 
   budget-frontend:
@@ -230,7 +232,7 @@ services:
       dockerfile: student-1-budget/frontend/Dockerfile
     container_name: student-1-budget-frontend
     ports:
-      - "3001:5000"
+      - "3001:3001"
     environment:
       - BACKEND_URL=http://budget-backend:5001
     depends_on:
@@ -252,3 +254,6 @@ volumes:
     
   savings_data:
     name: finance-application-savings-data
+
+  budget_data:
+    name: finance-application-budget-data
