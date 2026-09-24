@@ -21,12 +21,22 @@ instead talks to Ollama's OpenAI-compatible `/v1` surface via
 module does not attempt to unify; that would be a separate discussion for
 the team since it'd mean changing student-3's code, which this change
 deliberately leaves alone.
+
+Release 1 update: `ai-mode` now runs as a local (non-containerised) host
+process — see `service.py`'s module docstring and `ai-mode/README.md` for
+why (Release 1 requires AI-Mode, the MCP server, the RAG server, and the
+agentic loop to all be non-containerised). Because it now runs directly on
+the host, its default upstream is `localhost`, not
+`host.docker.internal` (that special hostname only resolves *inside* a
+Docker container, not on the host itself). `OLLAMA_URL` still overrides
+this default, so nothing here breaks if a future run still needs a
+container-facing address.
 """
 import os
 
 import requests
 
-DEFAULT_URL = "http://host.docker.internal:11434"
+DEFAULT_URL = "http://localhost:11434"
 DEFAULT_MODEL = "qwen2.5:0.5b"
 
 
