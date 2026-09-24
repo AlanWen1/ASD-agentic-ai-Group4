@@ -16,14 +16,18 @@ backend now reaches it at `host.docker.internal:5099` instead of the old
 Docker-network name `ai-mode-service:5099`. See `ai-mode/README.md` for
 the before/after table.
 
-`mcp-server/` and `rag-server/` are being built the same way from the
-start — local host processes, no Docker service — so all three shared AI
-capabilities follow one consistent connection pattern.
+`mcp-server/` and `rag-server/` are now both implemented the same way —
+local host processes, no Docker service — so all three shared AI
+capabilities (`ai-mode/`, `mcp-server/`, `rag-server/`) follow one
+consistent non-containerised pattern and connection convention.
 
 - `ai-mode/` — Release 0 requirement: AI-mode + Ollama runtime + approved
   LLM(s). Implemented as a shared proxy service every backend now calls —
   see `ai-mode/README.md`. Non-containerised as of Release 1.
-- `mcp-server/` — Release 1 requirement. In progress.
-- `rag-server/` — Release 1 requirement. In progress.
+- `mcp-server/` — Release 1 requirement. Implemented — see
+  `mcp-server/README.md` for the 8 tools and how to run it.
+- `rag-server/` — Release 1 requirement. Implemented — see
+  `rag-server/README.md` for the knowledge base, retrieval approach, and
+  how to run it.
 - `multi-agent-server/` — Release 2 requirement (Planner/Worker/Reviewer
   agents). Not implemented yet.
