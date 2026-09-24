@@ -243,6 +243,47 @@ def chat():
     """
 
 
+@app.route("/mcp", methods=["POST"])
+def mcp_query():
+    try:
+        response = requests.post(
+            f"{BACKEND_API_URL}/api/mcp/query",
+            json={},
+            headers=auth_headers(),
+            timeout=30
+        )
+    except requests.RequestException:
+        return "<p>Could not connect to the MCP service.</p>"
+
+    if response.status_code == 401:
+        return "<p>Authentication required.</p>"
+
+    if response.status_code != 200:
+        return "<p>Could not retrieve savings goals through MCP.</p>"
+
+    data = response.json()
+    result = data.get("result", {})
+
+    if isinstance(result, dict) and result.get("error"):
+        error_message = escape(str(result["error"]))
+
+        return f"""
+        <div class="chat-message assistant-message">
+            <strong>MCP Error:</strong>
+            <p>{error_message}</p>
+        </div>
+        """
+
+    safe_result = escape(str(result))
+
+    return f"""
+    <div class="chat-message assistant-message">
+        <strong>MCP Tool Result:</strong>
+        <pre>{safe_result}</pre>
+    </div>
+    """
+
+
 if __name__ == "__main__":
     app.run(
         host="0.0.0.0",

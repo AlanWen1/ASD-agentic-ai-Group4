@@ -93,7 +93,9 @@
 
             <div id="chat-response" class="chat-response">
                 <p>
-                    Some questions you could ask are “Which goal needs the most money?” or “How much more do I need to save?”
+                    Some questions you could ask are
+                    “Which goal needs the most money?” or
+                    “How much more do I need to save?”
                 </p>
             </div>
 
@@ -115,6 +117,26 @@
                     Send
                 </button>
             </form>
+        </section>
+
+        <section class="panel">
+            <h2>MCP Savings Goals</h2>
+
+            <p>
+                Retrieve savings goal data using the shared MCP server.
+            </p>
+
+            <button
+                class="primary-action"
+                hx-post="/mcp"
+                hx-target="#mcp-response"
+                hx-swap="innerHTML">
+                Get Savings Goals via MCP
+            </button>
+
+            <div id="mcp-response" class="chat-response">
+                <p>No MCP result yet.</p>
+            </div>
         </section>
     </main>
 
