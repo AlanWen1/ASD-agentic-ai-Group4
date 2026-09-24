@@ -4,6 +4,7 @@ from datetime import date
 import os
 
 from agent import run_agent_loop
+from mcp_client import call_mcp_tool
 
 app = Flask(__name__)
 
@@ -341,7 +342,9 @@ def get_goal_explanation(goal_id):
     prompt = f"""
 You are a helpful budgeting assistant.
 
-Explain this savings goal in simple language.
+All the numbers below have ALREADY been calculated correctly. Do not
+recalculate anything, do not invent new numbers, and do not invent any
+dates other than the target date given below.
 
 Goal name: {goal["goal_name"]}
 Target amount: ${target_amount:.2f}
@@ -351,8 +354,10 @@ Remaining amount: ${remaining_amount:.2f}
 Target date: {goal["target_date"]}
 Required monthly contribution: ${required_monthly_contribution:.2f}
 
-Keep the explanation short and easy to understand.
-Do not provide investment or financial product advice.
+Task: restate the numbers above in 2-3 short, plain-language sentences,
+as if explaining them to the user. Do not show any arithmetic or
+step-by-step working. Do not provide investment or financial product
+advice.
 """
 
     ollama_response = requests.post(
@@ -360,7 +365,10 @@ Do not provide investment or financial product advice.
         json={
             "model": OLLAMA_MODEL,
             "prompt": prompt,
-            "stream": False
+            "stream": False,
+            "options": {
+                "temperature": 0.1
+            }
         }
     )
 
@@ -403,6 +411,46 @@ def savings_agent():
         return jsonify({
             "error": str(error)
         }), 500
+
+
+# ---------------------------------------------------------------------
+# Release 1: shared MCP + RAG server access. Note: the Savings Goal
+# Manager's own /goals endpoint does not currently filter by user (a
+# known pre-existing gap - see get_savings_goals in tools.py's docstring
+# on the shared MCP server), so user_id here is optional, matching that.
+# ---------------------------------------------------------------------
+RAG_SERVER_URL = os.getenv("RAG_SERVER_URL", "http://host.docker.internal:5101").rstrip("/")
+
+
+@app.route("/api/mcp/query", methods=["POST"])
+def mcp_query():
+    """Call the shared MCP server's get_savings_goals tool."""
+    data = request.get_json(silent=True) or {}
+    user_id = data.get("user_id")
+    kwargs = {"user_id": user_id} if user_id is not None else {}
+    result = call_mcp_tool("get_savings_goals", **kwargs)
+    status_code = 502 if isinstance(result, dict) and "error" in result else 200
+    return jsonify({"tool": "get_savings_goals", "result": result}), status_code
+
+
+@app.route("/api/rag/ask", methods=["POST"])
+def rag_ask():
+    """Forward a free-text question to the shared RAG server for a
+    grounded answer with citations and a confidence category."""
+    data = request.get_json(silent=True) or {}
+    question = (data.get("message") or "").strip()
+    if not question:
+        return jsonify({"error": "message is required"}), 400
+
+    try:
+        response = requests.post(
+            f"{RAG_SERVER_URL}/answer_question",
+            json={"query": question},
+            timeout=20,
+        )
+        return jsonify(response.json()), response.status_code
+    except requests.exceptions.RequestException as exc:
+        return jsonify({"error": f"RAG server unavailable: {exc}"}), 502
 
 
 if __name__ == "__main__":

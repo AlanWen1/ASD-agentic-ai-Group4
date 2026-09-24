@@ -54,6 +54,8 @@ services:
       - DATABASE_URL=http://bill-database:6004
       - AUTH_DATABASE_URL=http://finance-database:6000
       - OLLAMA_URL=http://host.docker.internal:5099
+      - MCP_SERVER_URL=http://host.docker.internal:5100/mcp
+      - RAG_SERVER_URL=http://host.docker.internal:5101
       - OLLAMA_MODEL=qwen2.5:0.5b
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -92,6 +94,8 @@ services:
     environment:
       - DATABASE_API_URL=http://savings-database:6005
       - OLLAMA_API_URL=http://host.docker.internal:5099/api/generate
+      - MCP_SERVER_URL=http://host.docker.internal:5100/mcp
+      - RAG_SERVER_URL=http://host.docker.internal:5101
       - OLLAMA_MODEL=qwen2.5:0.5b
       - AGENT_MODEL=qwen2.5:0.5b
     extra_hosts:
@@ -118,6 +122,8 @@ services:
       - AUTH_DATABASE_URL=http://finance-database:6000
       - DATABASE_URL=http://expense-database:6002
       - OLLAMA_URL=http://host.docker.internal:5099
+      - MCP_SERVER_URL=http://host.docker.internal:5100/mcp
+      - RAG_SERVER_URL=http://host.docker.internal:5101
       - OLLAMA_MODEL=qwen2.5:0.5b
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -170,6 +176,8 @@ services:
       - DATABASE_SERVICE_URL=http://student-3-database:6003
       - AUTH_DATABASE_URL=http://finance-database:6000
       - OLLAMA_BASE_URL=http://host.docker.internal:5099/v1
+      - MCP_SERVER_URL=http://host.docker.internal:5100/mcp
+      - RAG_SERVER_URL=http://host.docker.internal:5101
       - OLLAMA_MODEL=qwen2.5:0.5b
       - OLLAMA_TIMEOUT_SECONDS=90
     extra_hosts:
@@ -209,6 +217,8 @@ services:
     environment:
       - DATABASE_PATH=/app/database/budget_manager.db
       - OLLAMA_URL=http://host.docker.internal:5099
+      - MCP_SERVER_URL=http://host.docker.internal:5100/mcp
+      - RAG_SERVER_URL=http://host.docker.internal:5101
       - OLLAMA_MODEL=qwen2.5:0.5b
     extra_hosts:
       - "host.docker.internal:host-gateway"

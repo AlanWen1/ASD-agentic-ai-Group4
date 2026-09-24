@@ -13,9 +13,14 @@ import requests
 from flask import Flask, Response, jsonify, request
 
 from ai_service import AIServiceError, ask_ollama, check_ollama, run_agent_loop
+from mcp_client import call_mcp_tool
 
 
 MONEY = Decimal("0.01")
+
+# Release 1: shared RAG server (see ../../ai-services/rag-server/).
+RAG_SERVER_URL = os.environ.get("RAG_SERVER_URL", "http://host.docker.internal:5101").rstrip("/")
+MCP_TOOLS_FOR_THIS_MODULE = {"get_income_sources", "get_pay_schedules"}
 
 
 def money(value: Any) -> Decimal:
@@ -389,6 +394,46 @@ def create_app(
             history=history,
         )
         return jsonify({**result, "month": selected_month})
+
+    @app.route("/api/mcp/query", methods=["POST"])
+    def mcp_query():
+        """Call one of the shared MCP server's tools for this user's own
+        income/pay-schedule data. Body: {"tool": "get_income_sources"|"get_pay_schedules"}."""
+        user, error = current_user()
+        if error:
+            return error
+
+        data = request.get_json(silent=True) or {}
+        tool = data.get("tool")
+        if tool not in MCP_TOOLS_FOR_THIS_MODULE:
+            return jsonify({"error": f"tool must be one of {sorted(MCP_TOOLS_FOR_THIS_MODULE)}"}), 400
+
+        result = call_mcp_tool(tool, user_id=user["id"])
+        status_code = 502 if isinstance(result, dict) and "error" in result else 200
+        return jsonify({"tool": tool, "result": result}), status_code
+
+    @app.route("/api/rag/ask", methods=["POST"])
+    def rag_ask():
+        """Forward a free-text question to the shared RAG server for a
+        grounded answer with citations and a confidence category."""
+        user, error = current_user()
+        if error:
+            return error
+
+        data = request.get_json(silent=True) or {}
+        question = str(data.get("message", "")).strip()
+        if not question:
+            return jsonify({"error": "message is required"}), 400
+
+        try:
+            response = requests.post(
+                f"{RAG_SERVER_URL}/answer_question",
+                json={"query": question},
+                timeout=20,
+            )
+            return jsonify(response.json()), response.status_code
+        except requests.exceptions.RequestException as exc:
+            return jsonify({"error": f"RAG server unavailable: {exc}"}), 502
 
     @app.errorhandler(ValueError)
     def handle_validation_error(error: ValueError):

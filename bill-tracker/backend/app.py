@@ -4,6 +4,7 @@ from datetime import date
 
 import requests
 from flask import Flask, jsonify, request
+from mcp_client import call_mcp_tool
 
 app = Flask(__name__)
 DATABASE_URL = os.environ.get("DATABASE_URL", "http://bill-database:6004").rstrip("/")
@@ -139,6 +140,58 @@ def chat():
         return jsonify({"answer": ask_ollama(message, context), "context": {"bill_count": context["bill_count"], "total_amount": context["total_amount"]}})
     except RuntimeError as exc:
         return jsonify({"error": str(exc)}), 503
+
+
+# ---------------------------------------------------------------------
+# Release 1: shared MCP + RAG server access. This backend is the only
+# thing that talks to the shared servers directly - the frontend only
+# ever calls these two routes on this backend.
+# ---------------------------------------------------------------------
+RAG_SERVER_URL = os.environ.get("RAG_SERVER_URL", "http://host.docker.internal:5101").rstrip("/")
+
+MCP_TOOLS_FOR_THIS_MODULE = {"get_bills", "get_bills_summary"}
+
+
+@app.route("/api/mcp/query", methods=["POST"])
+def mcp_query():
+    """Call one of the shared MCP server's tools for this user's own
+    bill data. Body: {"tool": "get_bills"|"get_bills_summary"}."""
+    user, error = current_user()
+    if error:
+        return error
+
+    data = request.get_json(silent=True) or {}
+    tool = data.get("tool")
+    if tool not in MCP_TOOLS_FOR_THIS_MODULE:
+        return jsonify({"error": f"tool must be one of {sorted(MCP_TOOLS_FOR_THIS_MODULE)}"}), 400
+
+    result = call_mcp_tool(tool, user_id=user["id"])
+    status_code = 502 if isinstance(result, dict) and "error" in result else 200
+    return jsonify({"tool": tool, "result": result}), status_code
+
+
+@app.route("/api/rag/ask", methods=["POST"])
+def rag_ask():
+    """Forward a free-text question to the shared RAG server for a
+    grounded answer with citations and a confidence category."""
+    user, error = current_user()
+    if error:
+        return error
+
+    data = request.get_json(silent=True) or {}
+    question = (data.get("message") or "").strip()
+    if not question:
+        return jsonify({"error": "message is required"}), 400
+
+    try:
+        response = requests.post(
+            f"{RAG_SERVER_URL}/answer_question",
+            json={"query": question},
+            timeout=HTTP_TIMEOUT,
+        )
+        return jsonify(response.json()), response.status_code
+    except requests.exceptions.RequestException as exc:
+        return jsonify({"error": f"RAG server unavailable: {exc}"}), 502
 
 
 @app.errorhandler(Exception)

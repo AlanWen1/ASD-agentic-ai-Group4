@@ -15,8 +15,8 @@ OLLAMA_API_URL = os.environ.get(
 OLLAMA_URL = OLLAMA_API_URL.replace("/api/generate", "").rstrip("/")
 
 AGENT_MODEL = os.environ.get(
-    "AGENT_MODEL",
-    "qwen2.5:7b"
+    "OLLAMA_MODEL",
+    "qwen2.5:0.5b"
 )
 
 HTTP_TIMEOUT = 20
