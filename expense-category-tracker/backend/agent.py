@@ -67,7 +67,9 @@ TOOLS = [
 SYSTEM_PROMPT = """You are a personal finance assistant embedded in an expense tracking app.
 You can call tools to fetch the user's real expenses and categories — never invent numbers.
 When asked about spending patterns, use the tools to ground your answer in the user's actual
-data before answering. Keep answers short and concrete."""
+data before answering. Keep answers short and concrete.
+
+If the user asks what categories exist, call get_categories."""
 
 
 def _get(path, user_id, params=None):
@@ -132,6 +134,9 @@ def run_agent_loop(user_message, user_id, max_steps=4):
                 "messages": messages,
                 "tools": TOOLS,
                 "stream": False,
+                "options": {
+                    "temperature": 0.1
+                },
             },
             timeout=60,
         )

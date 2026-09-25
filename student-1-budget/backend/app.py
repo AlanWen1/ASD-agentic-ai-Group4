@@ -303,5 +303,54 @@ def health():
     return jsonify({"status": "ok", "service": "budget-manager-backend"}), 200
 
 
+# ---------------------------------------------------------------------
+# Release 1: shared MCP + RAG server access. This backend is the only
+# thing that talks to the shared servers directly - the frontend only
+# ever calls these two routes on this backend.
+# ---------------------------------------------------------------------
+RAG_SERVER_URL = os.environ.get("RAG_SERVER_URL", "http://host.docker.internal:5101").rstrip("/")
+
+
+@app.route("/api/mcp/query", methods=["POST"])
+def mcp_query():
+    """Call the shared MCP server's get_budgets tool for this user."""
+    from mcp_client import call_mcp_tool  # lazy: keeps CI import-free (no mcp pkg needed)
+    user_id, err = get_user_id()
+    if err:
+        return err
+    try:
+        user_id_int = int(user_id)
+    except (TypeError, ValueError):
+        return jsonify({"error": "X-User-Id header must be an integer"}), 400
+
+    result = call_mcp_tool("get_budgets", user_id=user_id_int)
+    status_code = 502 if isinstance(result, dict) and "error" in result else 200
+    return jsonify({"tool": "get_budgets", "result": result}), status_code
+
+
+@app.route("/api/rag/ask", methods=["POST"])
+def rag_ask():
+    """Forward a free-text question to the shared RAG server for a
+    grounded answer with citations and a confidence category."""
+    user_id, err = get_user_id()
+    if err:
+        return err
+
+    data = request.get_json(silent=True) or {}
+    question = (data.get("message") or "").strip()
+    if not question:
+        return jsonify({"error": "message is required"}), 400
+
+    try:
+        response = requests.post(
+            f"{RAG_SERVER_URL}/answer_question",
+            json={"query": question},
+            timeout=20,
+        )
+        return jsonify(response.json()), response.status_code
+    except requests.exceptions.RequestException as exc:
+        return jsonify({"error": f"RAG server unavailable: {exc}"}), 502
+
+
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5001)
