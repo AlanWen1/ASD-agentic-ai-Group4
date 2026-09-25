@@ -413,44 +413,83 @@ def savings_agent():
 
 
 # ---------------------------------------------------------------------
-# Release 1: shared MCP + RAG server access. Note: the Savings Goal
-# Manager's own /goals endpoint does not currently filter by user (a
-# known pre-existing gap - see get_savings_goals in tools.py's docstring
-# on the shared MCP server), so user_id here is optional, matching that.
+# Release 1: shared MCP + RAG server access.
 # ---------------------------------------------------------------------
 RAG_SERVER_URL = os.getenv("RAG_SERVER_URL", "http://host.docker.internal:5101").rstrip("/")
 
 
 @app.route("/mcp/query", methods=["POST"])
 def mcp_query():
-    """Call the shared MCP server's get_savings_goals tool."""
-    from mcp_client import call_mcp_tool  # lazy: keeps CI import-free (no mcp pkg needed)
-    data = request.get_json(silent=True) or {}
-    user_id = data.get("user_id")
-    kwargs = {"user_id": user_id} if user_id is not None else {}
-    result = call_mcp_tool("get_savings_goals", **kwargs)
-    status_code = 502 if isinstance(result, dict) and "error" in result else 200
-    return jsonify({"tool": "get_savings_goals", "result": result}), status_code
+    """Query the shared MCP server for the authenticated user's savings goals."""
+    user, error = current_user()
+
+    if error:
+        return error
+
+    from mcp_client import call_mcp_tool
+
+    result = call_mcp_tool(
+        "get_savings_goals",
+        user_id=user["id"]
+    )
+
+    if isinstance(result, dict) and result.get("error"):
+        return jsonify({
+            "error": result["error"]
+        }), 502
+
+    if not isinstance(result, list):
+        return jsonify({
+            "error": "Unexpected response from MCP server"
+        }), 502
+
+    user_goals = [
+        goal
+        for goal in result
+        if goal.get("user_id") == user["id"]
+    ]
+
+    return jsonify({
+        "tool": "get_savings_goals",
+        "goals": user_goals
+    }), 200
 
 
 @app.route("/rag/ask", methods=["POST"])
 def rag_ask():
-    """Forward a free-text question to the shared RAG server for a
-    grounded answer with citations and a confidence category."""
+    """Ask the shared RAG server for a grounded answer."""
+    user, error = current_user()
+
+    if error:
+        return error
+
     data = request.get_json(silent=True) or {}
     question = (data.get("message") or "").strip()
+
     if not question:
-        return jsonify({"error": "message is required"}), 400
+        return jsonify({
+            "error": "message is required"
+        }), 400
 
     try:
         response = requests.post(
             f"{RAG_SERVER_URL}/answer_question",
             json={"query": question},
-            timeout=20,
+            timeout=20
         )
-        return jsonify(response.json()), response.status_code
-    except requests.exceptions.RequestException as exc:
-        return jsonify({"error": f"RAG server unavailable: {exc}"}), 502
+    except requests.RequestException as exc:
+        return jsonify({
+            "error": f"RAG server unavailable: {exc}"
+        }), 502
+
+    try:
+        result = response.json()
+    except ValueError:
+        return jsonify({
+            "error": "RAG server returned an invalid response"
+        }), 502
+
+    return jsonify(result), response.status_code
 
 
 if __name__ == "__main__":

@@ -211,43 +211,51 @@ def goal_explanation(goal_id):
 
 @app.route("/mcp-query", methods=["POST"])
 def mcp_query():
-    """Release 1: call the shared MCP server (via this module's own
-    backend route /mcp/query) for the real get_savings_goals tool."""
+    """Query the Student 5 backend through the shared MCP server."""
     try:
         response = requests.post(
             f"{BACKEND_API_URL}/mcp/query",
             headers=auth_headers(),
-            timeout=30,
+            timeout=30
         )
     except requests.RequestException:
-        return "<p>Could not reach the backend.</p>"
+        return "<p>Could not connect to the MCP backend.</p>"
 
-    if response.status_code not in (200, 502):
-        return "<p>Could not query the shared MCP server.</p>"
+    if response.status_code == 401:
+        return "<p>Authentication required.</p>"
 
-    data = response.json()
-    result = data.get("result")
+    if response.status_code == 502:
+        return "<p>The shared MCP server is unavailable.</p>"
 
-    if isinstance(result, dict) and result.get("error"):
-        return f"<p>Error: {escape(result['error'])}</p>"
+    if response.status_code != 200:
+        return "<p>Could not retrieve savings goals through MCP.</p>"
 
-    goals = result if isinstance(result, list) else []
+    try:
+        data = response.json()
+    except ValueError:
+        return "<p>Invalid response from the MCP backend.</p>"
+
+    if data.get("error"):
+        return f"<p>Error: {escape(data['error'])}</p>"
+
+    goals = data.get("goals", [])
+
     if not goals:
         return "<p>No savings goals found.</p>"
 
     items = "".join(
-        f"<li>{escape(g.get('goal_name', ''))} — target ${g.get('target_amount', 0):.2f}, "
-        f"saved ${g.get('current_amount', 0):.2f}</li>"
-        for g in goals
+        f"<li>{escape(goal.get('goal_name', ''))} — "
+        f"target ${goal.get('target_amount', 0):.2f}, "
+        f"saved ${goal.get('current_amount', 0):.2f}</li>"
+        for goal in goals
     )
+
     return f"<ul>{items}</ul>"
 
 
 @app.route("/rag-ask", methods=["POST"])
 def rag_ask():
-    """Release 1: ask the shared RAG server a question (via this
-    module's own backend route /rag/ask) and show the grounded answer
-    with citations and a confidence category."""
+    """Ask the Student 5 backend for a grounded RAG answer."""
     message = request.form.get("rag_message", "").strip()
 
     if not message:
@@ -258,23 +266,44 @@ def rag_ask():
             f"{BACKEND_API_URL}/rag/ask",
             json={"message": message},
             headers=auth_headers(),
-            timeout=60,
+            timeout=60
         )
     except requests.RequestException:
-        return "<p>Could not reach the RAG service. Try again in a moment.</p>"
+        return "<p>Could not reach the RAG backend.</p>"
 
-    data = response.json()
-    if "error" in data:
+    if response.status_code == 401:
+        return "<p>Authentication required.</p>"
+
+    if response.status_code != 200:
+        return "<p>Could not get a RAG response.</p>"
+
+    try:
+        data = response.json()
+    except ValueError:
+        return "<p>The RAG backend returned an invalid response.</p>"
+
+    if data.get("error"):
         return f"<p>{escape(data['error'])}</p>"
 
+    answer = escape(data.get("answer", "No answer generated."))
     citations = data.get("citations") or []
-    citations_html = (
-        f"<p><em>Sources: {escape(', '.join(citations))}</em></p>" if citations else ""
-    )
+    confidence = escape(data.get("confidence_category", ""))
+
+    citations_html = ""
+    if citations:
+        citations_html = (
+            f"<p><em>Sources: "
+            f"{escape(', '.join(citations))}</em></p>"
+        )
+
+    confidence_html = ""
+    if confidence:
+        confidence_html = f"<p><strong>Confidence:</strong> {confidence}</p>"
+
     return f"""
     <div>
-        <p><strong>Confidence:</strong> {escape(data.get("confidence_category", ""))}</p>
-        <p>{escape(data.get("answer", ""))}</p>
+        {confidence_html}
+        <p>{answer}</p>
         {citations_html}
     </div>
     """
@@ -312,7 +341,6 @@ def chat():
         <p>{answer}</p>
     </div>
     """
-
 
 if __name__ == "__main__":
     app.run(
