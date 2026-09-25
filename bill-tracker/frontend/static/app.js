@@ -63,12 +63,19 @@ if (!token()) showGate(); else loadAll();
 
 // Release 1: shared MCP + RAG server access (via this frontend's own
 // /api proxy - see app.py's backend_proxy).
+function renderBillsSummaryText(result) {
+  if (result && result.error) return `Error: ${result.error}`;
+  if (!result || typeof result !== "object") return "No summary available.";
+  return `You have ${result.bill_count} bill(s) totalling ${money(result.total_amount)}. `
+    + `Pending: ${money(result.pending_amount)}. Overdue: ${result.overdue_count}.`;
+}
+
 $("mcp-query-button").addEventListener("click", async () => {
   const resultEl = $("mcp-result");
   resultEl.textContent = "Loading...";
   try {
     const data = await api("/mcp/query", { method: "POST", body: JSON.stringify({ tool: "get_bills_summary" }) });
-    resultEl.textContent = JSON.stringify(data.result, null, 2);
+    resultEl.textContent = renderBillsSummaryText(data.result);
   } catch (error) {
     resultEl.textContent = `Error: ${error.message}`;
   }

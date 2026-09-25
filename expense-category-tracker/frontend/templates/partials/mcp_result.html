@@ -2,7 +2,21 @@
     <p class="mcp-tool-label">Tool called: <code>{{ tool }}</code> (via the shared MCP server)</p>
     {% if result and result.error %}
     <p class="assistant-error">{{ result.error }}</p>
+    {% elif result %}
+        {% if tool == 'get_categories' %}
+        <ul class="mcp-list">
+            {% for c in result %}<li>{{ c.name }}</li>{% endfor %}
+        </ul>
+        {% elif tool == 'get_expenses' %}
+        <ul class="mcp-list">
+            {% for e in result %}
+            <li>{{ e.date }} — {{ e.description }} — ${{ "%.2f"|format(e.amount|float) }}{% if e.category_name %} ({{ e.category_name }}){% endif %}</li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="assistant-message">{{ result }}</p>
+        {% endif %}
     {% else %}
-    <pre class="mcp-json">{{ result | tojson(indent=2) }}</pre>
+    <p class="mcp-empty">No results — {{ "you have no categories yet" if tool == "get_categories" else "you have no expenses yet" }}.</p>
     {% endif %}
 </div>

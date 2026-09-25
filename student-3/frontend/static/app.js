@@ -312,12 +312,25 @@ function escapeHtml(value) { const div = document.createElement('div'); div.text
 
 // Release 1: shared MCP + RAG server access (via this frontend's own
 // /api/<path> proxy - see app.py's backend_proxy).
+function renderMcpResultText(tool, result) {
+  if (result && result.error) return `Error: ${result.error}`;
+  const items = (result && result.items) || [];
+  if (items.length === 0) return 'No results found.';
+  if (tool === 'get_income_sources') {
+    return items.map((s) => `${s.source_name} — $${s.standard_amount} (${s.payment_frequency})`).join('<br>');
+  }
+  if (tool === 'get_pay_schedules') {
+    return items.map((p) => `${p.expected_pay_date} — $${p.expected_amount} (${p.status})`).join('<br>');
+  }
+  return `${items.length} item(s) found.`;
+}
+
 async function callMcpQuery(tool) {
   const resultEl = $('#mcpResult');
   resultEl.textContent = 'Loading...';
   try {
     const result = await api('/api/mcp/query', { method: 'POST', body: JSON.stringify({ tool }) });
-    resultEl.textContent = JSON.stringify(result.result, null, 2);
+    resultEl.innerHTML = renderMcpResultText(tool, result.result);
   } catch (error) {
     resultEl.textContent = `Error: ${error.message}`;
   }

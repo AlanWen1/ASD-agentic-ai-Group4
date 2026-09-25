@@ -297,12 +297,18 @@ async function callMcpQuery() {
   return data;
 }
 
+function renderBudgetsText(result) {
+  if (result && result.error) return `Error: ${result.error}`;
+  if (!Array.isArray(result) || result.length === 0) return "No budgets found for this user yet.";
+  return result.map((b) => `${b.month}/${b.year} — ${b.status}`).join("<br>");
+}
+
 document.getElementById("mcpQueryButton").addEventListener("click", async () => {
   const resultEl = document.getElementById("mcpResult");
   resultEl.textContent = "Loading...";
   try {
     const data = await callMcpQuery();
-    resultEl.textContent = JSON.stringify(data.result, null, 2);
+    resultEl.innerHTML = renderBudgetsText(data.result);
   } catch (err) {
     resultEl.textContent = `Error: ${err.message}`;
   }

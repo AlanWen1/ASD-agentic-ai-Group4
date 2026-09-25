@@ -227,7 +227,20 @@ def mcp_query():
 
     data = response.json()
     result = data.get("result")
-    return f"<pre class=\"mcp-json\">{escape(str(result))}</pre>"
+
+    if isinstance(result, dict) and result.get("error"):
+        return f"<p>Error: {escape(result['error'])}</p>"
+
+    goals = result if isinstance(result, list) else []
+    if not goals:
+        return "<p>No savings goals found.</p>"
+
+    items = "".join(
+        f"<li>{escape(g.get('goal_name', ''))} — target ${g.get('target_amount', 0):.2f}, "
+        f"saved ${g.get('current_amount', 0):.2f}</li>"
+        for g in goals
+    )
+    return f"<ul>{items}</ul>"
 
 
 @app.route("/rag-ask", methods=["POST"])

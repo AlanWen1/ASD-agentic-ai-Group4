@@ -192,3 +192,17 @@ ul#category-list li {
     color: #68758a;
     margin: 8px 0 0;
 }
+
+.mcp-list {
+    margin: 8px 0 0;
+    padding-left: 18px;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.mcp-empty {
+    font-size: 14px;
+    color: #68758a;
+    margin: 8px 0 0;
+    font-style: italic;
+}
