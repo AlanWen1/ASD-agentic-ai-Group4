@@ -77,13 +77,13 @@ def health():
 @app.route("/api/budgets", methods=["POST"])
 def create_budget():
     data = request.get_json(silent=True) or {}
-    student_id = data.get("student_id")
+    user_id = data.get("user_id")
     month = data.get("month")
     year = data.get("year")
     status = data.get("status", "active")
 
-    if not student_id or month is None or year is None:
-        return jsonify({"error": "student_id, month and year are required"}), 400
+    if not user_id or month is None or year is None:
+        return jsonify({"error": "user_id, month and year are required"}), 400
     if not (1 <= int(month) <= 12):
         return jsonify({"error": "month must be between 1 and 12"}), 400
     if status not in ("active", "archived"):
@@ -91,8 +91,8 @@ def create_budget():
 
     db = get_db()
     cur = db.execute(
-        "INSERT INTO budgets (student_id, month, year, status) VALUES (?, ?, ?, ?)",
-        (student_id, month, year, status),
+        "INSERT INTO budgets (user_id, month, year, status) VALUES (?, ?, ?, ?)",
+        (int(user_id), month, year, status),
     )
     db.commit()
     new_budget = db.execute(
@@ -103,12 +103,12 @@ def create_budget():
 
 @app.route("/api/budgets", methods=["GET"])
 def list_budgets():
-    student_id = request.args.get("student_id")
+    user_id = request.args.get("user_id")
     db = get_db()
-    if student_id:
+    if user_id:
         rows = db.execute(
-            "SELECT * FROM budgets WHERE student_id = ? ORDER BY year DESC, month DESC",
-            (student_id,),
+            "SELECT * FROM budgets WHERE user_id = ? ORDER BY year DESC, month DESC",
+            (int(user_id),),
         ).fetchall()
     else:
         rows = db.execute(

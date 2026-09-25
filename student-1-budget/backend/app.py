@@ -8,18 +8,24 @@ app = Flask(__name__)
 CORS(app)
  
 DATABASE_URL = os.environ.get("DATABASE_URL", "http://budget-database:6001")
- 
+AUTH_DATABASE_URL = os.environ.get("AUTH_DATABASE_URL", "http://finance-database:6000")
  
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
  
-def get_user_id():
-    """Release 0 scope: trust the X-User-Id header, no central validation yet."""
-    user_id = request.headers.get("X-User-Id")
-    if not user_id:
-        return None, (jsonify({"error": "Missing X-User-Id header"}), 401)
-    return user_id, None
+def current_user():
+    header = request.headers.get("Authorization", "")
+    token = header[7:].strip() if header.lower().startswith("bearer ") else ""
+    if not token:
+        return None, (jsonify({"error": "Authentication required"}), 401)
+    try:
+        resp = requests.get(f"{AUTH_DATABASE_URL}/sessions/{token}", timeout=5)
+    except requests.exceptions.RequestException:
+        return None, (jsonify({"error": "Authentication service unavailable"}), 503)
+    if not resp.ok:
+        return None, (jsonify({"error": "Invalid or expired session"}), 401)
+    return resp.json()["user"], None
  
  
 def db_get(path, params=None):
@@ -48,10 +54,10 @@ def db_delete(path):
  
 @app.route("/api/agent/chat", methods=["POST"])
 def agent_chat():
-    student_id = request.headers.get("X-User-Id")
-    if not student_id:
-        return jsonify({"error": "X-User-Id header required"}), 400
- 
+    user, err = current_user()
+    if err: return err
+    result = run_agent_loop(user_message, user["id"])
+    
     body = request.get_json(silent=True) or {}
     user_message = body.get("message", "").strip()
     if not user_message:
@@ -72,9 +78,9 @@ def agent_chat():
  
 @app.route("/api/budgets", methods=["POST"])
 def create_budget():
-    user_id, err = get_user_id()
-    if err:
-        return err
+    user, err = current_user()
+    if err: return err
+    user_id = user["id"]  # integer e.g. 1
  
     data = request.get_json(silent=True) or {}
     month = data.get("month")
@@ -90,7 +96,7 @@ def create_budget():
  
     try:
         resp = db_post("/api/budgets", json={
-            "student_id": user_id,
+            "user_id": int(user_id),
             "month": month,
             "year": year,
             "status": status
@@ -102,12 +108,12 @@ def create_budget():
  
 @app.route("/api/budgets", methods=["GET"])
 def list_budgets():
-    user_id, err = get_user_id()
-    if err:
-        return err
+    user, err = current_user()
+    if err: return err
+    user_id = user["id"]  # integer e.g. 1
  
     try:
-        resp = db_get("/api/budgets", params={"student_id": user_id})
+        resp = db_get("/api/budgets", params={"user_id": int(user_id)})
         return jsonify(resp.json()), resp.status_code
     except requests.exceptions.ConnectionError:
         return jsonify({"error": "Could not reach budget-database"}), 502
@@ -115,12 +121,12 @@ def list_budgets():
  
 @app.route("/api/budgets/<int:budget_id>", methods=["GET"])
 def get_budget(budget_id):
-    user_id, err = get_user_id()
-    if err:
-        return err
- 
+    user, err = current_user()
+    if err: return err
+    user_id = user["id"] 
+
     try:
-        resp = db_get(f"/api/budgets/{budget_id}", params={"student_id": user_id})
+        resp = db_get(f"/api/budgets/{budget_id}", params={"user_id": int(user_id)})
         return jsonify(resp.json()), resp.status_code
     except requests.exceptions.ConnectionError:
         return jsonify({"error": "Could not reach budget-database"}), 502
@@ -128,9 +134,9 @@ def get_budget(budget_id):
  
 @app.route("/api/budgets/<int:budget_id>", methods=["PUT"])
 def update_budget(budget_id):
-    user_id, err = get_user_id()
-    if err:
-        return err
+    user, err = current_user()
+    if err: return err
+    user_id = user["id"]  # integer e.g. 1
  
     data = request.get_json(silent=True) or {}
     month = data.get("month")
@@ -144,7 +150,7 @@ def update_budget(budget_id):
  
     try:
         resp = db_put(f"/api/budgets/{budget_id}", json={
-            "student_id": user_id,
+            "user_id": int(user_id),
             "month": month,
             "year": year,
             "status": status
@@ -156,12 +162,12 @@ def update_budget(budget_id):
  
 @app.route("/api/budgets/<int:budget_id>", methods=["DELETE"])
 def delete_budget(budget_id):
-    user_id, err = get_user_id()
-    if err:
-        return err
+    user, err = current_user()
+    if err: return err
+    user_id = user["id"]  # integer e.g. 1
  
     try:
-        resp = db_delete(f"/api/budgets/{budget_id}?student_id={user_id}")
+        resp = db_delete(f"/api/budgets/{budget_id}?user_id={int(user_id)}")
         return jsonify(resp.json()), resp.status_code
     except requests.exceptions.ConnectionError:
         return jsonify({"error": "Could not reach budget-database"}), 502
@@ -173,9 +179,9 @@ def delete_budget(budget_id):
  
 @app.route("/api/budgets/<int:budget_id>/categories", methods=["POST"])
 def create_category(budget_id):
-    user_id, err = get_user_id()
-    if err:
-        return err
+    user, err = current_user()
+    if err: return err
+    user_id = user["id"]  # integer e.g. 1
  
     data = request.get_json(silent=True) or {}
     category_name = data.get("category_name")
@@ -189,7 +195,7 @@ def create_category(budget_id):
  
     try:
         resp = db_post(f"/api/budgets/{budget_id}/categories", json={
-            "student_id": user_id,
+            "user_id": int(user_id),
             "category_name": category_name,
             "allocated_amount": allocated_amount,
             "notes": notes
@@ -201,12 +207,12 @@ def create_category(budget_id):
  
 @app.route("/api/budgets/<int:budget_id>/categories", methods=["GET"])
 def list_categories(budget_id):
-    user_id, err = get_user_id()
-    if err:
-        return err
+    user, err = current_user()
+    if err: return err
+    user_id = user["id"]  # integer e.g. 1
  
     try:
-        resp = db_get(f"/api/budgets/{budget_id}/categories", params={"student_id": user_id})
+        resp = db_get(f"/api/budgets/{budget_id}/categories", params={"user_id": int(user_id)})
         return jsonify(resp.json()), resp.status_code
     except requests.exceptions.ConnectionError:
         return jsonify({"error": "Could not reach budget-database"}), 502
@@ -214,9 +220,9 @@ def list_categories(budget_id):
  
 @app.route("/api/categories/<int:category_id>", methods=["PUT"])
 def update_category(category_id):
-    user_id, err = get_user_id()
-    if err:
-        return err
+    user, err = current_user()
+    if err: return err
+    user_id = user["id"]  # integer e.g. 1
  
     data = request.get_json(silent=True) or {}
     category_name = data.get("category_name")
@@ -228,7 +234,7 @@ def update_category(category_id):
  
     try:
         resp = db_put(f"/api/categories/{category_id}", json={
-            "student_id": user_id,
+            "user_id": int(user_id),
             "category_name": category_name,
             "allocated_amount": allocated_amount,
             "notes": notes
@@ -240,12 +246,12 @@ def update_category(category_id):
  
 @app.route("/api/categories/<int:category_id>", methods=["DELETE"])
 def delete_category(category_id):
-    user_id, err = get_user_id()
-    if err:
-        return err
+    user, err = current_user()
+    if err: return err
+    user_id = user["id"]  # integer e.g. 1
  
     try:
-        resp = db_delete(f"/api/categories/{category_id}?student_id={user_id}")
+        resp = db_delete(f"/api/categories/{category_id}?user_id={int(user_id)}")
         return jsonify(resp.json()), resp.status_code
     except requests.exceptions.ConnectionError:
         return jsonify({"error": "Could not reach budget-database"}), 502

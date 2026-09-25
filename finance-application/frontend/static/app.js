@@ -96,10 +96,20 @@ function showHome() {
   updateExpenseTrackerLink();
   updateIncomeManagerLink();
   updateSavingsGoalLink();
+  updateBudgetManagerLink();
 
   $("auth-view").hidden = true;
   $("home-view").hidden = false;
   loadHome();
+}
+
+function updateBudgetManagerLink() {
+  const link = $("budget-manager-link");
+  if (!link) return;
+  const currentToken = token();
+  link.href = currentToken
+    ? `http://localhost:3001/?token=${encodeURIComponent(currentToken)}`
+    : "http://localhost:3001/";
 }
 
 function setRegisterMode(value) {

@@ -2,7 +2,7 @@ PRAGMA foreign_keys = ON;
 
 CREATE TABLE IF NOT EXISTS budgets (
     budget_id     INTEGER PRIMARY KEY AUTOINCREMENT,
-    student_id    TEXT NOT NULL,
+    user_id       INTEGER NOT NULL,
     month         INTEGER NOT NULL CHECK (month BETWEEN 1 AND 12),
     year          INTEGER NOT NULL,
     created_date  TEXT NOT NULL DEFAULT (datetime('now')),

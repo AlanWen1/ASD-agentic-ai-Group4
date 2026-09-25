@@ -222,9 +222,11 @@ services:
       - DATABASE_URL=http://budget-database:6001
       - OLLAMA_URL=http://ai-mode-service:5099
       - OLLAMA_MODEL=qwen2.5:0.5b
+      - AUTH_DATABASE_URL=http://finance-database:6000
     depends_on:
       - budget-database
       - ai-mode-service
+      - finance-database
     restart: unless-stopped
 
   budget-frontend:

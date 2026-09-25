@@ -3,12 +3,20 @@ const API_BASE = "http://localhost:5001/api";
 let currentUserId = document.getElementById("userIdInput").value.trim();
 let activeBudgetId = null;
 
+// On load: pick up token passed via ?token= from the home page
+const urlToken = new URLSearchParams(window.location.search).get("token");
+if (urlToken) {
+    localStorage.setItem("finance_token", urlToken);
+}
+const token = localStorage.getItem("finance_token") || "";
+
 function apiHeaders(extra = {}) {
-  return {
-    "Content-Type": "application/json",
-    "X-User-Id": currentUserId,
-    ...extra,
-  };
+    const token = localStorage.getItem("finance_token") || "";
+    return {
+        "Content-Type": "application/json",
+        ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+        ...extra,
+    };
 }
 
 function showMessage(elementId, text, isError = false) {
