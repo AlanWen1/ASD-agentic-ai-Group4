@@ -53,8 +53,19 @@ def call_mcp_tool(tool_name, **arguments):
         # empty result, not a failure, so don't treat it as an error.
         return []
 
-    text = result.content[0].text
-    try:
-        return json.loads(text)
-    except (ValueError, TypeError):
-        return {"error": f"Could not parse MCP server response: {text[:200]}"}
+    parsed_results = []
+
+    for content in result.content:
+        text = getattr(content, "text", None)
+        if text is None:
+            continue
+
+        try:
+            parsed_results.append(json.loads(text))
+        except (ValueError, TypeError):
+            return {"error": f"Could not parse MCP server response: {text[:200]}"}
+
+    if len(parsed_results) == 1:
+        return parsed_results[0]
+
+    return parsed_results
