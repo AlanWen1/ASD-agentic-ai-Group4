@@ -151,7 +151,7 @@ RAG_SERVER_URL = os.environ.get("RAG_SERVER_URL", "http://host.docker.internal:5
 MCP_TOOLS_FOR_THIS_MODULE = {"get_bills", "get_bills_summary"}
 
 
-@app.route("/api/mcp/query", methods=["POST"])
+@app.route("/mcp/query", methods=["POST"])
 def mcp_query():
     """Call one of the shared MCP server's tools for this user's own
     bill data. Body: {"tool": "get_bills"|"get_bills_summary"}."""
@@ -170,7 +170,7 @@ def mcp_query():
     return jsonify({"tool": tool, "result": result}), status_code
 
 
-@app.route("/api/rag/ask", methods=["POST"])
+@app.route("/rag/ask", methods=["POST"])
 def rag_ask():
     """Forward a free-text question to the shared RAG server for a
     grounded answer with citations and a confidence category."""

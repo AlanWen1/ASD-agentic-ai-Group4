@@ -1,0 +1,8 @@
+<div id="mcp-result">
+    <p class="mcp-tool-label">Tool called: <code>{{ tool }}</code> (via the shared MCP server)</p>
+    {% if result and result.error %}
+    <p class="assistant-error">{{ result.error }}</p>
+    {% else %}
+    <pre class="mcp-json">{{ result | tojson(indent=2) }}</pre>
+    {% endif %}
+</div>

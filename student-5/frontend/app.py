@@ -209,6 +209,64 @@ def goal_explanation(goal_id):
     """
 
 
+@app.route("/mcp-query", methods=["POST"])
+def mcp_query():
+    """Release 1: call the shared MCP server (via this module's own
+    backend route /mcp/query) for the real get_savings_goals tool."""
+    try:
+        response = requests.post(
+            f"{BACKEND_API_URL}/mcp/query",
+            headers=auth_headers(),
+            timeout=30,
+        )
+    except requests.RequestException:
+        return "<p>Could not reach the backend.</p>"
+
+    if response.status_code not in (200, 502):
+        return "<p>Could not query the shared MCP server.</p>"
+
+    data = response.json()
+    result = data.get("result")
+    return f"<pre class=\"mcp-json\">{escape(str(result))}</pre>"
+
+
+@app.route("/rag-ask", methods=["POST"])
+def rag_ask():
+    """Release 1: ask the shared RAG server a question (via this
+    module's own backend route /rag/ask) and show the grounded answer
+    with citations and a confidence category."""
+    message = request.form.get("rag_message", "").strip()
+
+    if not message:
+        return "<p>Please enter a question.</p>"
+
+    try:
+        response = requests.post(
+            f"{BACKEND_API_URL}/rag/ask",
+            json={"message": message},
+            headers=auth_headers(),
+            timeout=60,
+        )
+    except requests.RequestException:
+        return "<p>Could not reach the RAG service. Try again in a moment.</p>"
+
+    data = response.json()
+    if "error" in data:
+        return f"<p>{escape(data['error'])}</p>"
+
+    citations = data.get("citations") or []
+    citations_html = (
+        f"<p><em>Sources: {escape(', '.join(citations))}</em></p>" if citations else ""
+    )
+    return f"""
+    <div>
+        <p><strong>Confidence:</strong> {escape(data.get("confidence_category", ""))}</p>
+        <p>{escape(data.get("answer", ""))}</p>
+        {citations_html}
+    </div>
+    """
+
+
 @app.route("/chat", methods=["POST"])
 def chat():
     message = request.form.get("message", "").strip()

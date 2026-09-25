@@ -283,3 +283,60 @@ document.getElementById("chatForm").addEventListener("submit", async (e) => {
 });
 
 refreshBudgets();
+// ---------------------------------------------------------------------
+// Release 1: shared MCP + RAG server access (via this module's own
+// backend routes /api/mcp/query and /api/rag/ask - see
+// student-1-budget/backend/app.py).
+// ---------------------------------------------------------------------
+async function callMcpQuery() {
+  const res = await fetch(`${API_BASE}/mcp/query`, {
+    method: "POST",
+    headers: apiHeaders(),
+  });
+  const data = await res.json().catch(() => ({}));
+  return data;
+}
+
+document.getElementById("mcpQueryButton").addEventListener("click", async () => {
+  const resultEl = document.getElementById("mcpResult");
+  resultEl.textContent = "Loading...";
+  try {
+    const data = await callMcpQuery();
+    resultEl.textContent = JSON.stringify(data.result, null, 2);
+  } catch (err) {
+    resultEl.textContent = `Error: ${err.message}`;
+  }
+});
+
+async function sendRagQuestion(message) {
+  const res = await fetch(`${API_BASE}/rag/ask`, {
+    method: "POST",
+    headers: apiHeaders(),
+    body: JSON.stringify({ message }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || `RAG request failed (status ${res.status})`);
+  }
+  return data;
+}
+
+document.getElementById("ragForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const input = document.getElementById("ragInput");
+  const message = input.value.trim();
+  if (!message) return;
+  showMessage("ragMessage", "Thinking...");
+  try {
+    const result = await sendRagQuestion(message);
+    const citations = result.citations && result.citations.length
+      ? `<p class="rag-citations">Sources: ${result.citations.join(", ")}</p>`
+      : "";
+    document.getElementById("ragAnswer").innerHTML =
+      `<p class="rag-confidence">Confidence: <strong>${result.confidence_category || ""}</strong></p>` +
+      `<p>${result.answer || ""}</p>${citations}`;
+    showMessage("ragMessage", "");
+  } catch (err) {
+    showMessage("ragMessage", err.message, true);
+  }
+});

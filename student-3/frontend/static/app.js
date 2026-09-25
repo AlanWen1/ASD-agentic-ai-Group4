@@ -309,3 +309,41 @@ function setBusy(button, busy, label) { button.disabled = busy; button.textConte
 function titleCase(value) { return String(value).replace('-', ' ').replace(/\b\w/g, (char) => char.toUpperCase()); }
 function formatDate(value) { return new Date(`${value}T00:00:00`).toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' }); }
 function escapeHtml(value) { const div = document.createElement('div'); div.textContent = String(value ?? ''); return div.innerHTML; }
+
+// Release 1: shared MCP + RAG server access (via this frontend's own
+// /api/<path> proxy - see app.py's backend_proxy).
+async function callMcpQuery(tool) {
+  const resultEl = $('#mcpResult');
+  resultEl.textContent = 'Loading...';
+  try {
+    const result = await api('/api/mcp/query', { method: 'POST', body: JSON.stringify({ tool }) });
+    resultEl.textContent = JSON.stringify(result.result, null, 2);
+  } catch (error) {
+    resultEl.textContent = `Error: ${error.message}`;
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  $('#mcpIncomeButton')?.addEventListener('click', () => callMcpQuery('get_income_sources'));
+  $('#mcpScheduleButton')?.addEventListener('click', () => callMcpQuery('get_pay_schedules'));
+  $('#ragForm')?.addEventListener('submit', sendRagQuestion);
+});
+
+async function sendRagQuestion(event) {
+  event.preventDefault();
+  const input = $('#ragInput');
+  const message = input.value.trim();
+  if (!message) return;
+  const answerEl = $('#ragAnswer');
+  answerEl.innerHTML = '<p>Thinking…</p>';
+  try {
+    const result = await api('/api/rag/ask', { method: 'POST', body: JSON.stringify({ message }) });
+    const citations = result.citations && result.citations.length
+      ? `<p class="rag-citations">Sources: ${result.citations.join(', ')}</p>`
+      : '';
+    answerEl.innerHTML = `<p class="rag-confidence">Confidence: <strong>${result.confidence_category || ''}</strong></p><p>${result.answer || ''}</p>${citations}`;
+  } catch (error) {
+    answerEl.innerHTML = `<p class="assistant error">${error.message}</p>`;
+  }
+  input.value = '';
+}

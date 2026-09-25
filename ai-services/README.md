@@ -65,3 +65,32 @@ MCP/RAG client wiring itself is correct end to end. Full success-path
 verification (real data, real generated answers) needs `docker compose up`
 on a machine with Docker, plus `ai-mode`, `mcp-server`, and `rag-server`
 each started locally via their `run_local.sh` scripts first.
+
+## Frontend integration (all 5 student modules)
+
+Each of the 5 frontends now has its own "Release 1: Shared MCP + RAG
+Servers" section, separate from that module's existing Release 0
+assistant UI:
+
+- expense-category-tracker, student-1-budget, student-3, student-5,
+  bill-tracker: a button (or two) that calls this module's own
+  `/api/mcp/query` for a real MCP tool result, and a small form that
+  calls `/api/rag/ask` and shows the grounded answer with citations and
+  a confidence category.
+
+Frontend architectures differ per module (htmx server-rendered partials
+for expense/student-5/bill-tracker, direct browser fetch for
+student-1-budget, a generic `/api/<path>` proxy for student-3/
+bill-tracker), so each integration follows that module's own existing
+pattern rather than a single shared template.
+
+One real bug caught and fixed while wiring this up: bill-tracker's and
+student-5's backends originally registered the new routes as
+`/api/mcp/query` / `/api/rag/ask`, inconsistent with those two modules'
+own existing routes (`/bills`, `/chat`, `/goals`, `/agent` - no `/api/`
+prefix). bill-tracker's frontend proxy strips the `/api/` prefix before
+forwarding to the backend, so the mismatch would have caused a 404 for
+that module specifically; both backends' routes were renamed to
+`/mcp/query` / `/rag/ask` to match their own convention, and re-verified
+with a mocked-backend test confirming the proxy now constructs the
+correct backend URL.
