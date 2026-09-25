@@ -186,6 +186,63 @@ def delete_category(cat_id):
     return render_template("partials/category_list.html", categories=categories)
 
 
+@app.route("/mcp-query", methods=["POST"])
+def mcp_query():
+    """Release 1: call the shared MCP server (via this backend's own
+    /api/mcp/query) for a real tool result, separate from the assistant
+    above which uses this module's own Plan/Act/Observe/Adapt loop."""
+    if not signed_in():
+        return gate()
+    tool = request.form.get("tool", "get_categories")
+    try:
+        resp = api_post("/api/mcp/query", json={"tool": tool}, timeout=30)
+    except requests.exceptions.RequestException:
+        return render_template(
+            "partials/mcp_result.html",
+            tool=tool,
+            result={"error": "Could not reach the backend."},
+        )
+    if resp.status_code == 401:
+        return session_expired()
+    data = resp.json()
+    return render_template(
+        "partials/mcp_result.html",
+        tool=data.get("tool", tool),
+        result=data.get("result"),
+    )
+
+
+@app.route("/rag-ask", methods=["POST"])
+def rag_ask():
+    """Release 1: ask the shared RAG server a question (via this
+    backend's own /api/rag/ask) and show the grounded answer with
+    citations and a confidence category."""
+    if not signed_in():
+        return gate()
+    message = request.form.get("rag_message", "").strip()
+    if not message:
+        return render_template("partials/rag_answer.html", error="Please enter a question.")
+    try:
+        resp = api_post("/api/rag/ask", json={"message": message}, timeout=60)
+    except requests.exceptions.RequestException:
+        return render_template(
+            "partials/rag_answer.html",
+            error="Could not reach the RAG service. Try again in a moment.",
+        )
+    if resp.status_code == 401:
+        return session_expired()
+    data = resp.json()
+    if "error" in data:
+        return render_template("partials/rag_answer.html", error=data["error"])
+    return render_template(
+        "partials/rag_answer.html",
+        answer=data.get("answer"),
+        citations=data.get("citations", []),
+        confidence=data.get("confidence_category"),
+        retrieval_summary=data.get("retrieval_summary"),
+    )
+
+
 @app.route("/logout")
 def logout():
     session.pop(TOKEN_KEY, None)

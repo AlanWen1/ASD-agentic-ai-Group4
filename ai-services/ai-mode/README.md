@@ -4,19 +4,42 @@ Release 0 requirement: a shared AI-mode capability (Ollama runtime + one or
 more approved open-source LLMs — Qwen, Llama, or DeepSeek) that every
 microservice's backend uses.
 
-**Current state:** this is now a real shared service, not just a library.
-`service.py` is a small Flask app (`ai-mode-service` in `docker-compose.yml`
-and `docker-compose.student-3.yml`, port 5099) that is the *only* thing in
-the whole application that talks to the shared Ollama runtime directly.
-Every backend is pointed at it instead of at Ollama:
+**Current state (Release 1 update):** this is a real shared service, not
+just a library — but as of the Release 1 MCP/RAG integration work it is no
+longer defined in the main `docker-compose.yml`. The Release 1 brief
+requires AI-Mode, the MCP server, the RAG server, and the agentic loop to
+all run **locally and non-containerised**, so `service.py` now runs as a
+plain host process instead of a Docker service:
 
-| Backend | Env var (in docker-compose.yml) | Before | Now |
-| --- | --- | --- | --- |
-| expense-category-tracker | `OLLAMA_URL` | `http://host.docker.internal:11434` | `http://ai-mode-service:5099` |
-| bill-tracker | `OLLAMA_URL` | `http://host.docker.internal:11434` | `http://ai-mode-service:5099` |
-| student-1-budget | `OLLAMA_URL` | `http://host.docker.internal:11434` | `http://ai-mode-service:5099` |
-| student-5 | `OLLAMA_API_URL` | `http://host.docker.internal:11434/api/generate` | `http://ai-mode-service:5099/api/generate` |
-| student-3 | `OLLAMA_BASE_URL` | `http://host.docker.internal:11434/v1` | `http://ai-mode-service:5099/v1` |
+```bash
+./ai-services/ai-mode/run_local.sh
+```
+
+Start this **before** `docker compose up` — every backend's containerised
+service reaches it via `host.docker.internal`, Docker's special hostname
+for "the machine the containers are running on", not the old
+Docker-network service name:
+
+| Backend | Env var (in docker-compose.yml) | Now (Release 1) |
+| --- | --- | --- |
+| expense-category-tracker | `OLLAMA_URL` | `http://host.docker.internal:5099` |
+| bill-tracker | `OLLAMA_URL` | `http://host.docker.internal:5099` |
+| student-1-budget | `OLLAMA_URL` | `http://host.docker.internal:5099` |
+| student-5 | `OLLAMA_API_URL` | `http://host.docker.internal:5099/api/generate` |
+| student-3 | `OLLAMA_BASE_URL` | `http://host.docker.internal:5099/v1` |
+
+(Release 0 had this as an `ai-mode-service` container in `docker-compose.yml`,
+reached via the Docker-network name `ai-mode-service:5099`. That still
+works exactly this way in `docker-compose.student-3.yml`, which is
+Student 3's own self-contained CI compose file with its own containerised
+Ollama — that file is untouched by this change and is a separate, known
+inconsistency to note in Known Issues, since Release 1 asks for AI-Mode/
+MCP/RAG to be disabled rather than containerised during CI.)
+
+Each backend also gets an `extra_hosts: ["host.docker.internal:host-gateway"]`
+entry in `docker-compose.yml` now, so `host.docker.internal` resolves the
+same way on Linux Docker hosts as it does by default on Docker Desktop
+(macOS/Windows).
 
 `service.py` exposes the exact same paths Ollama itself exposes for both
 API styles already in use across the team (native `/api/generate`,

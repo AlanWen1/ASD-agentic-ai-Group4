@@ -60,3 +60,42 @@ $("chat-form").addEventListener("submit", async event => {
 const queryToken = new URLSearchParams(window.location.search).get("token");
 if (queryToken) { localStorage.setItem(TOKEN_KEY, queryToken); window.history.replaceState({}, document.title, window.location.pathname); }
 if (!token()) showGate(); else loadAll();
+
+// Release 1: shared MCP + RAG server access (via this frontend's own
+// /api proxy - see app.py's backend_proxy).
+function renderBillsSummaryText(result) {
+  if (result && result.error) return `Error: ${result.error}`;
+  if (!result || typeof result !== "object") return "No summary available.";
+  return `You have ${result.bill_count} bill(s) totalling ${money(result.total_amount)}. `
+    + `Pending: ${money(result.pending_amount)}. Overdue: ${result.overdue_count}.`;
+}
+
+$("mcp-query-button").addEventListener("click", async () => {
+  const resultEl = $("mcp-result");
+  resultEl.textContent = "Loading...";
+  try {
+    const data = await api("/mcp/query", { method: "POST", body: JSON.stringify({ tool: "get_bills_summary" }) });
+    resultEl.textContent = renderBillsSummaryText(data.result);
+  } catch (error) {
+    resultEl.textContent = `Error: ${error.message}`;
+  }
+});
+
+$("rag-form").addEventListener("submit", async event => {
+  event.preventDefault();
+  const input = $("rag-input");
+  const message = input.value.trim();
+  if (!message) return;
+  const answerEl = $("rag-answer");
+  answerEl.innerHTML = "<p>Thinking…</p>";
+  try {
+    const data = await api("/rag/ask", { method: "POST", body: JSON.stringify({ message }) });
+    const citations = data.citations && data.citations.length
+      ? `<p class="rag-citations">Sources: ${data.citations.map(escapeHtml).join(", ")}</p>`
+      : "";
+    answerEl.innerHTML = `<p class="rag-confidence">Confidence: <strong>${escapeHtml(data.confidence_category || "")}</strong></p><p>${escapeHtml(data.answer || "")}</p>${citations}`;
+  } catch (error) {
+    answerEl.innerHTML = `<p class="error">${escapeHtml(error.message)}</p>`;
+  }
+  input.value = "";
+});

@@ -309,3 +309,54 @@ function setBusy(button, busy, label) { button.disabled = busy; button.textConte
 function titleCase(value) { return String(value).replace('-', ' ').replace(/\b\w/g, (char) => char.toUpperCase()); }
 function formatDate(value) { return new Date(`${value}T00:00:00`).toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' }); }
 function escapeHtml(value) { const div = document.createElement('div'); div.textContent = String(value ?? ''); return div.innerHTML; }
+
+// Release 1: shared MCP + RAG server access (via this frontend's own
+// /api/<path> proxy - see app.py's backend_proxy).
+function renderMcpResultText(tool, result) {
+  if (result && result.error) return `Error: ${result.error}`;
+  const items = (result && result.items) || [];
+  if (items.length === 0) return 'No results found.';
+  if (tool === 'get_income_sources') {
+    return items.map((s) => `${s.source_name} — $${s.standard_amount} (${s.payment_frequency})`).join('<br>');
+  }
+  if (tool === 'get_pay_schedules') {
+    return items.map((p) => `${p.expected_pay_date} — $${p.expected_amount} (${p.status})`).join('<br>');
+  }
+  return `${items.length} item(s) found.`;
+}
+
+async function callMcpQuery(tool) {
+  const resultEl = $('#mcpResult');
+  resultEl.textContent = 'Loading...';
+  try {
+    const result = await api('/api/mcp/query', { method: 'POST', body: JSON.stringify({ tool }) });
+    resultEl.innerHTML = renderMcpResultText(tool, result.result);
+  } catch (error) {
+    resultEl.textContent = `Error: ${error.message}`;
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  $('#mcpIncomeButton')?.addEventListener('click', () => callMcpQuery('get_income_sources'));
+  $('#mcpScheduleButton')?.addEventListener('click', () => callMcpQuery('get_pay_schedules'));
+  $('#ragForm')?.addEventListener('submit', sendRagQuestion);
+});
+
+async function sendRagQuestion(event) {
+  event.preventDefault();
+  const input = $('#ragInput');
+  const message = input.value.trim();
+  if (!message) return;
+  const answerEl = $('#ragAnswer');
+  answerEl.innerHTML = '<p>Thinking…</p>';
+  try {
+    const result = await api('/api/rag/ask', { method: 'POST', body: JSON.stringify({ message }) });
+    const citations = result.citations && result.citations.length
+      ? `<p class="rag-citations">Sources: ${result.citations.join(', ')}</p>`
+      : '';
+    answerEl.innerHTML = `<p class="rag-confidence">Confidence: <strong>${result.confidence_category || ''}</strong></p><p>${result.answer || ''}</p>${citations}`;
+  } catch (error) {
+    answerEl.innerHTML = `<p class="assistant error">${error.message}</p>`;
+  }
+  input.value = '';
+}
