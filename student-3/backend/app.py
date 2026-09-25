@@ -13,7 +13,6 @@ import requests
 from flask import Flask, Response, jsonify, request
 
 from ai_service import AIServiceError, ask_ollama, check_ollama, run_agent_loop
-from mcp_client import call_mcp_tool
 
 
 MONEY = Decimal("0.01")
@@ -399,6 +398,7 @@ def create_app(
     def mcp_query():
         """Call one of the shared MCP server's tools for this user's own
         income/pay-schedule data. Body: {"tool": "get_income_sources"|"get_pay_schedules"}."""
+        from mcp_client import call_mcp_tool  # lazy: keeps CI import-free (no mcp pkg needed)
         user, error = current_user()
         if error:
             return error

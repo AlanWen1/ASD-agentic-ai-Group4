@@ -4,7 +4,6 @@ from datetime import date
 
 import requests
 from flask import Flask, jsonify, request
-from mcp_client import call_mcp_tool
 
 app = Flask(__name__)
 DATABASE_URL = os.environ.get("DATABASE_URL", "http://bill-database:6004").rstrip("/")
@@ -156,6 +155,7 @@ MCP_TOOLS_FOR_THIS_MODULE = {"get_bills", "get_bills_summary"}
 def mcp_query():
     """Call one of the shared MCP server's tools for this user's own
     bill data. Body: {"tool": "get_bills"|"get_bills_summary"}."""
+    from mcp_client import call_mcp_tool  # lazy: keeps CI import-free (no mcp pkg needed)
     user, error = current_user()
     if error:
         return error

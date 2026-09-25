@@ -8,7 +8,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 RUN useradd --create-home appuser
-COPY --chown=appuser:appuser app.py ai_service.py ./
+COPY --chown=appuser:appuser app.py ai_service.py mcp_client.py ./
 
 USER appuser
 EXPOSE 5003

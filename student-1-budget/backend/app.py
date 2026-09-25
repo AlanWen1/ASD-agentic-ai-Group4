@@ -4,7 +4,6 @@ import requests
 from flask import Flask, request, jsonify, g
 from flask_cors import CORS
 from agent import run_agent_loop
-from mcp_client import call_mcp_tool
 
 app = Flask(__name__)
 CORS(app)
@@ -315,6 +314,7 @@ RAG_SERVER_URL = os.environ.get("RAG_SERVER_URL", "http://host.docker.internal:5
 @app.route("/api/mcp/query", methods=["POST"])
 def mcp_query():
     """Call the shared MCP server's get_budgets tool for this user."""
+    from mcp_client import call_mcp_tool  # lazy: keeps CI import-free (no mcp pkg needed)
     user_id, err = get_user_id()
     if err:
         return err

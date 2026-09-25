@@ -15,7 +15,6 @@ import requests
 from flask import Flask, jsonify, request
 
 from agent import run_agent_loop
-from mcp_client import call_mcp_tool
 
 app = Flask(__name__)
 
@@ -214,6 +213,7 @@ MCP_TOOLS_FOR_THIS_MODULE = {"get_expenses", "get_categories"}
 def mcp_query():
     """Call one of the shared MCP server's tools for this user's own
     expense data. Body: {"tool": "get_expenses"|"get_categories", "params": {...}}."""
+    from mcp_client import call_mcp_tool  # lazy: keeps CI import-free (no mcp pkg needed)
     user, error = current_user()
     if error:
         return error

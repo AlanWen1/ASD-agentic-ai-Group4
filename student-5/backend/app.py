@@ -4,7 +4,6 @@ from datetime import date
 import os
 
 from agent import run_agent_loop
-from mcp_client import call_mcp_tool
 
 app = Flask(__name__)
 
@@ -425,6 +424,7 @@ RAG_SERVER_URL = os.getenv("RAG_SERVER_URL", "http://host.docker.internal:5101")
 @app.route("/api/mcp/query", methods=["POST"])
 def mcp_query():
     """Call the shared MCP server's get_savings_goals tool."""
+    from mcp_client import call_mcp_tool  # lazy: keeps CI import-free (no mcp pkg needed)
     data = request.get_json(silent=True) or {}
     user_id = data.get("user_id")
     kwargs = {"user_id": user_id} if user_id is not None else {}
