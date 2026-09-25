@@ -116,6 +116,41 @@
                 </button>
             </form>
         </section>
+
+        <section class="panel">
+            <h2>Release 1: Shared MCP + RAG Servers</h2>
+            <p>A different, standardised path from the AI Savings Assistant above.</p>
+
+            <button
+                type="button"
+                class="primary-action"
+                hx-post="/mcp-query"
+                hx-target="#mcp-result"
+                hx-swap="innerHTML">
+                Call get_savings_goals via MCP
+            </button>
+            <div id="mcp-result" class="chat-response"></div>
+
+            <form
+                class="chat-form"
+                hx-post="/rag-ask"
+                hx-target="#rag-answer"
+                hx-swap="innerHTML"
+                hx-on::after-request="if(event.detail.successful) this.reset()">
+
+                <input
+                    type="text"
+                    id="rag_message"
+                    name="rag_message"
+                    placeholder="e.g. How do I create a budget?"
+                    required>
+
+                <button type="submit" class="primary-action">
+                    Ask (RAG)
+                </button>
+            </form>
+            <div id="rag-answer" class="chat-response"></div>
+        </section>
     </main>
 
     <script src="/static/app.js"></script>

@@ -4,7 +4,7 @@ WORKDIR /app
 
 COPY . .
 
-RUN pip install --no-cache-dir flask requests
+RUN pip install --no-cache-dir flask requests mcp
 
 EXPOSE 5005
 

@@ -1,0 +1,16 @@
+<div id="rag-answer">
+    {% if error %}
+    <p class="assistant-error">{{ error }}</p>
+    {% else %}
+    <p class="rag-confidence">Confidence: <strong>{{ confidence }}</strong></p>
+    <p class="assistant-message">{{ answer }}</p>
+    {% if citations %}
+    <p class="rag-citations">Sources:
+        {% for c in citations %}<code>{{ c }}</code>{% if not loop.last %}, {% endif %}{% endfor %}
+    </p>
+    {% endif %}
+    {% if retrieval_summary %}
+    <p class="assistant-trace">{{ retrieval_summary }}</p>
+    {% endif %}
+    {% endif %}
+</div>

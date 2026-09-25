@@ -26,6 +26,15 @@ already pointed at (see docker-compose.yml). Centralising it here means
 timeouts, error messages, and (later) things like an approved-model
 allowlist or request logging only need to be implemented once, in
 `ollama_client.py`, instead of five times.
+
+Release 1 update: this service is no longer defined in docker-compose.yml
+as of the MCP/RAG integration work. The Release 1 brief requires AI-Mode,
+the MCP server, the RAG server, and the agentic loop to all run locally
+and be non-containerised, so this now runs as a plain host process
+(`python3 service.py`, see README.md in this folder) and every backend
+reaches it via `host.docker.internal:5099` instead of the Docker-network
+name `ai-mode-service:5099`. Nothing about the proxy behaviour above
+changed — only how this process is started and how it's addressed.
 """
 import os
 

@@ -88,6 +88,22 @@
     <p class="form-message" id="chatMessage"></p>
   </aside>
 
+  <aside class="chat-sidebar panel" id="mcpRagPanel">
+    <h2>Release 1: Shared MCP + RAG Servers</h2>
+    <p class="assistant-hint">Calls the shared MCP/RAG servers directly - a different, standardised path from the Budget Assistant above.</p>
+    <button id="mcpQueryButton" type="button">Call get_budgets via MCP</button>
+    <pre id="mcpResult" class="mcp-json"></pre>
+
+    <form id="ragForm">
+      <div class="form-row">
+        <input type="text" id="ragInput" placeholder="e.g. How do I create a budget?" required />
+      </div>
+      <button type="submit">Ask (RAG)</button>
+    </form>
+    <p class="form-message" id="ragMessage"></p>
+    <div id="ragAnswer"></div>
+  </aside>
+
 </div>
 
 <script src="/static/app.js"></script>

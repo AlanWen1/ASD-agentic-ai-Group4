@@ -1,16 +1,4 @@
 services:
-  ai-mode-service:
-    build: ./ai-services/ai-mode
-    container_name: ai-mode-service
-    ports:
-      - "5099:5099"
-    environment:
-      - OLLAMA_URL=http://host.docker.internal:11434
-      - OLLAMA_MODEL=qwen2.5:0.5b
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    restart: unless-stopped
-
   finance-database:
     build: ./finance-application/database
     container_name: finance-application-database
@@ -65,12 +53,15 @@ services:
     environment:
       - DATABASE_URL=http://bill-database:6004
       - AUTH_DATABASE_URL=http://finance-database:6000
-      - OLLAMA_URL=http://ai-mode-service:5099
+      - OLLAMA_URL=http://host.docker.internal:5099
+      - MCP_SERVER_URL=http://host.docker.internal:5100/mcp
+      - RAG_SERVER_URL=http://host.docker.internal:5101
       - OLLAMA_MODEL=qwen2.5:0.5b
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       - bill-database
       - finance-database
-      - ai-mode-service
     restart: unless-stopped
 
   bill-frontend:
@@ -102,12 +93,15 @@ services:
       - "5005:5005"
     environment:
       - DATABASE_API_URL=http://savings-database:6005
-      - OLLAMA_API_URL=http://ai-mode-service:5099/api/generate
+      - OLLAMA_API_URL=http://host.docker.internal:5099/api/generate
+      - MCP_SERVER_URL=http://host.docker.internal:5100/mcp
+      - RAG_SERVER_URL=http://host.docker.internal:5101
       - OLLAMA_MODEL=qwen2.5:0.5b
       - AGENT_MODEL=qwen2.5:0.5b
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       - savings-database
-      - ai-mode-service
   expense-database:
     build: ./expense-category-tracker/database
     container_name: expense-tracker-database
@@ -127,12 +121,15 @@ services:
     environment:
       - AUTH_DATABASE_URL=http://finance-database:6000
       - DATABASE_URL=http://expense-database:6002
-      - OLLAMA_URL=http://ai-mode-service:5099
+      - OLLAMA_URL=http://host.docker.internal:5099
+      - MCP_SERVER_URL=http://host.docker.internal:5100/mcp
+      - RAG_SERVER_URL=http://host.docker.internal:5101
       - OLLAMA_MODEL=qwen2.5:0.5b
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       - finance-database
       - expense-database
-      - ai-mode-service
     restart: unless-stopped
 
   savings-frontend:
@@ -178,13 +175,16 @@ services:
     environment:
       - DATABASE_SERVICE_URL=http://student-3-database:6003
       - AUTH_DATABASE_URL=http://finance-database:6000
-      - OLLAMA_BASE_URL=http://ai-mode-service:5099/v1
+      - OLLAMA_BASE_URL=http://host.docker.internal:5099/v1
+      - MCP_SERVER_URL=http://host.docker.internal:5100/mcp
+      - RAG_SERVER_URL=http://host.docker.internal:5101
       - OLLAMA_MODEL=qwen2.5:0.5b
       - OLLAMA_TIMEOUT_SECONDS=90
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       - finance-database
       - student-3-database
-      - ai-mode-service
     restart: unless-stopped
 
   student-3-frontend:
@@ -220,12 +220,15 @@ services:
       - "5001:5001"
     environment:
       - DATABASE_URL=http://budget-database:6001
-      - OLLAMA_URL=http://ai-mode-service:5099
-      - OLLAMA_MODEL=qwen2.5:0.5b
       - AUTH_DATABASE_URL=http://finance-database:6000
+      - OLLAMA_URL=http://host.docker.internal:5099
+      - OLLAMA_MODEL=qwen2.5:0.5b
+      - MCP_SERVER_URL=http://host.docker.internal:5100/mcp
+      - RAG_SERVER_URL=http://host.docker.internal:5101
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       - budget-database
-      - ai-mode-service
       - finance-database
     restart: unless-stopped
 

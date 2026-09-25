@@ -152,3 +152,33 @@ tbody tr:last-child td { border-bottom: 0; }
   .summary-grid { grid-template-columns: 1fr; }
   .header-actions { align-items: stretch; flex-direction: column; }
 }
+
+/* Release 1: shared MCP + RAG server panel */
+.mcp-json {
+  background: #f6f8fb;
+  border: 1px solid #e3e8ef;
+  border-radius: 6px;
+  padding: 10px;
+  font-size: 12px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  min-height: 1em;
+}
+
+.rag-confidence {
+  font-size: 12px;
+  color: var(--muted, #68758a);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.rag-citations {
+  font-size: 12px;
+  color: var(--muted, #68758a);
+}
+
+p.error {
+  color: var(--danger, #d1453b);
+  font-size: 13px;
+}
