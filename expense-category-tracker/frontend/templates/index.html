@@ -54,6 +54,36 @@
 </section>
 
 <section class="card">
+    <h2>Release 1: Shared MCP Server</h2>
+    <p class="assistant-hint">Calls the shared MCP server directly (a different, standardised path from the assistant above, which uses this module's own tool-calling loop) to fetch your real data.</p>
+    <div class="ai-row">
+        <button type="button" class="ai-button"
+                hx-post="/mcp-query" hx-vals='{"tool": "get_categories"}'
+                hx-target="#mcp-result" hx-swap="outerHTML">
+            Call get_categories via MCP
+        </button>
+        <button type="button" class="ai-button"
+                hx-post="/mcp-query" hx-vals='{"tool": "get_expenses"}'
+                hx-target="#mcp-result" hx-swap="outerHTML">
+            Call get_expenses via MCP
+        </button>
+    </div>
+    <div id="mcp-result"></div>
+</section>
+
+<section class="card">
+    <h2>Release 1: Shared RAG Server</h2>
+    <p class="assistant-hint">Ask a general question grounded in the shared knowledge base. Answers cite their sources and report a confidence category, or say so if there isn't enough context.</p>
+    <form hx-post="/rag-ask" hx-target="#rag-answer" hx-swap="outerHTML">
+        <label>Question
+            <input type="text" name="rag_message" placeholder="e.g. How do I create a budget?" required>
+        </label>
+        <button type="submit" class="primary">Ask (RAG)</button>
+    </form>
+    <div id="rag-answer"></div>
+</section>
+
+<section class="card">
     <h2>All Expenses</h2>
     {% include "partials/expense_list.html" %}
 </section>

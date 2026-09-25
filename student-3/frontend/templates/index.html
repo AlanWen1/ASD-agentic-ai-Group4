@@ -207,6 +207,25 @@
         </form>
         <p class="disclaimer">Educational budgeting prototype. No financial, investment, tax, or legal advice.</p>
       </aside>
+
+      <aside class="panel">
+        <h2>Release 1: Shared MCP + RAG Servers</h2>
+        <p class="subtle">A different, standardised path from the AI Income Assistant above.</p>
+        <div class="quick-prompts">
+          <button type="button" id="mcpIncomeButton">Call get_income_sources via MCP</button>
+          <button type="button" id="mcpScheduleButton">Call get_pay_schedules via MCP</button>
+        </div>
+        <pre id="mcpResult" class="mcp-json"></pre>
+
+        <form id="ragForm" class="chat-form">
+          <label class="sr-only" for="ragInput">Ask the shared RAG server</label>
+          <textarea id="ragInput" rows="2" maxlength="2000" required placeholder="e.g. How do I create a budget?"></textarea>
+          <div class="chat-actions">
+            <button type="submit">Ask (RAG)</button>
+          </div>
+        </form>
+        <div id="ragAnswer"></div>
+      </aside>
     </section>
   </main>
 

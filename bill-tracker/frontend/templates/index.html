@@ -61,6 +61,18 @@
         <input id="chat-input" autocomplete="off" placeholder="Ask about your bills…" maxlength="4000" required>
         <button type="submit">Send</button>
       </form>
+    <section class="panel">
+      <div class="section-heading">
+        <div><h2>Release 1: Shared MCP + RAG Servers</h2><p>A different, standardised path from the AI assistant above.</p></div>
+      </div>
+      <button type="button" id="mcp-query-button">Call get_bills_summary via MCP</button>
+      <pre id="mcp-result" class="mcp-json"></pre>
+
+      <form id="rag-form" class="chat-form">
+        <input id="rag-input" autocomplete="off" placeholder="e.g. How do I create a budget?" maxlength="2000" required>
+        <button type="submit">Ask (RAG)</button>
+      </form>
+      <div id="rag-answer"></div>
     </section>
   </main>
 

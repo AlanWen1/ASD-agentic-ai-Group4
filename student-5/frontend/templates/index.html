@@ -120,23 +120,38 @@
         </section>
 
         <section class="panel">
-            <h2>MCP Savings Goals</h2>
-
-            <p>
-                Retrieve savings goal data using the shared MCP server.
-            </p>
+            <h2>Release 1: Shared MCP + RAG Servers</h2>
+            <p>A different, standardised path from the AI Savings Assistant above.</p>
 
             <button
+                type="button"
                 class="primary-action"
-                hx-post="/mcp"
-                hx-target="#mcp-response"
+                hx-post="/mcp-query"
+                hx-target="#mcp-result"
                 hx-swap="innerHTML">
-                Get Savings Goals via MCP
+                Call get_savings_goals via MCP
             </button>
+            <div id="mcp-result" class="chat-response"></div>
 
-            <div id="mcp-response" class="chat-response">
-                <p>No MCP result yet.</p>
-            </div>
+            <form
+                class="chat-form"
+                hx-post="/rag-ask"
+                hx-target="#rag-answer"
+                hx-swap="innerHTML"
+                hx-on::after-request="if(event.detail.successful) this.reset()">
+
+                <input
+                    type="text"
+                    id="rag_message"
+                    name="rag_message"
+                    placeholder="e.g. How do I create a budget?"
+                    required>
+
+                <button type="submit" class="primary-action">
+                    Ask (RAG)
+                </button>
+            </form>
+            <div id="rag-answer" class="chat-response"></div>
         </section>
     </main>
 

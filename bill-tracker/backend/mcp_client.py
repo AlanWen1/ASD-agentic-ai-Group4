@@ -43,8 +43,15 @@ def call_mcp_tool(tool_name, **arguments):
     except Exception as exc:
         return {"error": f"Could not reach MCP server at {MCP_SERVER_URL}: {exc}"}
 
+    if getattr(result, "isError", False):
+        text = result.content[0].text if result.content else "Unknown MCP tool error"
+        return {"error": text}
+
     if not result.content:
-        return {"error": "Empty result from MCP server"}
+        # The mcp SDK emits zero content blocks when a tool returns an
+        # empty list (e.g. "no expenses yet") - that's a real, valid
+        # empty result, not a failure, so don't treat it as an error.
+        return []
 
     text = result.content[0].text
     try:

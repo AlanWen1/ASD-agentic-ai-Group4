@@ -421,7 +421,7 @@ def savings_agent():
 RAG_SERVER_URL = os.getenv("RAG_SERVER_URL", "http://host.docker.internal:5101").rstrip("/")
 
 
-@app.route("/api/mcp/query", methods=["POST"])
+@app.route("/mcp/query", methods=["POST"])
 def mcp_query():
     """Call the shared MCP server's get_savings_goals tool."""
     from mcp_client import call_mcp_tool  # lazy: keeps CI import-free (no mcp pkg needed)
@@ -433,7 +433,7 @@ def mcp_query():
     return jsonify({"tool": "get_savings_goals", "result": result}), status_code
 
 
-@app.route("/api/rag/ask", methods=["POST"])
+@app.route("/rag/ask", methods=["POST"])
 def rag_ask():
     """Forward a free-text question to the shared RAG server for a
     grounded answer with citations and a confidence category."""
