@@ -38,7 +38,7 @@ EXPENSE_DB_URL = os.environ.get("EXPENSE_DB_URL", "http://localhost:6002").rstri
 BILL_DB_URL = os.environ.get("BILL_DB_URL", "http://localhost:6004").rstrip("/")
 INCOME_DB_URL = os.environ.get("INCOME_DB_URL", "http://localhost:6003").rstrip("/")
 SAVINGS_DB_URL = os.environ.get("SAVINGS_DB_URL", "http://localhost:6005").rstrip("/")
-BUDGET_BACKEND_URL = os.environ.get("BUDGET_BACKEND_URL", "http://localhost:5001").rstrip("/")
+BUDGET_DB_URL = os.environ.get("BUDGET_DB_URL", "http://localhost:6001").rstrip("/")
 
 DEFAULT_TIMEOUT = int(os.environ.get("MCP_TOOL_TIMEOUT", "10"))
 
@@ -162,16 +162,13 @@ def get_savings_goals(user_id=None):
 
 def get_budgets(user_id):
     """List a user's budgets.
-    Forwards to GET /api/budgets on budget-backend, using the X-User-Id
-    header that module's own get_user_id() requires (see
-    student-1-budget/backend/app.py) — a different convention from the
-    other four modules' `?user_id=` query parameter, preserved as-is
-    rather than unified, since changing it would mean changing
-    student-1-budget's own backend code."""
+    Forwards to GET /api/budgets on budget-database with ?user_id=
+    — same convention as every other module's database tool."""
     error = _require_user_id(user_id)
     if error:
         return error
-    return _get(BUDGET_BACKEND_URL, "/api/budgets", headers={"X-User-Id": str(user_id)})
+    return _get(BUDGET_DB_URL, "/api/budgets", params={"user_id": user_id})
+
 
 
 if __name__ == "__main__":
@@ -186,6 +183,7 @@ if __name__ == "__main__":
         ("get_pay_schedules(1)", get_pay_schedules(1)),
         ("get_savings_goals()", get_savings_goals()),
         ("get_budgets(1)", get_budgets(1)),
+
     ]:
         print(f"--- {name} ---")
         print(json.dumps(result, indent=2, default=str))

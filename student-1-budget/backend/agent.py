@@ -39,11 +39,11 @@ for something essential like rent/food). Explain briefly why something looks off
 Keep answers short and concrete. Always base answers only on tool results, not assumptions."""
 
 
-def get_budgets(student_id):
-    """Fetch budgets via budget-database's REST API, not direct SQLite access."""
+def get_budgets(user_id):
+    """Fetch budgets via budget-database's REST API."""
     try:
         resp = requests.get(
-            f"{DATABASE_URL}/api/budgets", params={"student_id": student_id}, timeout=5
+            f"{DATABASE_URL}/api/budgets", params={"user_id": user_id}, timeout=5
         )
         resp.raise_for_status()
         budgets = resp.json()
@@ -55,14 +55,14 @@ def get_budgets(student_id):
         return {"error": f"Could not reach budget-database: {e}"}
 
 
-def get_categories(student_id, budget_id):
+def get_categories(user_id, budget_id):
     """Fetch categories via budget-database's REST API, checking ownership first."""
     try:
         budget_resp = requests.get(f"{DATABASE_URL}/api/budgets/{budget_id}", timeout=5)
         if budget_resp.status_code == 404:
             return {"error": "Budget not found."}
         budget_resp.raise_for_status()
-        if budget_resp.json().get("student_id") != student_id:
+        if str(budget_resp.json().get("user_id")) != str(user_id):
             return {"error": "Budget not found or not owned by this user."}
 
         cat_resp = requests.get(f"{DATABASE_URL}/api/budgets/{budget_id}/categories", timeout=5)
@@ -76,15 +76,14 @@ def get_categories(student_id, budget_id):
         return {"error": f"Could not reach budget-database: {e}"}
 
 
-def _call_tool(name, args, student_id):
+def _call_tool(name, args, user_id):
     if name == "get_budgets":
-        return get_budgets(student_id)
+        return get_budgets(user_id)
     if name == "get_categories":
-        return get_categories(student_id, args.get("budget_id"))
+        return get_categories(user_id, args.get("budget_id"))
     return {"error": f"Unknown tool {name}"}
 
-
-def run_agent_loop(user_message, student_id, max_steps=4):
+def run_agent_loop(user_message, user_id, max_steps=4):
     """Plan -> Act -> Observe -> Adapt loop using Ollama tool calling."""
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
@@ -119,7 +118,7 @@ def run_agent_loop(user_message, student_id, max_steps=4):
             if isinstance(fn_args, str):
                 fn_args = json.loads(fn_args)
 
-            result = _call_tool(fn_name, fn_args, student_id)
+            result = _call_tool(fn_name, fn_args, user_id)
             trace.append({"step": step, "type": "tool_call", "tool": fn_name, "args": fn_args})
 
             messages.append({
