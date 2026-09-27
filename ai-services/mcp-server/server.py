@@ -29,7 +29,7 @@ Start it BEFORE `docker compose up`, same as ai-mode (see
 http://host.docker.internal:5100 once wired in.
 """
 import os
-
+import json
 from mcp.server.mcpserver import MCPServer
 
 from tools import (
@@ -72,13 +72,13 @@ def get_categories_tool(user_id: int):
 @mcp.tool(name="get_bills")
 def get_bills_tool(user_id: int):
     """List a user's bills (Bill Manager)."""
-    return get_bills(user_id)
+    return json.dumps(get_bills(user_id), default=str)
 
 
 @mcp.tool(name="get_bills_summary")
 def get_bills_summary_tool(user_id: int):
     """Total/pending bill amounts and overdue count for a user (Bill Manager)."""
-    return get_bills_summary(user_id)
+    return json.dumps(get_bills_summary(user_id), default=str)
 
 
 @mcp.tool(name="get_income_sources")
