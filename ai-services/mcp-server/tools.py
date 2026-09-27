@@ -97,21 +97,51 @@ def get_categories(user_id):
 # Bill Manager (Student 4) — bill-database, port 6004
 # ---------------------------------------------------------------------
 
+def _normalise_bill(bill):
+    return {
+        "id": bill.get("id"),
+        "name": bill.get("name") or "Unnamed bill",
+        "amount": round(float(bill.get("amount") or 0), 2),
+        "due_date": bill.get("due_date") or None,
+        "frequency": bill.get("frequency") or "—",
+        "status": bill.get("status") or "Unknown",
+    }
+
+
+def _normalise_bills(data):
+    """Normalise the bill response without dropping any bills."""
+    if isinstance(data, dict) and "error" in data:
+        return data
+    if not isinstance(data, list):
+        return {"error": "Bill database returned an unexpected response"}
+    return [_normalise_bill(bill) for bill in data if isinstance(bill, dict)]
+
+
 def get_bills(user_id):
-    """List a user's bills. Forwards to GET /bills on the bill-tracker database."""
+    """Return every bill belonging to the user in a stable display shape."""
     error = _require_user_id(user_id)
     if error:
         return error
-    return _get(BILL_DB_URL, "/bills", params={"user_id": user_id})
+    data = _get(BILL_DB_URL, "/bills", params={"user_id": user_id})
+    return _normalise_bills(data)
 
 
 def get_bills_summary(user_id):
-    """Total/pending bill amounts and overdue count for a user.
-    Forwards to GET /summary on the bill-tracker database."""
+    """Return a compact, display-ready summary for all of the user's bills."""
     error = _require_user_id(user_id)
     if error:
         return error
-    return _get(BILL_DB_URL, "/summary", params={"user_id": user_id})
+    data = _get(BILL_DB_URL, "/summary", params={"user_id": user_id})
+    if isinstance(data, dict) and "error" in data:
+        return data
+    if not isinstance(data, dict):
+        return {"error": "Bill database returned an unexpected summary response"}
+    return {
+        "bill_count": int(data.get("bill_count") or 0),
+        "total_amount": round(float(data.get("total_amount") or 0), 2),
+        "pending_amount": round(float(data.get("pending_amount") or 0), 2),
+        "overdue_count": int(data.get("overdue_count") or 0),
+    }
 
 
 # ---------------------------------------------------------------------
