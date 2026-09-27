@@ -58,6 +58,9 @@ jobs:
               image: ollama/ollama:latest
 
             ai-mode-service:
+              build: ./ai-services/ai-mode
+              ports:
+                - "5099:5099"
               environment:
                 OLLAMA_URL: http://ollama:11434
               depends_on:
