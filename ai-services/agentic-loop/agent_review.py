@@ -52,9 +52,12 @@ def _print_header(title, char="="):
 
 def safe_llm(ollama_url, model, system, prompt):
     try:
-        return parse_json(
+        parsed = parse_json(
             ask(system, prompt, url=ollama_url, model=model)
-        ), None
+        )
+        if not parsed:
+            return {}, "LLM returned no usable JSON."
+        return parsed, None
     except requests.HTTPError as exc:
         body = ""
         try:
@@ -80,9 +83,120 @@ def _static_check_summary(evidence):
         if len(failures) > 5:
             print(f"      ... and {len(failures) - 5} more")
 
+def _deterministic_review(mode, evidence, pool):
+    syntax = evidence.get("python_syntax", {})
+    failures = syntax.get("failures", [])
+    findings = []
+
+    if failures:
+        for item in failures[:5]:
+            findings.append({
+                "severity": "high",
+                "title": "Python syntax error detected",
+                "file": item.get("file", "(unknown)"),
+                "evidence": item.get("error", "Python parser reported an error."),
+                "recommendation": "Fix the syntax error and rerun the review.",
+            })
+    else:
+        findings.append({
+            "severity": "info",
+            "title": "Python syntax checks passed",
+            "file": "repository-wide",
+            "evidence": f"{syntax.get('checked', 0)} Python file(s) were parsed successfully.",
+            "recommendation": "Keep repository-wide syntax validation in the review pipeline.",
+        })
+
+    if mode == "database":
+        db = evidence.get("database", {})
+        sqlite_files = db.get("sqlite", [])
+        broken = [x for x in sqlite_files if x.get("error")]
+        if broken:
+            for item in broken[:5]:
+                findings.append({
+                    "severity": "high",
+                    "title": "SQLite database could not be inspected",
+                    "file": item.get("file", "(unknown)"),
+                    "evidence": item.get("error"),
+                    "recommendation": "Validate or repair the database file before relying on it.",
+                })
+        elif sqlite_files or db.get("schema_seed"):
+            findings.append({
+                "severity": "info",
+                "title": "Database artefacts discovered",
+                "file": "repository",
+                "evidence": f"{len(sqlite_files)} SQLite file(s) and {len(db.get('schema_seed', []))} schema/seed file(s) found.",
+                "recommendation": "Continue checking ownership, user isolation and API access.",
+            })
+        else:
+            findings.append({
+                "severity": "medium",
+                "title": "No database artefacts discovered",
+                "file": "repository",
+                "evidence": "No SQLite files or schema.sql/seed.sql files were found.",
+                "recommendation": "Confirm where database definitions are stored.",
+            })
+
+    elif mode == "microservices":
+        arch = evidence.get("architecture", {})
+        services = arch.get("services", {})
+        count = sum(len(v) for v in services.values())
+        findings.append({
+            "severity": "info" if count else "medium",
+            "title": "Compose service definitions",
+            "file": "docker-compose files",
+            "evidence": f"{count} service definition(s) detected.",
+            "recommendation": "Verify each service has clear ownership, networking and API boundaries.",
+        })
+
+    elif mode == "devops":
+        workflows = evidence.get("devops", {})
+        if workflows:
+            for path, info in workflows.items():
+                checks = []
+                if info.get("python_tests"):
+                    checks.append("Python tests")
+                if info.get("node_tests"):
+                    checks.append("Node tests")
+                if info.get("docker_build"):
+                    checks.append("Docker build")
+                findings.append({
+                    "severity": "info" if checks else "low",
+                    "title": "CI workflow coverage",
+                    "file": path,
+                    "evidence": ", ".join(checks) if checks else "No recognised test/build markers.",
+                    "recommendation": "Ensure required test and build checks are enforced in CI.",
+                })
+        else:
+            findings.append({
+                "severity": "medium",
+                "title": "No GitHub Actions workflows discovered",
+                "file": ".github/workflows",
+                "evidence": "No workflow files were found.",
+                "recommendation": "Add or verify CI workflows for required checks.",
+            })
+
+    elif mode == "implementation":
+        findings.append({
+            "severity": "info",
+            "title": "Implementation review fallback",
+            "file": "repository",
+            "evidence": f"{len(pool)} implementation candidate file(s) were selected after the LLM stage was unavailable.",
+            "recommendation": "Run again with a working local model for deeper behavioural analysis.",
+        })
+
+    return {
+        "summary": (
+            f"{LABELS[mode]} completed using deterministic repository checks because "
+            "the configured LLM could not produce a usable response."
+        ),
+        "confidence": "medium",
+        "findings": findings,
+        "follow_up_paths": [],
+    }
+
 def _print_findings(findings):
     if not findings:
-        print("  No structured findings returned.")
+        print("  No findings were produced.")
         return
     order = {"critical": 0, "high": 1, "medium": 2, "low": 3, "info": 4}
     ordered = sorted(
@@ -163,14 +277,9 @@ def review_mode(root, mode, model, ollama_url, iterations):
             '"follow_up_paths":["path"]}'
         )
         if review_error:
-            result = {
-                "summary": "LLM review was unavailable. Deterministic repository checks were completed.",
-                "confidence": "low",
-                "findings": [],
-                "follow_up_paths": [],
-            }
-            print(f"[WARN] LLM review skipped: {review_error}") 
-            print("[INFO] Continuing with deterministic repository checks.")
+            print(f"[WARN] LLM review unavailable: {review_error}")
+            result = _deterministic_review(mode, evidence, paths)
+            print("[INFO] Using deterministic review output.")
 
         summary = str(result.get("summary", summary)).strip()
         print("OBSERVE / REVIEW")
