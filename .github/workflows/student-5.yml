@@ -41,6 +41,7 @@ jobs:
             student-5/tests/test_auth.py \
             student-5/tests/test_agent.py \
             student-5/tests/test_frontend.py \
+            student-5/tests/test_mcp_rag.py \
             -v
 
       - name: Validate Docker Compose
