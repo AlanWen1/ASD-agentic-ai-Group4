@@ -25,7 +25,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install flask requests pytest
+          pip install flask requests pytest mcp
 
       - name: Check Python syntax
         run: |
@@ -41,6 +41,7 @@ jobs:
             student-5/tests/test_auth.py \
             student-5/tests/test_agent.py \
             student-5/tests/test_frontend.py \
+            student-5/tests/test_mcp_rag.py \
             -v
 
       - name: Validate Docker Compose
