@@ -1,181 +1,101 @@
-name: Student 5 CI
+name: Student 1 - Budget Manager CI
 
 on:
   push:
-    branches:
-      - student-5-savings-goal
+    branches: [ main, budget-vishal, budget-mcp ]
+    paths:
+      - 'student-1-budget/**'
+      - 'docker-compose.yml'
+      - '.github/workflows/student-1.yml'
+      - 'ai-services/mcp-server/**'
+      - 'ai-services/rag-server/**'
   pull_request:
-    branches:
-      - main
+    branches: [ main ]
+    paths:
+      - 'student-1-budget/**'
+      - 'docker-compose.yml'
+      - '.github/workflows/student-1.yml'
+      - 'ai-services/mcp-server/**'
+      - 'ai-services/rag-server/**'
   workflow_dispatch:
 
 jobs:
-  student-5-ci:
+  build-and-test:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Check out repository
         uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: |
+            student-1-budget/backend/requirements.txt
+            student-1-budget/requirements-dev.txt
+            ai-services/mcp-server/requirements.txt
+            ai-services/rag-server/requirements.txt
 
+      # Test runner + the host-process MCP/RAG servers (Release 1: non-containerised)
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install flask requests pytest mcp
+          pip install -r student-1-budget/backend/requirements.txt
+          pip install -r student-1-budget/requirements-dev.txt
+          pip install -r ai-services/mcp-server/requirements.txt
+          pip install -r ai-services/rag-server/requirements.txt
 
-      - name: Check Python syntax
+      - name: Compile-check Python source
+        run: python -m compileall -q student-1-budget
+
+      - name: Validate root Docker Compose configuration
+        run: docker compose -f docker-compose.yml config --quiet
+
+      # Same containers as a real `docker compose up`: each service has its own
+      # container and volume, exactly as in the local deployment.
+      - name: Build and start finance-database, budget-database and budget-backend
+        run: docker compose up -d --build finance-database budget-database budget-backend
+
+      - name: Start shared MCP and RAG servers (host processes)
+        env:
+          BUDGET_DB_URL: http://localhost:6001
         run: |
-          python -m py_compile student-5/database/app.py
-          python -m py_compile student-5/backend/app.py
-          python -m py_compile student-5/backend/agent.py
-          python -m py_compile student-5/frontend/app.py
+          (cd ai-services/mcp-server && python server.py > /tmp/mcp.log 2>&1 &)
+          (cd ai-services/rag-server && python rag_server.py > /tmp/rag.log 2>&1 &)
 
-      - name: Run Student 5 self-contained tests
+      - name: Wait for services
         run: |
-          python -m pytest \
-            student-5/tests/test_ci.py \
-            student-5/tests/test_auth.py \
-            student-5/tests/test_agent.py \
-            student-5/tests/test_frontend.py \
-            student-5/tests/test_mcp_rag.py \
-            -v
+          wait_for() {  # wait_for <name> <url>: fail if nothing answers in 60s
+            for i in $(seq 1 60); do
+              curl -s -o /dev/null "$2" && echo "$1 is up" && return 0
+              sleep 1
+            done
+            echo "$1 did not start at $2" && exit 1
+          }
+          wait_for finance-database http://localhost:6000/
+          wait_for budget-database http://localhost:6001/api/health
+          wait_for budget-backend http://localhost:5001/api/health
+          wait_for mcp-server http://localhost:5100/mcp
+          wait_for rag-server http://localhost:5101/health
 
-      - name: Validate Docker Compose
-        run: docker compose config
+      - name: Run Student 1 API tests
+        working-directory: student-1-budget
+        run: pytest tests/test_budget_api.py -v
 
-      - name: Build Student 5 Docker images
-        run: |
-          docker compose build savings-database savings-backend savings-frontend
+      - name: Run Student 1 MCP + RAG integration tests
+        working-directory: student-1-budget
+        env:
+          MCP_SERVER_URL: http://localhost:5100/mcp
+          RAG_SERVER_URL: http://localhost:5101
+        run: pytest tests/test_mcp_rag.py -v
 
-      - name: Create CI Ollama override
-        run: |
-          cat > docker-compose.ci.yml <<'EOF'
-          services:
-            ollama:
-              image: ollama/ollama:latest
+      - name: Build frontend image
+        run: docker compose build budget-frontend
 
-            ai-mode-service:
-              build: ./ai-services/ai-mode
-              ports:
-                - "5099:5099"
-              environment:
-                OLLAMA_URL: http://ollama:11434
-              depends_on:
-                - ollama
-          EOF
-
-      - name: Start Ollama
-        run: |
-          docker compose \
-            -f docker-compose.yml \
-            -f docker-compose.ci.yml \
-            up -d ollama
-
-      - name: Wait for Ollama
-        run: |
-          for i in {1..60}; do
-            if docker compose \
-              -f docker-compose.yml \
-              -f docker-compose.ci.yml \
-              exec -T ollama ollama list > /dev/null 2>&1; then
-              echo "Ollama is ready."
-              exit 0
-            fi
-            sleep 2
-          done
-
-          echo "Ollama did not start in time."
-          docker compose \
-            -f docker-compose.yml \
-            -f docker-compose.ci.yml \
-            logs ollama
-          exit 1
-
-      - name: Pull Qwen model
-        run: |
-          docker compose \
-            -f docker-compose.yml \
-            -f docker-compose.ci.yml \
-            exec -T ollama ollama pull qwen2.5:0.5b
-
-      - name: Start integration test services
-        run: |
-          docker compose \
-            -f docker-compose.yml \
-            -f docker-compose.ci.yml \
-            up -d \
-              ai-mode-service \
-              finance-backend \
-              savings-backend
-
-      - name: Wait for Finance Backend
-        run: |
-          for i in {1..30}; do
-            status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/ || true)
-            if [ "$status" != "000" ]; then
-              echo "Finance Backend is responding."
-              exit 0
-            fi
-            sleep 2
-          done
-
-          echo "Finance Backend did not start in time."
-          exit 1
-
-      - name: Wait for Savings Backend
-        run: |
-          for i in {1..30}; do
-            status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5005/goals || true)
-            if [ "$status" != "000" ]; then
-              echo "Savings Backend is responding."
-              exit 0
-            fi
-            sleep 2
-          done
-
-          echo "Savings Backend did not start in time."
-          exit 1
-
-      - name: Wait for AI Mode Service
-        run: |
-          for i in {1..30}; do
-            if curl -fsS http://localhost:5099/health > /dev/null; then
-              echo "AI Mode Service is healthy."
-              exit 0
-            fi
-            sleep 2
-          done
-
-          echo "AI Mode Service did not become healthy in time."
-          exit 1
-
-      - name: Warm up Qwen model
-        run: |
-          curl -fsS \
-            --max-time 180 \
-            -X POST http://localhost:5099/api/generate \
-            -H "Content-Type: application/json" \
-            -d '{
-              "model": "qwen2.5:0.5b",
-              "prompt": "Reply with OK.",
-              "stream": false
-            }' \
-            > /dev/null
-
-          echo "Qwen model warm-up completed."
-
-      - name: Run Student 5 integration tests
-        run: |
-          python -m pytest student-5/tests/test_savings_goal_api.py -v
-
-      - name: Show Docker logs on failure
+      - name: Show logs on failure
         if: failure()
         run: |
-          docker compose \
-            -f docker-compose.yml \
-            -f docker-compose.ci.yml \
-            logs
+          docker compose logs finance-database budget-database budget-backend || true
+          echo "--- mcp-server ---"; cat /tmp/mcp.log || true
+          echo "--- rag-server ---"; cat /tmp/rag.log || true
