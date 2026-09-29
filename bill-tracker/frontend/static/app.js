@@ -64,21 +64,86 @@ if (!token()) showGate(); else loadAll();
 // Release 1: shared MCP + RAG server access (via this frontend's own
 // /api proxy - see app.py's backend_proxy).
 function renderBillsSummaryText(result) {
-  if (result && result.error) return `Error: ${result.error}`;
-  if (!result || typeof result !== "object") return "No summary available.";
-  return `You have ${result.bill_count} bill(s) totalling ${money(result.total_amount)}. `
-    + `Pending: ${money(result.pending_amount)}. Overdue: ${result.overdue_count}.`;
+  if (result && result.error) {
+    return `<div class="mcp-error">${escapeHtml(result.error)}</div>`;
+  }
+  if (!result || typeof result !== "object") {
+    return '<div class="mcp-empty">No summary available.</div>';
+  }
+
+  return `
+    <div class="mcp-summary-grid">
+      <div class="mcp-stat"><span>Total bills</span><strong>${result.bill_count ?? 0}</strong></div>
+      <div class="mcp-stat"><span>Total value</span><strong>${money(result.total_amount)}</strong></div>
+      <div class="mcp-stat"><span>Pending</span><strong>${money(result.pending_amount)}</strong></div>
+      <div class="mcp-stat"><span>Overdue</span><strong>${result.overdue_count ?? 0}</strong></div>
+    </div>
+  `;
 }
 
-$("mcp-query-button").addEventListener("click", async () => {
-  const resultEl = $("mcp-result");
-  resultEl.textContent = "Loading...";
-  try {
-    const data = await api("/mcp/query", { method: "POST", body: JSON.stringify({ tool: "get_bills_summary" }) });
-    resultEl.textContent = renderBillsSummaryText(data.result);
-  } catch (error) {
-    resultEl.textContent = `Error: ${error.message}`;
+function renderMcpBills(result) {
+  if (result && result.error) {
+    return `<div class="mcp-error">${escapeHtml(result.error)}</div>`;
   }
+
+  if (!Array.isArray(result)) {
+    return '<div class="mcp-empty">No bills returned.</div>';
+  }
+
+  if (!result.length) {
+    return '<div class="mcp-empty">You have no bills.</div>';
+  }
+
+  return `
+    <div class="mcp-table-wrap">
+      <table class="mcp-table">
+        <thead>
+          <tr>
+            <th>Bill</th>
+            <th>Amount</th>
+            <th>Due date</th>
+            <th>Frequency</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${result.map(bill => `
+            <tr>
+              <td><strong>${escapeHtml(bill.name ?? "Unnamed bill")}</strong></td>
+              <td>${money(bill.amount)}</td>
+              <td>${escapeHtml(bill.due_date ?? "—")}</td>
+              <td>${escapeHtml(bill.frequency ?? "—")}</td>
+              <td><span class="status ${escapeHtml(bill.status ?? "")}">${escapeHtml(bill.status ?? "Unknown")}</span></td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+    <p class="mcp-result-count">Showing all ${result.length} bill${result.length === 1 ? "" : "s"} returned by MCP.</p>
+  `;
+}
+
+async function callMcpTool(tool, renderer) {
+  const resultEl = $("mcp-result");
+  resultEl.innerHTML = '<div class="mcp-loading">Loading…</div>';
+
+  try {
+    const data = await api("/mcp/query", {
+      method: "POST",
+      body: JSON.stringify({ tool })
+    });
+    resultEl.innerHTML = renderer(data.result);
+  } catch (error) {
+    resultEl.innerHTML = `<div class="mcp-error">Error: ${escapeHtml(error.message)}</div>`;
+  }
+}
+
+$("mcp-summary-button").addEventListener("click", () => {
+  callMcpTool("get_bills_summary", renderBillsSummaryText);
+});
+
+$("mcp-bills-button").addEventListener("click", () => {
+  callMcpTool("get_bills", renderMcpBills);
 });
 
 $("rag-form").addEventListener("submit", async event => {

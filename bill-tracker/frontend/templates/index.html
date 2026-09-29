@@ -65,11 +65,14 @@
       <div class="section-heading">
         <div><h2>Release 1: Shared MCP + RAG Servers</h2><p>A different, standardised path from the AI assistant above.</p></div>
       </div>
-      <button type="button" id="mcp-query-button">Call get_bills_summary via MCP</button>
-      <pre id="mcp-result" class="mcp-json"></pre>
+      <div class="mcp-actions">
+        <button type="button" id="mcp-summary-button">Call get_bills_summary via MCP</button>
+        <button type="button" id="mcp-bills-button">Call get_bills via MCP</button>
+      </div>
+      <div id="mcp-result" class="mcp-result"></div>
 
       <form id="rag-form" class="chat-form">
-        <input id="rag-input" autocomplete="off" placeholder="e.g. How do I create a budget?" maxlength="2000" required>
+        <input id="rag-input" autocomplete="off" placeholder="e.g. What do the different bill statuses mean?" maxlength="2000" required>
         <button type="submit">Ask (RAG)</button>
       </form>
       <div id="rag-answer"></div>
