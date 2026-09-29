@@ -211,10 +211,11 @@ document.getElementById("refreshBudgets").addEventListener("click", refreshBudge
 
 document.getElementById("createBudgetForm").addEventListener("submit", async (e) => {
   e.preventDefault();
-  const monthValue = document.getElementById("budgetMonth").value; // "YYYY-MM"
-  const [yearStr, monthStr] = monthValue.split("-");
-  const month = parseInt(monthStr, 10);
-  const year = parseInt(yearStr, 10);
+  // budgetMonth/budgetYear are plain <select> elements (see the Safari
+  // <input type="month"> fix) - their .value is already a plain number
+  // string like "2" or "2027", no "YYYY-MM" splitting needed.
+  const month = parseInt(document.getElementById("budgetMonth").value, 10);
+  const year = parseInt(document.getElementById("budgetYear").value, 10);
   const status = document.getElementById("status").checked ? "archived" : "active";
   try {
     await createBudget({ month, year, status });
@@ -290,6 +291,19 @@ document.getElementById("chatForm").addEventListener("submit", async (e) => {
   }
 });
 
+function populateYearOptions() {
+  const yearSelect = document.getElementById("budgetYear");
+  const currentYear = new Date().getFullYear();
+  for (let year = currentYear - 2; year <= currentYear + 3; year++) {
+    const option = document.createElement("option");
+    option.value = year;
+    option.textContent = year;
+    if (year === currentYear) option.selected = true;
+    yearSelect.appendChild(option);
+  }
+}
+
+populateYearOptions();
 refreshBudgets();
 // ---------------------------------------------------------------------
 // Release 1: shared MCP + RAG server access (via this module's own
@@ -346,7 +360,9 @@ document.getElementById("ragForm").addEventListener("submit", async (e) => {
     const citations = result.citations && result.citations.length
       ? `<p class="rag-citations">Sources: ${result.citations.join(", ")}</p>`
       : "";
-    document.getElementById("ragAnswer").innerHTML =
+    const ragAnswer = document.getElementById("ragAnswer");
+    ragAnswer.classList.remove("placeholder");
+    ragAnswer.innerHTML =
       `<p class="rag-confidence">Confidence: <strong>${result.confidence_category || ""}</strong></p>` +
       `<p>${result.answer || ""}</p>${citations}`;
     showMessage("ragMessage", "");

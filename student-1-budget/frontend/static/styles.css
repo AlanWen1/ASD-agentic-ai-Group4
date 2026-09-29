@@ -68,6 +68,24 @@ padding: 0.5rem;
 border: 1px solid #d1d5db;
 border-radius: 4px;
 font-size: 0.95rem;
+line-height: 1.4;
+/* Safari gives native text inputs extra built-in vertical "chrome"
+   that Chrome doesn't, which pushed the text toward the top of the
+   box and left a big gap below it. Turning off native appearance
+   makes the padding above/below the text the same in every browser. */
+-webkit-appearance: none;
+appearance: none;
+background-color: #fff;
+}
+
+.month-year-row {
+display: flex;
+gap: 0.5rem;
+}
+
+.month-year-row select {
+flex: 1;
+min-width: 0;
 }
 
 button {
@@ -88,6 +106,13 @@ background: #1c2f6b;
 min-height: 1.2rem;
 font-size: 0.85rem;
 margin-top: 0.5rem;
+}
+
+/* Release 1 panel: don't reserve empty space for a message that has
+   no text right now - that was the big blank gap under "Ask (RAG)". */
+#mcpRagPanel .form-message {
+  min-height: 0;
+  margin-top: 0.25rem;
 }
 
 .form-message.error {
@@ -246,6 +271,15 @@ align-self: flex-start;
   padding: 0 1rem;
 }
 
+/* Left side: everyday budget management (create + list/categories) */
+.top-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.5rem;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .side-column {
   flex: 0 0 240px;
 }
@@ -259,9 +293,12 @@ align-self: flex-start;
 }
 
 .app-layout main {
-  flex: 1 1 auto;
-  max-width: none;
-  margin: 0;
+  /* flex-grow 0: keep this at its own natural width (up to max-width)
+     instead of stretching to fill the row, so margin:auto below can
+     actually center it in whatever space is left over. */
+  flex: 0 1 760px;
+  max-width: 760px;
+  margin: 0 auto;
   padding: 0;
   display: flex;
   flex-direction: column;
@@ -269,14 +306,22 @@ align-self: flex-start;
   min-width: 0;
 }
 
-.chat-sidebar {
-  flex: 0 0 300px;
+/* Right side: both AI panels stacked together in one sidebar column,
+   sticky so they stay visible while the budget list on the left scrolls */
+.assistant-column {
+  flex: 0 0 240px;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
   position: sticky;
   top: 1.5rem;
   align-self: flex-start;
-  max-height: calc(100vh - 3rem);
+}
+
+.chat-sidebar {
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .chat-sidebar .chat-messages {
@@ -336,28 +381,58 @@ align-self: flex-start;
 }
 
 @media (max-width: 900px) {
-  .app-layout {
+  .app-layout,
+  .top-row {
     flex-direction: column;
   }
   .side-column,
-  .chat-sidebar {
+  .assistant-column {
     flex: 1 1 auto;
     width: 100%;
     position: static;
   }
 }
 /* Release 1: shared MCP + RAG server panel */
+.mcp-section {
+  max-width: 1400px;
+  margin: 0 auto 1.5rem;
+  padding: 0 1rem;
+}
+
+/* A moderate, centred width - not edge-to-edge, so the button/input
+   inside don't stretch into one giant bar across the whole row. */
+#mcpRagPanel {
+  max-width: 900px;
+  margin: 0 auto;
+  align-items: flex-start;
+}
+
+#mcpRagPanel > * {
+  align-self: stretch;
+}
+
+#mcpRagPanel #mcpQueryButton {
+  align-self: flex-start;
+}
+
 .assistant-hint {
   font-size: 13px;
   color: #68758a;
   margin-top: -4px;
 }
 
-.mcp-json {
+/* Same box treatment as the MCP result box above it, so the two
+   Release 1 boxes read as one consistent style. */
+.mcp-json,
+.rag-bubble {
   background: #f6f8fb;
   border: 1px solid #e3e8ef;
   border-radius: 6px;
   padding: 10px;
+  margin: 0.5rem 0 0;
+}
+
+.mcp-json {
   font-size: 12px;
   overflow-x: auto;
   white-space: pre-wrap;
@@ -375,4 +450,23 @@ align-self: flex-start;
 .rag-citations {
   font-size: 12px;
   color: #68758a;
+}
+
+.rag-bubble {
+  color: #1f2937;
+  font-size: 13px;
+}
+
+.rag-bubble p {
+  margin: 0 0 0.5rem;
+}
+
+.rag-bubble p:last-child {
+  margin-bottom: 0;
+}
+
+/* Default state before any question has been asked. */
+.rag-bubble.placeholder {
+  color: #68758a;
+  font-style: italic;
 }

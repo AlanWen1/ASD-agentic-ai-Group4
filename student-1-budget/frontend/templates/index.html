@@ -20,13 +20,31 @@
 
 <div class="app-layout">
 
+  <div class="top-row">
   <aside class="side-column">
     <section class="panel compact-panel" id="createBudgetPanel">
       <h2>Create Budget</h2>
       <form id="createBudgetForm">
         <div class="form-row">
           <label for="budgetMonth">Month &amp; Year</label>
-          <input type="month" id="budgetMonth" required />
+          <div class="month-year-row">
+            <select id="budgetMonth" required>
+              <option value="" disabled selected>Month</option>
+              <option value="1">January</option>
+              <option value="2">February</option>
+              <option value="3">March</option>
+              <option value="4">April</option>
+              <option value="5">May</option>
+              <option value="6">June</option>
+              <option value="7">July</option>
+              <option value="8">August</option>
+              <option value="9">September</option>
+              <option value="10">October</option>
+              <option value="11">November</option>
+              <option value="12">December</option>
+            </select>
+            <select id="budgetYear" required></select>
+          </div>
         </div>
         <div class="form-row toggle-row">
           <label for="status">Archived</label>
@@ -40,7 +58,6 @@
       <p class="form-message" id="createBudgetMessage"></p>
     </section>
   </aside>
-
   <main>
     <section class="panel" id="budgetsPanel">
       <h2>Your Budgets</h2>
@@ -75,7 +92,9 @@
       </table>
     </section>
   </main>
+  </div>
 
+  <div class="assistant-column">
   <aside class="chat-sidebar panel" id="chatboxPanel">
     <h2>Budget Assistant</h2>
     <div id="chatMessages" class="chat-messages"></div>
@@ -87,9 +106,13 @@
     </form>
     <p class="form-message" id="chatMessage"></p>
   </aside>
+  </div>
 
+</div>
+
+<div class="mcp-section">
   <aside class="chat-sidebar panel" id="mcpRagPanel">
-    <h2>Release 1: Shared MCP + RAG Servers</h2>
+    <h2>Shared MCP + RAG Servers</h2>
     <p class="assistant-hint">Calls the shared MCP/RAG servers directly - a different, standardised path from the Budget Assistant above.</p>
     <button id="mcpQueryButton" type="button">Call get_budgets via MCP</button>
     <pre id="mcpResult" class="mcp-json"></pre>
@@ -101,9 +124,8 @@
       <button type="submit">Ask (RAG)</button>
     </form>
     <p class="form-message" id="ragMessage"></p>
-    <div id="ragAnswer"></div>
+    <div id="ragAnswer" class="rag-bubble placeholder">Ask a question above to see the answer here.</div>
   </aside>
-
 </div>
 
 <script src="/static/app.js"></script>
