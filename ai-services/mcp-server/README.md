@@ -7,11 +7,10 @@ five student features.
 **Current state:** implemented. `server.py` uses the official `mcp`
 Python SDK (2.x — `MCPServer`, formerly `FastMCP` in 1.x) over Streamable
 HTTP, exposing 8 read-only tools that forward to each module's existing
-Database API (or, for Budget Manager, its backend directly — see below).
-No database is duplicated and no business logic is reimplemented; every
-tool is a thin, structured-error-returning wrapper — see `tools.py`'s
-module docstring for the full rationale and each database's own auth
-convention.
+API. No database is duplicated and no business logic is reimplemented;
+every tool is a thin, structured-error-returning wrapper — see
+`tools.py`'s module docstring for the full rationale and each module's
+own auth convention.
 
 ## Run it
 
@@ -53,10 +52,6 @@ Notes:
   `student-5/database/app.py` `GET /goals` endpoint doesn't accept a
   user filter — a pre-existing data-isolation gap in that module, not
   something masked here.
-- `get_budgets` sends `X-User-Id` as a header, not a query parameter,
-  because that's what `student-1-budget/backend/app.py`'s own
-  `get_user_id()` requires — a different (also legitimate) convention
-  from the other four modules, left as-is.
 
 ## Testing
 
