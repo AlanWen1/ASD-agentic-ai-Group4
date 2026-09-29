@@ -211,10 +211,8 @@ document.getElementById("refreshBudgets").addEventListener("click", refreshBudge
 
 document.getElementById("createBudgetForm").addEventListener("submit", async (e) => {
   e.preventDefault();
-  const monthValue = document.getElementById("budgetMonth").value; // "YYYY-MM"
-  const [yearStr, monthStr] = monthValue.split("-");
-  const month = parseInt(monthStr, 10);
-  const year = parseInt(yearStr, 10);
+  const month = parseInt(document.getElementById("budgetMonth").value, 10);
+  const year = parseInt(document.getElementById("budgetYear").value, 10);
   const status = document.getElementById("status").checked ? "active" : "archived";
   try {
     await createBudget({ month, year, status });
@@ -289,6 +287,24 @@ document.getElementById("chatForm").addEventListener("submit", async (e) => {
     showMessage("chatMessage", err.message, true);
   }
 });
+
+// Safari has no native <input type="month"> picker (it silently falls
+// back to a plain text field with no "YYYY-MM" enforcement), so the
+// Create Budget form uses two plain <select>s instead - populate the
+// year dropdown with a small range around the current year.
+function populateYearOptions() {
+  const yearSelect = document.getElementById("budgetYear");
+  if (!yearSelect) return;
+  const currentYear = new Date().getFullYear();
+  for (let y = currentYear - 2; y <= currentYear + 3; y++) {
+    const opt = document.createElement("option");
+    opt.value = String(y);
+    opt.textContent = String(y);
+    if (y === currentYear) opt.selected = true;
+    yearSelect.appendChild(opt);
+  }
+}
+populateYearOptions();
 
 refreshBudgets();
 // ---------------------------------------------------------------------

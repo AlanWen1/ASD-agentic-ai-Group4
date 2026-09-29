@@ -140,7 +140,13 @@ input, select, textarea {
   width: 100%; min-height: 42px; padding: 9px 11px;
   border: 1px solid #c8d0dc; border-radius: 9px;
   color: var(--ink); background: #fff; outline: none;
+  /* Safari adds its own native vertical "chrome" inside text inputs,
+     which otherwise makes identical padding look uneven across browsers. */
+  -webkit-appearance: none;
+  appearance: none;
 }
+.month-year-row { display: flex; gap: 8px; }
+.month-year-row select { flex: 1; min-width: 0; }
 input:focus, select:focus, textarea:focus {
   border-color: var(--primary);
   box-shadow: 0 0 0 3px rgba(36, 107, 253, 0.14);

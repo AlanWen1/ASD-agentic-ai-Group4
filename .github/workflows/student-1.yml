@@ -38,16 +38,20 @@ jobs:
           pip install -r student-1-budget/backend/requirements.txt
           pip install -r student-1-budget/database/requirements.txt
           pip install -r student-1-budget/requirements-dev.txt
+          pip install -r finance-application/database/requirements.txt
 
       - name: Compile-check Python source
         run: python -m compileall -q student-1-budget
 
-      - name: Start budget-database and budget-backend
+      - name: Start shared auth database, budget-database and budget-backend
         working-directory: student-1-budget
         env:
           DATABASE_PATH: ${{ github.workspace }}/student-1-budget/database/budget_manager.db
           DATABASE_URL: http://localhost:6001
+          AUTH_DATABASE_URL: http://localhost:6000
         run: |
+          (cd ${{ github.workspace }}/finance-application/database && python app.py &)
+          sleep 2
           (cd database && python db_service.py &)
           sleep 2
           (cd backend && python app.py &)
@@ -57,6 +61,7 @@ jobs:
         working-directory: student-1-budget
         env:
           DATABASE_URL: http://localhost:6001
+          AUTH_DATABASE_URL: http://localhost:6000
         run: pytest tests/test_budget_api.py -v
 
       - name: Validate root Docker Compose configuration
