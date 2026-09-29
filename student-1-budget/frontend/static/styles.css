@@ -180,7 +180,8 @@ input:focus, select:focus, textarea:focus {
 
 /* Active / Archived toggle: ON = Active (green), OFF = Archived (grey) */
 .toggle-row { justify-content: flex-start; min-height: 42px; }
-.form-row .toggle {
+.form-row .toggle,
+.budget-actions .toggle {
   position: relative; display: inline-flex; align-items: center; gap: 10px;
   margin: 0; cursor: pointer; user-select: none;
 }
@@ -231,7 +232,8 @@ input:focus, select:focus, textarea:focus {
 .badge.active { color: var(--success); background: var(--success-soft); }
 .badge.archived { color: #667085; background: #f2f4f7; }
 
-.budget-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.budget-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.budget-actions .toggle { margin-right: 4px; }
 .budget-actions button { padding: 7px 13px; font-size: 0.8rem; }
 
 /* ---------- Categories table ---------- */

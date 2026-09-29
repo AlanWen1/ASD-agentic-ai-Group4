@@ -185,9 +185,7 @@ def get_savings_goals(user_id=None):
 
 
 # ---------------------------------------------------------------------
-# Budget Manager (Student 1) — budget-backend itself, port 5001
-# (no standalone database service: budget-backend reads its SQLite file
-# directly, so this calls the backend's own API instead of a database API)
+# Budget Manager (Student 1) — budget-database, port 5001
 # ---------------------------------------------------------------------
 
 def get_budgets(user_id):
@@ -198,6 +196,16 @@ def get_budgets(user_id):
     if error:
         return error
     return _get(BUDGET_DB_URL, "/api/budgets", params={"user_id": user_id})
+
+def get_budget_overview(user_id, status="active"):
+    """List a user's budgets with their categories, total_allocated and
+    each category's share_pct. Forwards to GET /api/budgets/overview on
+    budget-database, which computes the totals at read time — nothing is
+    calculated here."""
+    error = _require_user_id(user_id)
+    if error:
+        return error
+    return _get(BUDGET_DB_URL, "/api/budgets/overview", params={"user_id": user_id, "status": status})
 
 
 
@@ -213,6 +221,7 @@ if __name__ == "__main__":
         ("get_pay_schedules(1)", get_pay_schedules(1)),
         ("get_savings_goals()", get_savings_goals()),
         ("get_budgets(1)", get_budgets(1)),
+        ("get_budget_overview(1)", get_budget_overview(1)),
 
     ]:
         print(f"--- {name} ---")

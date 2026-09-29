@@ -35,12 +35,13 @@ from mcp.server.mcpserver import MCPServer
 from tools import (
     get_bills,
     get_bills_summary,
-    get_budgets,
     get_categories,
     get_expenses,
     get_income_sources,
     get_pay_schedules,
     get_savings_goals,
+    get_budgets,
+    get_budget_overview,
 )
 
 mcp = MCPServer("Personal Finance MCP Server")
@@ -54,6 +55,7 @@ AVAILABLE_TOOLS = [
     "get_pay_schedules",
     "get_savings_goals",
     "get_budgets",
+    "get_budget_overview",
 ]
 
 
@@ -104,6 +106,11 @@ def get_savings_goals_tool(user_id: int | None = None):
 def get_budgets_tool(user_id: int):
     """List a user's budgets (Budget Manager)."""
     return json.dumps(get_budgets(user_id), default=str)
+
+@mcp.tool(name="get_budget_overview")
+def get_budget_overview_tool(user_id: int, status: str = "active"):
+    """A user's budgets with categories, total_allocated and share_pct (Budget Manager)."""
+    return json.dumps(get_budget_overview(user_id, status), default=str)
 
 
 if __name__ == "__main__":

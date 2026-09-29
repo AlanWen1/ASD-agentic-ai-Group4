@@ -301,6 +301,18 @@ def mcp_query():
     status_code = 502 if isinstance(result, dict) and "error" in result else 200
     return jsonify({"tool": "get_budgets", "result": result}), status_code
 
+@app.route("/api/mcp/overview", methods=["POST"])
+def mcp_overview():
+    """Call the shared MCP server's get_budget_overview tool for this user."""
+    from mcp_client import call_mcp_tool
+    user, err = current_user()
+    if err:
+        return err
+    user_id = user["id"]
+
+    result = call_mcp_tool("get_budget_overview", user_id=user_id, status="active")
+    status_code = 502 if isinstance(result, dict) and "error" in result else 200
+    return jsonify({"tool": "get_budget_overview", "result": result}), status_code
 
 @app.route("/api/rag/ask", methods=["POST"])
 def rag_ask():
