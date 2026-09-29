@@ -78,9 +78,6 @@ def health():
 def create_budget():
     data = request.get_json(silent=True) or {}
     user_id = data.get("user_id")
-    if user_id and str(existing["user_id"]) != str(user_id):
-        return jsonify({"error": "Budget not found or not owned by this user"}), 404
-    
     month = data.get("month")
     year = data.get("year")
     status = data.get("status", "active")
