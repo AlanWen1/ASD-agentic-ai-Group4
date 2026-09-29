@@ -2,7 +2,7 @@ name: Student 1 - Budget Manager CI
 
 on:
   push:
-    branches: [ main, budget-vishal ]
+    branches: [ main, budget-vishal, budget-mcp ]
     paths:
       - 'student-1-budget/**'
       - 'docker-compose.yml'
@@ -70,15 +70,17 @@ jobs:
             done
             echo "$1 did not start at $2" && exit 1
           }
-          (cd ${{ github.workspace }}/finance-application/database && python app.py &)
-          sleep 2
-          (cd database && python app.py &)
+          # finance-database gets its own file: it reads DATABASE_PATH too, and
+          # must not share budget_manager.db with budget-database
+          (cd ${{ github.workspace }}/finance-application/database && DATABASE_PATH=/tmp/finance.db python app.py > /tmp/finance-db.log 2>&1 &)
+          wait_for finance-database http://localhost:6000/
+          (cd database && python app.py > /tmp/budget-db.log 2>&1 &)
           wait_for budget-database http://localhost:6001/api/health
           (cd ${{ github.workspace }}/ai-services/mcp-server && python server.py > /tmp/mcp.log 2>&1 &)
           wait_for mcp-server http://localhost:5100/mcp
           (cd ${{ github.workspace }}/ai-services/rag-server && python rag_server.py > /tmp/rag.log 2>&1 &)
           wait_for rag-server http://localhost:5101/health
-          (cd backend && python app.py &)
+          (cd backend && python app.py > /tmp/budget-backend.log 2>&1 &)
           wait_for budget-backend http://localhost:5001/api/health
 
       - name: Run Student 1 API tests
@@ -96,9 +98,12 @@ jobs:
           RAG_SERVER_URL: http://localhost:5101
         run: pytest tests/test_mcp_rag.py -v
 
-      - name: Show MCP / RAG server logs
+      - name: Show service logs
         if: failure()
         run: |
+          echo "--- finance-database ---"; cat /tmp/finance-db.log || true
+          echo "--- budget-database ---"; cat /tmp/budget-db.log || true
+          echo "--- budget-backend ---"; cat /tmp/budget-backend.log || true
           echo "--- mcp-server ---"; cat /tmp/mcp.log || true
           echo "--- rag-server ---"; cat /tmp/rag.log || true
 
