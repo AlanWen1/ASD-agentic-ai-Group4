@@ -211,12 +211,9 @@ document.getElementById("refreshBudgets").addEventListener("click", refreshBudge
 
 document.getElementById("createBudgetForm").addEventListener("submit", async (e) => {
   e.preventDefault();
-  // budgetMonth/budgetYear are plain <select> elements (see the Safari
-  // <input type="month"> fix) - their .value is already a plain number
-  // string like "2" or "2027", no "YYYY-MM" splitting needed.
   const month = parseInt(document.getElementById("budgetMonth").value, 10);
   const year = parseInt(document.getElementById("budgetYear").value, 10);
-  const status = document.getElementById("status").checked ? "archived" : "active";
+  const status = document.getElementById("status").checked ? "active" : "archived";
   try {
     await createBudget({ month, year, status });
     showMessage("createBudgetMessage", "Budget created successfully.");
@@ -291,19 +288,24 @@ document.getElementById("chatForm").addEventListener("submit", async (e) => {
   }
 });
 
+// Safari has no native <input type="month"> picker (it silently falls
+// back to a plain text field with no "YYYY-MM" enforcement), so the
+// Create Budget form uses two plain <select>s instead - populate the
+// year dropdown with a small range around the current year.
 function populateYearOptions() {
   const yearSelect = document.getElementById("budgetYear");
+  if (!yearSelect) return;
   const currentYear = new Date().getFullYear();
-  for (let year = currentYear - 2; year <= currentYear + 3; year++) {
-    const option = document.createElement("option");
-    option.value = year;
-    option.textContent = year;
-    if (year === currentYear) option.selected = true;
-    yearSelect.appendChild(option);
+  for (let y = currentYear - 2; y <= currentYear + 3; y++) {
+    const opt = document.createElement("option");
+    opt.value = String(y);
+    opt.textContent = String(y);
+    if (y === currentYear) opt.selected = true;
+    yearSelect.appendChild(opt);
   }
 }
-
 populateYearOptions();
+
 refreshBudgets();
 // ---------------------------------------------------------------------
 // Release 1: shared MCP + RAG server access (via this module's own
@@ -360,9 +362,7 @@ document.getElementById("ragForm").addEventListener("submit", async (e) => {
     const citations = result.citations && result.citations.length
       ? `<p class="rag-citations">Sources: ${result.citations.join(", ")}</p>`
       : "";
-    const ragAnswer = document.getElementById("ragAnswer");
-    ragAnswer.classList.remove("placeholder");
-    ragAnswer.innerHTML =
+    document.getElementById("ragAnswer").innerHTML =
       `<p class="rag-confidence">Confidence: <strong>${result.confidence_category || ""}</strong></p>` +
       `<p>${result.answer || ""}</p>${citations}`;
     showMessage("ragMessage", "");

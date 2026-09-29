@@ -3,130 +3,186 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="description" content="Plan monthly budgets, manage category allocations, and review them with an AI budget assistant." />
 <title>Budget Manager</title>
-<link rel="stylesheet" href="/static/styles.css" />
+<!-- theme.css first, styles.css second: this module's own rules take precedence over the shared theme -->
 <link rel="stylesheet" href="/static/theme.css" />
+<link rel="stylesheet" href="/static/styles.css" />
 </head>
 <body>
-<header class="app-header">
-  <h1>Budget Manager</h1>
-  <div class="user-switch">
+
+<header class="topbar">
+  <div class="brand-lockup">
+    <div class="brand-mark" aria-hidden="true">BM</div>
+    <div>
+      <p class="eyebrow">AI-Assisted Personal Money Management</p>
+      <h1>Budget Manager</h1>
+    </div>
+  </div>
+  <div class="header-actions">
     <a class="button-link" href="http://localhost:3000/">Home</a>
-    <label for="userIdInput">User ID</label>
-    <input type="text" id="userIdInput" value="test01" />
-    <button id="userIdApply">Apply</button>
+    <label class="user-control" for="userIdInput">
+      <span>User ID</span>
+      <input type="text" id="userIdInput" value="test01" />
+    </label>
+    <button id="userIdApply" class="secondary" type="button">Apply</button>
   </div>
 </header>
 
-<div class="app-layout">
+<main class="page-shell">
+  <div class="workspace-grid">
 
-  <div class="top-row">
-  <aside class="side-column">
-    <section class="panel compact-panel" id="createBudgetPanel">
-      <h2>Create Budget</h2>
-      <form id="createBudgetForm">
-        <div class="form-row">
-          <label for="budgetMonth">Month &amp; Year</label>
-          <div class="month-year-row">
-            <select id="budgetMonth" required>
-              <option value="" disabled selected>Month</option>
-              <option value="1">January</option>
-              <option value="2">February</option>
-              <option value="3">March</option>
-              <option value="4">April</option>
-              <option value="5">May</option>
-              <option value="6">June</option>
-              <option value="7">July</option>
-              <option value="8">August</option>
-              <option value="9">September</option>
-              <option value="10">October</option>
-              <option value="11">November</option>
-              <option value="12">December</option>
-            </select>
-            <select id="budgetYear" required></select>
+    <!-- ============ Main column ============ -->
+    <div class="main-column">
+
+      <section class="panel" id="createBudgetPanel">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Create</p>
+            <h2>New budget</h2>
+            <p class="subtle">Pick a month to start a budget. You can add categories once it exists.</p>
           </div>
         </div>
-        <div class="form-row toggle-row">
-          <label for="status">Archived</label>
-          <label class="switch">
-            <input type="checkbox" id="status" />
-            <span class="slider"></span>
-          </label>
-        </div>
-        <button type="submit">Create Budget</button>
-      </form>
-      <p class="form-message" id="createBudgetMessage"></p>
-    </section>
-  </aside>
-  <main>
-    <section class="panel" id="budgetsPanel">
-      <h2>Your Budgets</h2>
-      <button id="refreshBudgets">Refresh</button>
-      <div id="budgetsList" class="budgets-list"></div>
-    </section>
+        <form id="createBudgetForm" class="inline-form">
+          <div class="form-row">
+            <label for="budgetMonth">Month &amp; Year</label>
+            <div class="month-year-row">
+              <select id="budgetMonth" required>
+                <option value="" disabled selected>Month</option>
+                <option value="1">January</option>
+                <option value="2">February</option>
+                <option value="3">March</option>
+                <option value="4">April</option>
+                <option value="5">May</option>
+                <option value="6">June</option>
+                <option value="7">July</option>
+                <option value="8">August</option>
+                <option value="9">September</option>
+                <option value="10">October</option>
+                <option value="11">November</option>
+                <option value="12">December</option>
+              </select>
+              <select id="budgetYear" required></select>
+            </div>
+          </div>
+          <div class="form-row toggle-row">
+            <label class="toggle" for="status">
+              <input type="checkbox" id="status" checked />
+              <span class="slider"></span>
+              <span class="toggle-text">
+                <span class="text-on">Active</span>
+                <span class="text-off">Archived</span>
+              </span>
+            </label>
+          </div>
+          <button type="submit">Create Budget</button>
+        </form>
+        <p class="form-message" id="createBudgetMessage"></p>
+      </section>
 
-    <section class="panel hidden" id="categoriesPanel">
-      <h2>Categories for Budget <span id="activeBudgetLabel"></span></h2>
-      <button id="closeCategoriesPanel">Close</button>
-      <form id="createCategoryForm">
-        <div class="form-row">
-          <label for="categoryName">Category name</label>
-          <input type="text" id="categoryName" required />
+      <section class="panel" id="budgetsPanel">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Overview</p>
+            <h2>Your Budgets</h2>
+            <p class="subtle">Open a budget to manage its categories, or delete it.</p>
+          </div>
+          <button id="refreshBudgets" class="secondary" type="button">Refresh</button>
         </div>
-        <div class="form-row">
-          <label for="allocatedAmount">Allocated amount</label>
-          <input type="number" id="allocatedAmount" min="0" step="0.01" required />
+        <div id="budgetsList" class="budgets-list"></div>
+      </section>
+
+      <section class="panel hidden" id="categoriesPanel">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Allocations</p>
+            <h2>Categories for Budget <span id="activeBudgetLabel"></span></h2>
+            <p class="subtle">Set how much of this budget goes to each category.</p>
+          </div>
+          <button id="closeCategoriesPanel" class="secondary" type="button">Close</button>
         </div>
-        <div class="form-row">
-          <label for="categoryNotes">Notes</label>
-          <input type="text" id="categoryNotes" />
+
+        <form id="createCategoryForm" class="editor-form">
+          <div class="form-title-row">
+            <h3>Add a category</h3>
+          </div>
+          <div class="form-grid three-column">
+            <div class="form-row">
+              <label for="categoryName">Category name</label>
+              <input type="text" id="categoryName" required />
+            </div>
+            <div class="form-row">
+              <label for="allocatedAmount">Allocated amount</label>
+              <input type="number" id="allocatedAmount" min="0" step="0.01" required />
+            </div>
+            <div class="form-row">
+              <label for="categoryNotes">Notes</label>
+              <input type="text" id="categoryNotes" />
+            </div>
+          </div>
+          <div class="form-actions">
+            <button type="submit">Add Category</button>
+          </div>
+        </form>
+        <p class="form-message" id="createCategoryMessage"></p>
+
+        <div class="table-wrap">
+          <table class="categories-table">
+            <thead>
+              <tr><th>Category</th><th>Allocated</th><th>Notes</th><th>Actions</th></tr>
+            </thead>
+            <tbody id="categoriesTableBody"></tbody>
+          </table>
         </div>
-        <button type="submit">Add Category</button>
-      </form>
-      <p class="form-message" id="createCategoryMessage"></p>
-      <table class="categories-table">
-        <thead>
-          <tr><th>Category</th><th>Allocated</th><th>Notes</th><th>Actions</th></tr>
-        </thead>
-        <tbody id="categoriesTableBody"></tbody>
-      </table>
-    </section>
-  </main>
+      </section>
+
+    </div>
+
+    <!-- ============ Side column ============ -->
+    <div class="side-column">
+
+      <aside class="panel ai-panel" id="chatboxPanel">
+        <div class="ai-heading">
+          <div class="ai-icon" aria-hidden="true">AI</div>
+          <div>
+            <p class="eyebrow">Qwen via Ollama</p>
+            <h2>Budget Assistant</h2>
+          </div>
+        </div>
+        <p class="subtle">Ask about your budgets and category allocations.</p>
+        <div id="chatMessages" class="chat-messages" aria-live="polite">
+          <div class="chat-bubble assistant">Hi! I can review your budgets and flag allocations that look unrealistic. I do not provide investment or financial advice.</div>
+        </div>
+        <form id="chatForm" class="chat-form">
+          <label class="sr-only" for="chatInput">Ask the Budget Assistant</label>
+          <input type="text" id="chatInput" placeholder="e.g. Review my August budget" required />
+          <button type="submit">Send</button>
+        </form>
+        <p class="form-message" id="chatMessage"></p>
+        <p class="disclaimer">Educational budgeting prototype. No financial, investment, tax, or legal advice.</p>
+      </aside>
+
+      <aside class="panel" id="mcpRagPanel">
+        <p class="eyebrow">Release 1</p>
+        <h2>Shared MCP + RAG Servers</h2>
+        <p class="subtle">Calls the shared MCP/RAG servers directly - a different, standardised path from the Budget Assistant above.</p>
+        <div class="quick-prompts">
+          <button id="mcpQueryButton" type="button">Call get_budgets via MCP</button>
+        </div>
+        <pre id="mcpResult" class="mcp-json"></pre>
+
+        <form id="ragForm" class="chat-form">
+          <label class="sr-only" for="ragInput">Ask the shared RAG server</label>
+          <input type="text" id="ragInput" placeholder="e.g. How do I create a budget?" required />
+          <button type="submit">Ask (RAG)</button>
+        </form>
+        <p class="form-message" id="ragMessage"></p>
+        <div id="ragAnswer"></div>
+      </aside>
+
+    </div>
   </div>
-
-  <div class="assistant-column">
-  <aside class="chat-sidebar panel" id="chatboxPanel">
-    <h2>Budget Assistant</h2>
-    <div id="chatMessages" class="chat-messages"></div>
-    <form id="chatForm">
-      <div class="form-row">
-        <input type="text" id="chatInput" placeholder="e.g. Review my August budget for unrealistic allocations" required />
-      </div>
-      <button type="submit">Send</button>
-    </form>
-    <p class="form-message" id="chatMessage"></p>
-  </aside>
-  </div>
-
-</div>
-
-<div class="mcp-section">
-  <aside class="chat-sidebar panel" id="mcpRagPanel">
-    <h2>Shared MCP + RAG Servers</h2>
-    <p class="assistant-hint">Calls the shared MCP/RAG servers directly - a different, standardised path from the Budget Assistant above.</p>
-    <button id="mcpQueryButton" type="button">Call get_budgets via MCP</button>
-    <pre id="mcpResult" class="mcp-json"></pre>
-
-    <form id="ragForm">
-      <div class="form-row">
-        <input type="text" id="ragInput" placeholder="e.g. How do I create a budget?" required />
-      </div>
-      <button type="submit">Ask (RAG)</button>
-    </form>
-    <p class="form-message" id="ragMessage"></p>
-    <div id="ragAnswer" class="rag-bubble placeholder">Ask a question above to see the answer here.</div>
-  </aside>
-</div>
+</main>
 
 <script src="/static/app.js"></script>
 </body>

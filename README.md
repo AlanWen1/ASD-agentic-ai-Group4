@@ -11,7 +11,7 @@ for AI-assisted functionality.
 | Module | Owner's feature | Frontend | Backend | Database |
 | --- | --- | --- | --- | --- |
 | `finance-application` | Shared login/registration + unified home page | :3000 | :5000 | :6000 |
-| `student-1-budget` | Budget Manager | :3001 | :5001 | (init-only container, see `student-1-budget/database`) |
+| `student-1-budget` | Budget Manager | :3001 | :5001 | :6001 |
 | `expense-category-tracker` | Expense & Category Manager | :3002 | :5002 | :6002 |
 | `student-3` | Income & Pay Schedule Manager | :3003 | :5003 | :6003 |
 | `bill-tracker` | Bill Tracker | :3004 | :5004 | :6004 |
