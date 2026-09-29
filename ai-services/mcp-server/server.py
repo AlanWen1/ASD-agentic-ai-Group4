@@ -103,7 +103,7 @@ def get_savings_goals_tool(user_id: int | None = None):
 @mcp.tool(name="get_budgets")
 def get_budgets_tool(user_id: int):
     """List a user's budgets (Budget Manager)."""
-    return get_budgets(user_id)
+    return json.dumps(get_budgets(user_id), default=str)
 
 
 if __name__ == "__main__":
