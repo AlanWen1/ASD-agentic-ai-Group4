@@ -215,7 +215,7 @@ document.getElementById("createBudgetForm").addEventListener("submit", async (e)
   const [yearStr, monthStr] = monthValue.split("-");
   const month = parseInt(monthStr, 10);
   const year = parseInt(yearStr, 10);
-  const status = document.getElementById("status").checked ? "archived" : "active";
+  const status = document.getElementById("status").checked ? "active" : "archived";
   try {
     await createBudget({ month, year, status });
     showMessage("createBudgetMessage", "Budget created successfully.");
