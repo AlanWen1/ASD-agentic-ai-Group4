@@ -7,12 +7,16 @@ on:
       - 'student-1-budget/**'
       - 'docker-compose.yml'
       - '.github/workflows/student-1.yml'
+      - 'ai-services/mcp-server/**'
+      - 'ai-services/rag-server/**'
   pull_request:
     branches: [ main ]
     paths:
       - 'student-1-budget/**'
       - 'docker-compose.yml'
       - '.github/workflows/student-1.yml'
+      - 'ai-services/mcp-server/**'
+      - 'ai-services/rag-server/**'
   workflow_dispatch:
 
 jobs:
@@ -32,6 +36,8 @@ jobs:
             student-1-budget/backend/requirements.txt
             student-1-budget/database/requirements.txt
             student-1-budget/requirements-dev.txt
+            ai-services/mcp-server/requirements.txt
+            ai-services/rag-server/requirements.txt
 
       - name: Install dependencies
         run: |
@@ -39,23 +45,41 @@ jobs:
           pip install -r student-1-budget/database/requirements.txt
           pip install -r student-1-budget/requirements-dev.txt
           pip install -r finance-application/database/requirements.txt
+          pip install -r ai-services/mcp-server/requirements.txt
+          pip install -r ai-services/rag-server/requirements.txt
 
       - name: Compile-check Python source
         run: python -m compileall -q student-1-budget
 
-      - name: Start shared auth database, budget-database and budget-backend
+      - name: Start shared auth database, budget-database, MCP server, RAG server and budget-backend
         working-directory: student-1-budget
         env:
           DATABASE_PATH: ${{ github.workspace }}/student-1-budget/database/budget_manager.db
           DATABASE_URL: http://localhost:6001
           AUTH_DATABASE_URL: http://localhost:6000
+          # Release 1: the shared MCP/RAG servers run as host processes, so
+          # everything is reached on localhost here (not host.docker.internal)
+          MCP_SERVER_URL: http://localhost:5100/mcp
+          RAG_SERVER_URL: http://localhost:5101
+          BUDGET_DB_URL: http://localhost:6001
         run: |
+          wait_for() {  # wait_for <name> <url>: fail the job if nothing answers in 30s
+            for i in $(seq 1 30); do
+              curl -s -o /dev/null "$2" && echo "$1 is up" && return 0
+              sleep 1
+            done
+            echo "$1 did not start at $2" && exit 1
+          }
           (cd ${{ github.workspace }}/finance-application/database && python app.py &)
           sleep 2
-          (cd database && python db_service.py &)
-          sleep 2
+          (cd database && python app.py &)
+          wait_for budget-database http://localhost:6001/api/health
+          (cd ${{ github.workspace }}/ai-services/mcp-server && python server.py > /tmp/mcp.log 2>&1 &)
+          wait_for mcp-server http://localhost:5100/mcp
+          (cd ${{ github.workspace }}/ai-services/rag-server && python rag_server.py > /tmp/rag.log 2>&1 &)
+          wait_for rag-server http://localhost:5101/health
           (cd backend && python app.py &)
-          sleep 2
+          wait_for budget-backend http://localhost:5001/api/health
 
       - name: Run Student 1 API tests
         working-directory: student-1-budget
@@ -63,6 +87,20 @@ jobs:
           DATABASE_URL: http://localhost:6001
           AUTH_DATABASE_URL: http://localhost:6000
         run: pytest tests/test_budget_api.py -v
+
+      - name: Run Student 1 MCP + RAG integration tests
+        working-directory: student-1-budget
+        env:
+          AUTH_DATABASE_URL: http://localhost:6000
+          MCP_SERVER_URL: http://localhost:5100/mcp
+          RAG_SERVER_URL: http://localhost:5101
+        run: pytest tests/test_mcp_rag.py -v
+
+      - name: Show MCP / RAG server logs
+        if: failure()
+        run: |
+          echo "--- mcp-server ---"; cat /tmp/mcp.log || true
+          echo "--- rag-server ---"; cat /tmp/rag.log || true
 
       - name: Validate root Docker Compose configuration
         run: docker compose -f docker-compose.yml config --quiet
@@ -74,4 +112,4 @@ jobs:
         run: docker build -t student-1-budget-frontend -f student-1-budget/frontend/Dockerfile .
 
       - name: Build database image
-        run: docker build -t student-1-budget-database -f student-1-budget/database/Dockerfile.database ./student-1-budget/database
+        run: docker build -t student-1-budget-database ./student-1-budget/database
