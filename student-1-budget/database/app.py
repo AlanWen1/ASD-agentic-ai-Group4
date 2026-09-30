@@ -278,6 +278,61 @@ def delete_category(category_id):
     return jsonify({"message": f"Category {category_id} deleted"}), 200
 
 
+# ---------------------------------------------------------------------------
+# Release 1: read-only budget overview (for the MCP get_budget_overview tool).
+# Totals and share percentages are computed by SQLite at read time — nothing
+# new is stored, so they can never go stale.
+# ---------------------------------------------------------------------------
+
+OVERVIEW_SQL = """
+SELECT b.budget_id, b.month, b.year, b.status,
+       c.category_id, c.category_name, c.allocated_amount, c.notes,
+       ROUND(SUM(c.allocated_amount) OVER (PARTITION BY b.budget_id), 2) AS total_allocated,
+       ROUND(100.0 * c.allocated_amount /
+             NULLIF(SUM(c.allocated_amount) OVER (PARTITION BY b.budget_id), 0), 1) AS share_pct
+FROM budgets b
+LEFT JOIN budget_categories c ON c.budget_id = b.budget_id
+WHERE b.user_id = ? AND b.status = ?
+ORDER BY b.year DESC, b.month DESC, b.budget_id DESC, c.allocated_amount DESC
+"""
+
+
+def _group_overview_rows(rows):
+    """Turn flat joined rows into [{budget..., categories: [...]}, ...]."""
+    budgets = {}
+    for row in rows:
+        budget = budgets.setdefault(row["budget_id"], {
+            "budget_id": row["budget_id"],
+            "month": row["month"],
+            "year": row["year"],
+            "status": row["status"],
+            "total_allocated": row["total_allocated"] or 0.0,
+            "categories": [],
+        })
+        if row["category_id"] is not None:  # budget with no categories -> LEFT JOIN nulls
+            budget["categories"].append({
+                "category_id": row["category_id"],
+                "category_name": row["category_name"],
+                "allocated_amount": row["allocated_amount"],
+                "share_pct": row["share_pct"] or 0.0,
+                "notes": row["notes"],
+            })
+    return list(budgets.values())
+
+
+@app.route("/api/budgets/overview", methods=["GET"])
+def budget_overview():
+    user_id = request.args.get("user_id")
+    status = request.args.get("status", "active")
+    if not user_id:
+        return jsonify({"error": "user_id is required"}), 400
+    if status not in ("active", "archived"):
+        return jsonify({"error": "status must be active or archived"}), 400
+
+    rows = get_db().execute(OVERVIEW_SQL, (user_id, status)).fetchall()
+    return jsonify(_group_overview_rows(rows)), 200
+
+
 with app.app_context():
     init_db()
 

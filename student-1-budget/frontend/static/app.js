@@ -59,6 +59,19 @@ async function deleteBudget(budgetId) {
   }
 }
 
+async function updateBudgetStatus(budgetId, status) {
+  const res = await fetch(`${API_BASE}/budgets/${budgetId}`, {
+    method: "PUT",
+    headers: apiHeaders(),
+    body: JSON.stringify({ status }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `Failed to update budget (status ${res.status})`);
+  }
+  return res.json();
+}
+
 async function fetchCategories(budgetId) {
   const res = await fetch(`${API_BASE}/budgets/${budgetId}/categories`, {
     headers: apiHeaders(),
@@ -113,6 +126,14 @@ function renderBudgets(budgets) {
         </span>
       </div>
       <div class="budget-actions">
+        <label class="toggle" title="Switch between Active and Archived">
+          <input type="checkbox" data-action="status" data-id="${budget.budget_id}" ${budget.status === "active" ? "checked" : ""} />
+          <span class="slider"></span>
+          <span class="toggle-text">
+            <span class="text-on">Active</span>
+            <span class="text-off">Archived</span>
+          </span>
+        </label>
         <button class="secondary" data-action="categories" data-id="${budget.budget_id}">Categories</button>
         <button class="danger" data-action="delete" data-id="${budget.budget_id}">Delete</button>
       </div>
@@ -128,6 +149,23 @@ function renderBudgets(budgets) {
   container.querySelectorAll('button[data-action="delete"]').forEach((btn) => {
     btn.addEventListener("click", () => handleDeleteBudget(btn.dataset.id));
   });
+
+  container.querySelectorAll('input[data-action="status"]').forEach((input) => {
+    input.addEventListener("change", () => handleToggleBudgetStatus(input));
+  });
+}
+
+async function handleToggleBudgetStatus(input) {
+  const status = input.checked ? "active" : "archived";
+  input.disabled = true;
+  try {
+    await updateBudgetStatus(input.dataset.id, status);
+    await refreshBudgets();
+  } catch (err) {
+    input.checked = !input.checked; // put the switch back where it was
+    input.disabled = false;
+    alert(err.message);
+  }
 }
 
 async function refreshBudgets() {
@@ -333,6 +371,39 @@ document.getElementById("mcpQueryButton").addEventListener("click", async () => 
   try {
     const data = await callMcpQuery();
     resultEl.innerHTML = renderBudgetsText(data.result);
+  } catch (err) {
+    resultEl.textContent = `Error: ${err.message}`;
+  }
+});
+
+async function callMcpOverview() {
+  const res = await fetch(`${API_BASE}/mcp/overview`, {
+    method: "POST",
+    headers: apiHeaders(),
+  });
+  const data = await res.json().catch(() => ({}));
+  return data;
+}
+
+// Plain text, one budget per line: "8/2026 — $2150.00 — Rent 74.4%, Food 0%".
+// Returned as text (not HTML) because category names are user-entered.
+function renderOverviewText(result) {
+  if (result && result.error) return `Error: ${result.error}`;
+  if (!Array.isArray(result) || result.length === 0) return "No active budgets found for this user yet.";
+  return result.map((b) => {
+    const cats = b.categories.length
+      ? b.categories.map((c) => `${c.category_name} ${c.share_pct}%`).join(", ")
+      : "no categories yet";
+    return `${b.month}/${b.year} — $${Number(b.total_allocated).toFixed(2)} — ${cats}`;
+  }).join("\n");
+}
+
+document.getElementById("mcpOverviewButton").addEventListener("click", async () => {
+  const resultEl = document.getElementById("mcpResult");
+  resultEl.textContent = "Loading...";
+  try {
+    const data = await callMcpOverview();
+    resultEl.textContent = renderOverviewText(data.result || data);
   } catch (err) {
     resultEl.textContent = `Error: ${err.message}`;
   }

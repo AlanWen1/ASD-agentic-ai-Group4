@@ -6,7 +6,7 @@ five student features.
 
 **Current state:** implemented. `server.py` uses the official `mcp`
 Python SDK (2.x — `MCPServer`, formerly `FastMCP` in 1.x) over Streamable
-HTTP, exposing 8 read-only tools that forward to each module's existing
+HTTP, exposing 9 read-only tools that forward to each module's existing
 API. No database is duplicated and no business logic is reimplemented;
 every tool is a thin, structured-error-returning wrapper — see
 `tools.py`'s module docstring for the full rationale and each module's
@@ -42,7 +42,8 @@ server, the RAG server, and the agentic loop to all be non-containerised).
 | `get_income_sources` | Income & Pay Schedule Manager | `user_id` | `GET /api/income-sources` on student-3-database (:6003) |
 | `get_pay_schedules` | Income & Pay Schedule Manager | `user_id` | `GET /api/pay-schedules` on student-3-database (:6003) |
 | `get_savings_goals` | Savings Goal Manager | none (see note) | `GET /goals` on savings-database (:6005) |
-| `get_budgets` | Budget Manager | `user_id` | `GET /api/budgets` on budget-backend (:5001) |
+| `get_budgets` | Budget Manager | `user_id` | `GET /api/budgets` on budget-database (:6001) |
+| `get_budget_overview` | Budget Manager | `user_id`, `status?` (`active` default / `archived`) | `GET /api/budgets/overview` on budget-database (:6001) |
 
 Notes:
 - Every underlying service's port is published to the host in
@@ -52,6 +53,10 @@ Notes:
   `student-5/database/app.py` `GET /goals` endpoint doesn't accept a
   user filter — a pre-existing data-isolation gap in that module, not
   something masked here.
+- `get_budget_overview` returns each budget with its categories,
+  `total_allocated` and each category's `share_pct`. Those totals are
+  computed by budget-database at read time (nothing is stored), so the
+  tool itself stays a plain forwarder.
 
 ## Testing
 
