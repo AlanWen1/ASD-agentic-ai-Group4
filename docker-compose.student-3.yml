@@ -1,22 +1,4 @@
 services:
-  ai-mode-service:
-    build: ./ai-services/ai-mode
-    container_name: ai-mode-service
-    environment:
-      OLLAMA_URL: http://ollama:11434
-      OLLAMA_MODEL: qwen2.5:0.5b
-    ports:
-      - "5099:5099"
-    depends_on:
-      ollama-model-loader:
-        condition: service_completed_successfully
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5099/health')"]
-      interval: 5s
-      timeout: 3s
-      retries: 12
-    restart: unless-stopped
-
   student-3-database:
     build: ./student-3/database
     container_name: student-3-database
@@ -38,16 +20,22 @@ services:
     container_name: student-3-backend
     environment:
       DATABASE_SERVICE_URL: http://student-3-database:6003
-      OLLAMA_BASE_URL: http://ai-mode-service:5099/v1
+      AUTH_DATABASE_URL: ${AUTH_DATABASE_URL:-http://host.docker.internal:6000}
+      OLLAMA_BASE_URL: http://host.docker.internal:5099/v1
+      MCP_SERVER_URL: http://host.docker.internal:5100/mcp
+      RAG_SERVER_URL: http://host.docker.internal:5101
+      AI_ENABLED: ${AI_ENABLED:-true}
+      MCP_ENABLED: ${MCP_ENABLED:-true}
+      RAG_ENABLED: ${RAG_ENABLED:-true}
       OLLAMA_MODEL: qwen2.5:0.5b
       OLLAMA_TIMEOUT_SECONDS: 90
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "5003:5003"
     depends_on:
       student-3-database:
         condition: service_healthy
-      ai-mode-service:
-        condition: service_started
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5003/health')"]
       interval: 5s
@@ -69,32 +57,5 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  ollama:
-    image: ollama/ollama:latest
-    container_name: ollama
-    ports:
-      - "11434:11434"
-    volumes:
-      - ollama-data:/root/.ollama
-    healthcheck:
-      test: ["CMD", "ollama", "list"]
-      interval: 5s
-      timeout: 5s
-      retries: 20
-    restart: unless-stopped
-
-  ollama-model-loader:
-    image: ollama/ollama:latest
-    environment:
-      OLLAMA_HOST: http://ollama:11434
-      OLLAMA_MODEL: qwen2.5:0.5b
-    entrypoint: ["/bin/sh", "-c"]
-    command: ["ollama pull $${OLLAMA_MODEL}"]
-    depends_on:
-      ollama:
-        condition: service_healthy
-    restart: "no"
-
 volumes:
   student-3-data:
-  ollama-data:

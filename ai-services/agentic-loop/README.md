@@ -46,7 +46,7 @@ python3 ai-services/agentic-loop/agent_review.py --mode all
 
 The MCP mode uses the official Python MCP SDK to connect to
 `http://localhost:5100/mcp`, initialise a session, discover the expected
-eight tools, and call each discovered expected tool with
+nine tools (including `get_budget_overview`), and call each discovered expected tool with
 `VALIDATION_USER_ID` (default 1).
 
 A downstream database error is reported separately from an MCP protocol error.
@@ -54,9 +54,14 @@ A downstream database error is reported separately from an MCP protocol error.
 ## RAG validation
 
 The RAG mode checks `http://localhost:5101`, refreshes the corpus, runs
-three representative retrieval queries, and tests grounded
-`/answer_question` generation. It prints retrieved source IDs, distances,
-citations, confidence, and dependency errors.
+five feature retrieval queries, and tests grounded
+`/answer_question` generation. It checks citation IDs against retrieved sources and also tests an unrelated
+question for `insufficient` confidence with empty citations. It prints answers,
+citations, confidence, retrieval counts and dependency errors.
+
+Both validation modes return a nonzero exit status on failure. A connected MCP
+server alone does not pass: discovery and all nine downstream tool calls must
+succeed. Keep all five feature Database APIs running before collecting evidence.
 
 ## Environment variables
 

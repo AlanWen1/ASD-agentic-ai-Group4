@@ -2,7 +2,7 @@
 
 **Owner:** Yongjian Zhou
 **Project:** AI-Assisted Personal Money Management System
-**Release:** Release 0
+**Release:** Release 1 (continues Release 0)
 
 ## Overview
 
@@ -106,7 +106,12 @@ http://localhost:3000
 
 After signing in, select **Income & Pay Schedule Manager**.
 
-## Run Student 3 Independently
+## Run Student 3 with the Existing Shared Login Service
+
+The standalone Compose file starts only the three Student 3 services. Keep the
+shared login application and authentication Database API running on ports
+3000 and 6000. Host AI services are started separately, as below. Do not run
+both Compose projects at once: they publish the same Student 3 ports.
 
 ```powershell
 docker compose -f .\docker-compose.student-3.yml up --build -d
@@ -117,3 +122,75 @@ Open:
 ```text
 http://localhost:3003
 ```
+
+
+## Release 1 Integration
+
+Release 0 income CRUD, date generation, monthly calculations and AI chat remain.
+Release 1 connects the feature UI through its own backend to two shared host
+services:
+
+| UI action | Student 3 backend | Shared host service |
+|---|---|---|
+| Income sources via MCP | `POST /api/mcp/query`, tool `get_income_sources` | MCP, `5100/mcp` |
+| Pay schedules via MCP | `POST /api/mcp/query`, tool `get_pay_schedules` | MCP, `5100/mcp` |
+| Knowledge question | `POST /api/rag/ask` | RAG, `5101/answer_question` |
+| Existing income analysis/chat | `/api/ai/analyse`, `/api/ai/chat` | AI-Mode, `5099`, then Ollama |
+
+MCP requests use the authenticated user ID. Request-supplied owner IDs are not
+forwarded. RAG returns `answer`, `citations` and `confidence_category`; a question
+outside the corpus returns `insufficient` with empty citations. Dependency and
+invalid-response errors return 502; RAG timeouts return 504. Model text, source
+names and citations are rendered as text or escaped HTML.
+
+AI-Mode, MCP, RAG and the agentic review loop are host processes, not Compose
+services. Install dependencies in the existing virtual environment:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt -r student-3/backend/requirements.txt
+```
+
+Start each host service in its own PowerShell window from the repository root:
+
+```powershell
+# Window 1
+$env:PORT = "5099"
+$env:OLLAMA_URL = "http://localhost:11434"
+.\.venv\Scripts\python.exe .\ai-services\ai-mode\service.py
+```
+
+```powershell
+# Window 2
+$env:PORT = "5100"
+.\.venv\Scripts\python.exe .\ai-services\mcp-server\server.py
+```
+
+```powershell
+# Window 3
+$env:PORT = "5101"
+$env:AI_MODE_URL = "http://localhost:5099"
+.\.venv\Scripts\python.exe .\ai-services\rag-server\rag_server.py
+```
+
+Normal local runs enable all three modes. The Student 3 backend reads
+`AI_ENABLED`, `MCP_ENABLED` and `RAG_ENABLED` (default `true`). Its `/health`
+response exposes the configured modes. CI sets all three to `false` and checks
+that the corresponding authenticated endpoints return 503 with a `*_DISABLED`
+code without contacting shared AI services.
+
+## Verification
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest -q student-3/tests ai-services/agentic-loop/tests
+node --test student-3/tests/test_frontend_rendering.cjs
+```
+
+The workflow builds and starts real containers for shared authentication and the
+three Student 3 layers, then runs `student-3/scripts/ci_smoke.py`. This checks CRUD,
+ownership, monthly monetary totals and disabled-mode responses through the
+frontend proxy using disposable accounts. Run the smoke script only against an
+isolated test stack with all three modes disabled. The workflow's volume cleanup
+runs on the disposable GitHub runner.
+
+See [Release 1 evidence checklist](RELEASE1-EVIDENCE.md) for remaining submission
+records. A local passing test is not evidence of a successful GitHub Actions run.

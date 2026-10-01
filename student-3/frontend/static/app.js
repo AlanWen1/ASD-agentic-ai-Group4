@@ -317,10 +317,10 @@ function renderMcpResultText(tool, result) {
   const items = (result && result.items) || [];
   if (items.length === 0) return 'No results found.';
   if (tool === 'get_income_sources') {
-    return items.map((s) => `${s.source_name} — $${s.standard_amount} (${s.payment_frequency})`).join('<br>');
+    return items.map((s) => `${s.source_name} — $${s.standard_amount} (${s.payment_frequency})`).join('\n');
   }
   if (tool === 'get_pay_schedules') {
-    return items.map((p) => `${p.expected_pay_date} — $${p.expected_amount} (${p.status})`).join('<br>');
+    return items.map((p) => `${p.expected_pay_date} — $${p.expected_amount} (${p.status})`).join('\n');
   }
   return `${items.length} item(s) found.`;
 }
@@ -330,7 +330,7 @@ async function callMcpQuery(tool) {
   resultEl.textContent = 'Loading...';
   try {
     const result = await api('/api/mcp/query', { method: 'POST', body: JSON.stringify({ tool }) });
-    resultEl.innerHTML = renderMcpResultText(tool, result.result);
+    resultEl.textContent = renderMcpResultText(tool, result.result);
   } catch (error) {
     resultEl.textContent = `Error: ${error.message}`;
   }
@@ -352,11 +352,11 @@ async function sendRagQuestion(event) {
   try {
     const result = await api('/api/rag/ask', { method: 'POST', body: JSON.stringify({ message }) });
     const citations = result.citations && result.citations.length
-      ? `<p class="rag-citations">Sources: ${result.citations.join(', ')}</p>`
+      ? `<p class="rag-citations">Sources: ${result.citations.map(escapeHtml).join(', ')}</p>`
       : '';
-    answerEl.innerHTML = `<p class="rag-confidence">Confidence: <strong>${result.confidence_category || ''}</strong></p><p>${result.answer || ''}</p>${citations}`;
+    answerEl.innerHTML = `<p class="rag-confidence">Confidence: <strong>${escapeHtml(result.confidence_category || '')}</strong></p><p>${escapeHtml(result.answer || '')}</p>${citations}`;
   } catch (error) {
-    answerEl.innerHTML = `<p class="assistant error">${error.message}</p>`;
+    answerEl.innerHTML = `<p class="assistant error">${escapeHtml(error.message)}</p>`;
   }
   input.value = '';
 }

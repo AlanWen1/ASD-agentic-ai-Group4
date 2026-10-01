@@ -176,6 +176,9 @@ services:
       - DATABASE_SERVICE_URL=http://student-3-database:6003
       - AUTH_DATABASE_URL=http://finance-database:6000
       - OLLAMA_BASE_URL=http://host.docker.internal:5099/v1
+      - AI_ENABLED=${AI_ENABLED:-true}
+      - MCP_ENABLED=${MCP_ENABLED:-true}
+      - RAG_ENABLED=${RAG_ENABLED:-true}
       - MCP_SERVER_URL=http://host.docker.internal:5100/mcp
       - RAG_SERVER_URL=http://host.docker.internal:5101
       - OLLAMA_MODEL=qwen2.5:0.5b

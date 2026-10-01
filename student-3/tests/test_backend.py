@@ -66,7 +66,7 @@ def fake_database_request(method, url, **kwargs):
 def make_client(monkeypatch):
     monkeypatch.setattr(backend_module.requests, "request", fake_database_request)
     app = backend_module.create_app("http://database.test", "http://auth.test")
-    app.config.update(TESTING=True)
+    app.config.update(TESTING=True, AI_ENABLED=True, MCP_ENABLED=True, RAG_ENABLED=True)
     return app.test_client()
 
 

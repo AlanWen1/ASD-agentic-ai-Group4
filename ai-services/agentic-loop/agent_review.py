@@ -24,7 +24,7 @@ GOALS = {
     "implementation": "Review backend/frontend correctness, integration, errors, auth, tests and AI use.",
     "microservices": "Review service boundaries, API flow, database ownership, AI services, networking and configuration.",
     "devops": "Review GitHub Actions, tests, builds, Docker, environment assumptions and CI coverage.",
-    "mcp": "Validate the real MCP server, eight tools, backend clients, user scoping and Streamable HTTP.",
+    "mcp": "Validate the real MCP server, registered tools, user scoping and Streamable HTTP.",
     "rag": "Validate corpus, retrieval, grounded generation, citations, confidence and REST integration.",
 }
 
@@ -218,8 +218,7 @@ def review_mode(root, mode, model, ollama_url, iterations):
             live = asyncio.run(validate_mcp(repo_root=root))
         else:
             live = validate_rag()
-        print_validation(mode, live)
-        return 0
+        return 0 if print_validation(mode, live) else 1
 
     _print_header(LABELS[mode].upper())
     print(f"MODEL: {model}")
@@ -372,6 +371,7 @@ def main():
     total = 0
     review_count = 0
     validation_count = 0
+    failures = 0
 
     for mode in selected:
         try:
@@ -384,6 +384,7 @@ def main():
             )
             if mode in {"mcp", "rag"}:
                 validation_count += 1
+                failures += int(result != 0)
             else:
                 review_count += 1
                 total += result
@@ -392,12 +393,13 @@ def main():
             return 130
         except Exception as exc:
             print(f"[FAIL] {mode}: {type(exc).__name__}: {exc}")
+            failures += 1
 
     print(
         f"\nSESSION COMPLETE: {review_count} review mode(s), "
-        f"{validation_count} validation mode(s), {total} finding(s)"
+        f"{validation_count} validation mode(s), {total} finding(s), {failures} failure(s)"
     )
-    return 0
+    return 1 if failures else 0
 
 if __name__ == "__main__":
     raise SystemExit(main())

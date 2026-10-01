@@ -4,12 +4,16 @@ on:
   push:
     paths:
       - "student-3/**"
+      - "requirements-dev.txt"
+      - "ai-services/agentic-loop/**"
       - "docker-compose.yml"
       - "docker-compose.student-3.yml"
       - ".github/workflows/student-3.yml"
   pull_request:
     paths:
       - "student-3/**"
+      - "requirements-dev.txt"
+      - "ai-services/agentic-loop/**"
       - "docker-compose.yml"
       - "docker-compose.student-3.yml"
       - ".github/workflows/student-3.yml"
@@ -18,6 +22,10 @@ on:
 jobs:
   test-and-build:
     runs-on: ubuntu-latest
+    env:
+      AI_ENABLED: "false"
+      MCP_ENABLED: "false"
+      RAG_ENABLED: "false"
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -34,19 +42,37 @@ jobs:
             requirements-dev.txt
 
       - name: Install test dependencies
-        run: pip install -r requirements-dev.txt
+        run: pip install -r requirements-dev.txt -r student-3/backend/requirements.txt
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
 
       - name: Compile Python source
-        run: python -m compileall -q student-3
+        run: python -m compileall -q student-3 ai-services/agentic-loop
 
       - name: Run Student 3 tests
-        run: pytest -q student-3/tests
+        run: pytest -q student-3/tests ai-services/agentic-loop/tests
+
+      - name: Test frontend response rendering
+        run: node --test student-3/tests/test_frontend_rendering.cjs
 
       - name: Validate Docker Compose
-        run: docker compose -f docker-compose.student-3.yml config --quiet
-
-      - name: Build Student 3 containers
         run: |
-          docker build -t student-3-database ./student-3/database
-          docker build -t student-3-backend ./student-3/backend
-          docker build -t student-3-frontend -f student-3/frontend/Dockerfile .
+          docker compose config --quiet
+          docker compose -f docker-compose.student-3.yml config --quiet
+
+      - name: Build and start Student 3 with shared authentication
+        run: docker compose up --build -d finance-database student-3-database student-3-backend student-3-frontend
+
+      - name: Test frontend, backend and database integration without AI services
+        run: python student-3/scripts/ci_smoke.py
+
+      - name: Show container logs on failure
+        if: failure()
+        run: docker compose logs --no-color finance-database student-3-database student-3-backend student-3-frontend
+
+      - name: Clean up runner containers and test data
+        if: always()
+        run: docker compose down --volumes

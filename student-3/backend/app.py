@@ -17,9 +17,12 @@ from ai_service import AIServiceError, ask_ollama, check_ollama, run_agent_loop
 
 MONEY = Decimal("0.01")
 
-# Release 1: shared RAG server (see ../../ai-services/rag-server/).
-RAG_SERVER_URL = os.environ.get("RAG_SERVER_URL", "http://host.docker.internal:5101").rstrip("/")
 MCP_TOOLS_FOR_THIS_MODULE = {"get_income_sources", "get_pay_schedules"}
+RAG_CONFIDENCE_CATEGORIES = {"high", "medium", "low", "insufficient"}
+
+
+def env_enabled(name: str) -> bool:
+    return os.getenv(name, "true").strip().lower() in {"true", "1", "yes", "on"}
 
 
 def money(value: Any) -> Decimal:
@@ -74,6 +77,20 @@ def create_app(
     app.config["AUTH_DATABASE_URL"] = (
         auth_url or os.getenv("AUTH_DATABASE_URL", "http://finance-database:6000")
     ).rstrip("/")
+    for mode in ("AI", "MCP", "RAG"):
+        app.config[f"{mode}_ENABLED"] = env_enabled(f"{mode}_ENABLED")
+    app.config["RAG_SERVER_URL"] = os.getenv(
+        "RAG_SERVER_URL", "http://host.docker.internal:5101"
+    ).rstrip("/")
+    app.config["RAG_TIMEOUT_SECONDS"] = int(os.getenv("RAG_TIMEOUT_SECONDS", "75"))
+
+    def disabled_mode(mode: str):
+        if not app.config[f"{mode}_ENABLED"]:
+            return jsonify({
+                "error": f"{mode} mode is disabled in this environment",
+                "code": f"{mode}_DISABLED",
+            }), 503
+        return None
 
     def database_request(method: str, path: str, **kwargs) -> requests.Response:
         try:
@@ -258,6 +275,7 @@ def create_app(
                 "status": "healthy" if status == 200 else "degraded",
                 "service": "student-3-backend",
                 "database": database_health,
+                "modes": {mode.lower(): app.config[f"{mode}_ENABLED"] for mode in ("AI", "MCP", "RAG")},
             }
         ), (200 if status == 200 else 503)
 
@@ -348,6 +366,8 @@ def create_app(
         _user, error = current_user()
         if error:
             return error
+        if disabled := disabled_mode("AI"):
+            return disabled
         result = check_ollama()
         return jsonify(result), (200 if result["available"] else 503)
 
@@ -356,6 +376,8 @@ def create_app(
         user, error = current_user()
         if error:
             return error
+        if disabled := disabled_mode("AI"):
+            return disabled
         payload = request.get_json(silent=True) or {}
         selected_month = parse_month(payload.get("month"))
         summary, schedules = build_summary(selected_month, user["id"])
@@ -371,6 +393,8 @@ def create_app(
         user, error = current_user()
         if error:
             return error
+        if disabled := disabled_mode("AI"):
+            return disabled
         payload = request.get_json(silent=True) or {}
         question = str(payload.get("message", "")).strip()
         if not question:
@@ -398,16 +422,20 @@ def create_app(
     def mcp_query():
         """Call one of the shared MCP server's tools for this user's own
         income/pay-schedule data. Body: {"tool": "get_income_sources"|"get_pay_schedules"}."""
-        from mcp_client import call_mcp_tool  # lazy: keeps CI import-free (no mcp pkg needed)
         user, error = current_user()
         if error:
             return error
+        if disabled := disabled_mode("MCP"):
+            return disabled
 
         data = request.get_json(silent=True) or {}
+        if not isinstance(data, dict):
+            return jsonify({"error": "request body must be a JSON object"}), 400
         tool = data.get("tool")
-        if tool not in MCP_TOOLS_FOR_THIS_MODULE:
+        if not isinstance(tool, str) or tool not in MCP_TOOLS_FOR_THIS_MODULE:
             return jsonify({"error": f"tool must be one of {sorted(MCP_TOOLS_FOR_THIS_MODULE)}"}), 400
 
+        from mcp_client import call_mcp_tool
         result = call_mcp_tool(tool, user_id=user["id"])
         status_code = 502 if isinstance(result, dict) and "error" in result else 200
         return jsonify({"tool": tool, "result": result}), status_code
@@ -419,21 +447,57 @@ def create_app(
         user, error = current_user()
         if error:
             return error
+        if disabled := disabled_mode("RAG"):
+            return disabled
 
         data = request.get_json(silent=True) or {}
-        question = str(data.get("message", "")).strip()
+        if not isinstance(data, dict):
+            return jsonify({"error": "request body must be a JSON object"}), 400
+        message = data.get("message")
+        if not isinstance(message, str):
+            return jsonify({"error": "message must be a string"}), 400
+        question = message.strip()
         if not question:
             return jsonify({"error": "message is required"}), 400
+        if len(question) > 2000:
+            return jsonify({"error": "message must be 2000 characters or fewer"}), 400
 
         try:
             response = requests.post(
-                f"{RAG_SERVER_URL}/answer_question",
+                f"{app.config['RAG_SERVER_URL']}/answer_question",
                 json={"query": question},
-                timeout=20,
+                timeout=app.config["RAG_TIMEOUT_SECONDS"],
             )
-            return jsonify(response.json()), response.status_code
+        except requests.exceptions.Timeout:
+            return jsonify({"error": "RAG server timed out", "code": "RAG_TIMEOUT"}), 504
         except requests.exceptions.RequestException as exc:
             return jsonify({"error": f"RAG server unavailable: {exc}"}), 502
+
+        try:
+            payload = response.json()
+        except ValueError:
+            return jsonify({"error": "RAG server returned invalid JSON"}), 502
+        if not isinstance(payload, dict):
+            return jsonify({"error": "RAG server returned an invalid response"}), 502
+        if response.status_code != 200 or "error" in payload:
+            return jsonify({"error": str(payload.get("error", "RAG server request failed"))}), 502
+
+        answer = payload.get("answer")
+        citations = payload.get("citations")
+        confidence = payload.get("confidence_category")
+        valid = (
+            isinstance(answer, str) and bool(answer.strip())
+            and isinstance(citations, list)
+            and all(isinstance(source, str) and bool(source.strip()) for source in citations)
+            and isinstance(confidence, str) and confidence in RAG_CONFIDENCE_CATEGORIES
+        )
+        if not valid:
+            return jsonify({"error": "RAG response is missing a valid answer, citations or confidence category"}), 502
+        if confidence == "insufficient" and citations:
+            return jsonify({"error": "Insufficient-context response must have empty citations"}), 502
+        if confidence != "insufficient" and not citations:
+            return jsonify({"error": "Grounded RAG response must include citations"}), 502
+        return jsonify(payload)
 
     @app.errorhandler(ValueError)
     def handle_validation_error(error: ValueError):

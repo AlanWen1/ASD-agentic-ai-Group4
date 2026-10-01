@@ -43,9 +43,14 @@ def call_mcp_tool(tool_name, **arguments):
     except Exception as exc:
         return {"error": f"Could not reach MCP server at {MCP_SERVER_URL}: {exc}"}
 
-    if getattr(result, "isError", False):
-        text = result.content[0].text if result.content else "Unknown MCP tool error"
+    if getattr(result, "is_error", getattr(result, "isError", False)):
+        text = "\n".join(block.text for block in result.content if hasattr(block, "text"))
+        text = text or "Unknown MCP tool error"
         return {"error": text}
+
+    structured = getattr(result, "structured_content", getattr(result, "structuredContent", None))
+    if structured is not None:
+        return structured
 
     if not result.content:
         # The mcp SDK emits zero content blocks when a tool returns an
@@ -53,8 +58,11 @@ def call_mcp_tool(tool_name, **arguments):
         # empty result, not a failure, so don't treat it as an error.
         return []
 
-    text = result.content[0].text
+    blocks = [block.text for block in result.content if hasattr(block, "text")]
+    if not blocks:
+        return {"error": "MCP tool returned no readable result"}
     try:
-        return json.loads(text)
+        decoded = [json.loads(text) for text in blocks]
+        return decoded[0] if len(decoded) == 1 else decoded
     except (ValueError, TypeError):
-        return {"error": f"Could not parse MCP server response: {text[:200]}"}
+        return {"error": "Could not parse MCP server response"}
