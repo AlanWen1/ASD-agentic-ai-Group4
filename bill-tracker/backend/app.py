@@ -11,7 +11,8 @@ AUTH_DATABASE_URL = os.environ.get("AUTH_DATABASE_URL", "http://finance-database
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://host.docker.internal:11434").rstrip("/")
 OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "qwen2.5:0.5b")
 HTTP_TIMEOUT = 20
-
+MCP_ENABLED = os.getenv("MCP_ENABLED", "true").lower() == "true"
+RAG_ENABLED = os.getenv("RAG_ENABLED", "true").lower() == "true"
 
 def service_request(base, method, path, **kwargs):
     try:
@@ -155,6 +156,12 @@ MCP_TOOLS_FOR_THIS_MODULE = {"get_bills", "get_bills_summary"}
 def mcp_query():
     """Call one of the shared MCP server's tools for this user's own
     bill data. Body: {"tool": "get_bills"|"get_bills_summary"}."""
+
+    if not MCP_ENABLED:
+        return jsonify({
+            "error": "MCP integration disabled"
+        }), 503
+
     from mcp_client import call_mcp_tool  # lazy: keeps CI import-free (no mcp pkg needed)
     user, error = current_user()
     if error:
@@ -174,6 +181,12 @@ def mcp_query():
 def rag_ask():
     """Forward a free-text question to the shared RAG server for a
     grounded answer with citations and a confidence category."""
+
+    if not RAG_ENABLED:
+        return jsonify({
+            "error": "RAG integration disabled"
+        }), 503
+
     user, error = current_user()
     if error:
         return error
