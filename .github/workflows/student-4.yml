@@ -1,4 +1,4 @@
-name: Bill Tracker CI
+name: Student 4 - Bills Manager CI
 
 on:
   push:
@@ -17,7 +17,10 @@ jobs:
   validate:
     name: Validate
     runs-on: ubuntu-latest
-
+    env:
+      AI_ENABLED: "false"
+      MCP_ENABLED: "false"
+      RAG_ENABLED: "false"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
