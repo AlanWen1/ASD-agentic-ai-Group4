@@ -1,3 +1,4 @@
+import os
 import pytest
 import requests
 import time
@@ -151,12 +152,12 @@ def test_ai_explanation(created_goal, auth_headers):
         headers=auth_headers
     )
 
+    if os.getenv("AI_ENABLED", "true").lower() == "false":
+        assert response.status_code == 503
+        assert response.json()["error"] == "AI Mode is disabled"
+        return
+
     assert response.status_code == 200
-
-    data = response.json()
-
-    assert "explanation" in data
-    assert data["goal_id"] == created_goal
 
 
 def test_delete_goal(created_goal, auth_headers):

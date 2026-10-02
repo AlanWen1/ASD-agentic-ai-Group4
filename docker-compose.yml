@@ -94,6 +94,9 @@ services:
     environment:
       - DATABASE_API_URL=http://savings-database:6005
       - OLLAMA_API_URL=http://host.docker.internal:5099/api/generate
+      - AI_ENABLED=${AI_ENABLED:-true}
+      - MCP_ENABLED=${MCP_ENABLED:-true}
+      - RAG_ENABLED=${RAG_ENABLED:-true}
       - MCP_SERVER_URL=http://host.docker.internal:5100/mcp
       - RAG_SERVER_URL=http://host.docker.internal:5101
       - OLLAMA_MODEL=qwen2.5:0.5b

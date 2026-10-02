@@ -27,6 +27,9 @@ spec = importlib.util.spec_from_file_location(
 backend = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(backend)
 
+backend.MCP_ENABLED = True
+backend.RAG_ENABLED = True
+
 
 @pytest.fixture
 def client():
