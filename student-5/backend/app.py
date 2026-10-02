@@ -27,6 +27,10 @@ OLLAMA_MODEL = os.getenv(
     "qwen2.5:0.5b"
 )
 
+AI_ENABLED = os.getenv("AI_ENABLED", "true").lower() == "true"
+MCP_ENABLED = os.getenv("MCP_ENABLED", "true").lower() == "true"
+RAG_ENABLED = os.getenv("RAG_ENABLED", "true").lower() == "true"
+
 
 def current_user():
     header = request.headers.get("Authorization", "")
@@ -292,6 +296,11 @@ def delete_goal(goal_id):
     methods=["GET"]
 )
 def get_goal_explanation(goal_id):
+    if not AI_ENABLED:
+        return jsonify({
+            "error": "AI Mode is disabled"
+        }), 503
+
     user, error = current_user()
 
     if error:
@@ -421,6 +430,12 @@ RAG_SERVER_URL = os.getenv("RAG_SERVER_URL", "http://host.docker.internal:5101")
 @app.route("/mcp/query", methods=["POST"])
 def mcp_query():
     """Query the shared MCP server for the authenticated user's savings goals."""
+
+    if not MCP_ENABLED:
+        return jsonify({
+            "error": "MCP is disabled"
+        }), 503
+
     user, error = current_user()
 
     if error:
@@ -458,6 +473,12 @@ def mcp_query():
 @app.route("/rag/ask", methods=["POST"])
 def rag_ask():
     """Ask the shared RAG server for a grounded answer."""
+
+    if not RAG_ENABLED:
+        return jsonify({
+            "error": "RAG is disabled"
+        }), 503
+
     user, error = current_user()
 
     if error:
