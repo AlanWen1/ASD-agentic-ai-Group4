@@ -83,16 +83,23 @@ Examples:
 """
 
 
-def get_savings_goals():
+def get_savings_goals(user_id):
     response = requests.get(
         f"{DATABASE_URL}/goals",
         timeout=HTTP_TIMEOUT
     )
     response.raise_for_status()
-    return response.json()
+
+    goals = response.json()
+
+    return [
+        goal
+        for goal in goals
+        if goal.get("user_id") == user_id
+    ]
 
 
-def get_savings_goal(goal_id):
+def get_savings_goal(goal_id, user_id):
     response = requests.get(
         f"{DATABASE_URL}/goals/{goal_id}",
         timeout=HTTP_TIMEOUT
@@ -104,22 +111,33 @@ def get_savings_goal(goal_id):
         }
 
     response.raise_for_status()
-    return response.json()
+
+    goal = response.json()
+
+    if goal.get("user_id") != user_id:
+        return {
+            "error": "Savings goal not found."
+        }
+
+    return goal
 
 
-def _call_tool(name, args):
+def _call_tool(name, args, user_id):
     if name == "get_savings_goals":
-        return get_savings_goals()
+        return get_savings_goals(user_id)
 
     if name == "get_savings_goal":
-        return get_savings_goal(args.get("goal_id"))
+        return get_savings_goal(
+            args.get("goal_id"),
+            user_id
+        )
 
     return {
         "error": f"Unknown tool: {name}"
     }
 
 
-def run_agent_loop(user_message, max_steps=4):
+def run_agent_loop(user_message, user_id, max_steps=4):
     """
     Plan -> Act -> Observe -> Adapt agentic loop.
     """
@@ -196,7 +214,8 @@ def run_agent_loop(user_message, max_steps=4):
 
             result = _call_tool(
                 function_name,
-                function_args
+                function_args,
+                user_id
             )
 
             trace.append({

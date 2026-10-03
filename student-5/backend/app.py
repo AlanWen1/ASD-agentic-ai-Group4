@@ -396,6 +396,11 @@ advice.
 
 @app.route("/agent", methods=["POST"])
 def savings_agent():
+    user, error = current_user()
+
+    if error:
+        return error
+
     data = request.get_json()
 
     if not data or "message" not in data:
@@ -405,7 +410,8 @@ def savings_agent():
 
     try:
         result = run_agent_loop(
-            data["message"]
+            data["message"],
+            user_id=user["id"]
         )
 
         return jsonify(result)

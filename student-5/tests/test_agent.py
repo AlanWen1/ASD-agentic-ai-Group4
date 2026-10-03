@@ -47,6 +47,7 @@ def test_agent_loop_calls_tool_then_answers(mock_post, mock_get):
         json=lambda: [
             {
                 "goal_id": 1,
+                "user_id": 1,
                 "goal_name": "Emergency Fund",
                 "target_amount": 10000,
                 "current_amount": 4000,
@@ -54,6 +55,7 @@ def test_agent_loop_calls_tool_then_answers(mock_post, mock_get):
             },
             {
                 "goal_id": 2,
+                "user_id": 1,
                 "goal_name": "Home Deposit",
                 "target_amount": 50000,
                 "current_amount": 12000,
@@ -63,7 +65,8 @@ def test_agent_loop_calls_tool_then_answers(mock_post, mock_get):
     )
 
     result = agent.run_agent_loop(
-        "Which savings goal needs the most money?"
+        "Which savings goal needs the most money?",
+         user_id=1
     )
 
     assert result["answer"] == (
