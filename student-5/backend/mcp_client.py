@@ -1,7 +1,7 @@
 """
 Shared MCP client helper — Release 1 requirement.
 
-This exact file is copied into each of the five backends below
+This MCP client helper is included in each of the five backends below
 (expense-category-tracker, student-1-budget, student-3, student-5,
 bill-tracker) rather than imported from one shared package, because each
 backend is deployed as its own separate service/container — the same
