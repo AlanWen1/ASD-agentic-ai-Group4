@@ -7,17 +7,20 @@ on:
       - 'student-1-budget/**'
       - 'docker-compose.yml'
       - '.github/workflows/student-1.yml'
-      - 'ai-services/mcp-server/**'
-      - 'ai-services/rag-server/**'
   pull_request:
     branches: [ main ]
     paths:
       - 'student-1-budget/**'
       - 'docker-compose.yml'
       - '.github/workflows/student-1.yml'
-      - 'ai-services/mcp-server/**'
-      - 'ai-services/rag-server/**'
   workflow_dispatch:
+
+# AI-Mode, MCP and RAG integration is retained in the code but disabled during CI/CD.
+# docker compose passes these into budget-backend (see docker-compose.yml).
+env:
+  AI_ENABLED: "false"
+  MCP_ENABLED: "false"
+  RAG_ENABLED: "false"
 
 jobs:
   build-and-test:
@@ -35,16 +38,11 @@ jobs:
           cache-dependency-path: |
             student-1-budget/backend/requirements.txt
             student-1-budget/requirements-dev.txt
-            ai-services/mcp-server/requirements.txt
-            ai-services/rag-server/requirements.txt
 
-      # Test runner + the host-process MCP/RAG servers (Release 1: non-containerised)
       - name: Install dependencies
         run: |
           pip install -r student-1-budget/backend/requirements.txt
           pip install -r student-1-budget/requirements-dev.txt
-          pip install -r ai-services/mcp-server/requirements.txt
-          pip install -r ai-services/rag-server/requirements.txt
 
       - name: Compile-check Python source
         run: python -m compileall -q student-1-budget
@@ -52,17 +50,8 @@ jobs:
       - name: Validate root Docker Compose configuration
         run: docker compose -f docker-compose.yml config --quiet
 
-      # Same containers as a real `docker compose up`: each service has its own
-      # container and volume, exactly as in the local deployment.
       - name: Build and start finance-database, budget-database and budget-backend
         run: docker compose up -d --build finance-database budget-database budget-backend
-
-      - name: Start shared MCP and RAG servers (host processes)
-        env:
-          BUDGET_DB_URL: http://localhost:6001
-        run: |
-          (cd ai-services/mcp-server && python server.py > /tmp/mcp.log 2>&1 &)
-          (cd ai-services/rag-server && python rag_server.py > /tmp/rag.log 2>&1 &)
 
       - name: Wait for services
         run: |
@@ -76,26 +65,23 @@ jobs:
           wait_for finance-database http://localhost:6000/
           wait_for budget-database http://localhost:6001/api/health
           wait_for budget-backend http://localhost:5001/api/health
-          wait_for mcp-server http://localhost:5100/mcp
-          wait_for rag-server http://localhost:5101/health
+
+      - name: Verify AI-Mode, MCP and RAG are disabled
+        run: |
+          curl -s http://localhost:5001/api/health | tee /tmp/health.json
+          echo
+          grep -q '"ai": *"disabled"' /tmp/health.json
+          grep -q '"mcp": *"disabled"' /tmp/health.json
+          grep -q '"rag": *"disabled"' /tmp/health.json
+          echo "AI-Mode, MCP and RAG integration retained but disabled for CI/CD"
 
       - name: Run Student 1 API tests
         working-directory: student-1-budget
         run: pytest tests/test_budget_api.py -v
-
-      - name: Run Student 1 MCP + RAG integration tests
-        working-directory: student-1-budget
-        env:
-          MCP_SERVER_URL: http://localhost:5100/mcp
-          RAG_SERVER_URL: http://localhost:5101
-        run: pytest tests/test_mcp_rag.py -v
 
       - name: Build frontend image
         run: docker compose build budget-frontend
 
       - name: Show logs on failure
         if: failure()
-        run: |
-          docker compose logs finance-database budget-database budget-backend || true
-          echo "--- mcp-server ---"; cat /tmp/mcp.log || true
-          echo "--- rag-server ---"; cat /tmp/rag.log || true
+        run: docker compose logs finance-database budget-database budget-backend || true
