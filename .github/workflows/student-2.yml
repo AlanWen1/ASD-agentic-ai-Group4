@@ -16,6 +16,13 @@ on:
 jobs:
   test-and-build:
     runs-on: ubuntu-latest
+    # Release 1: AI-Mode, MCP and RAG stay integrated in the code but are
+    # disabled during CI/CD. The shared local servers are never started
+    # here, and the MCP/RAG route tests run against mocks only.
+    env:
+      AI_ENABLED: "false"
+      MCP_ENABLED: "false"
+      RAG_ENABLED: "false"
 
     steps:
       - name: Check out repository
