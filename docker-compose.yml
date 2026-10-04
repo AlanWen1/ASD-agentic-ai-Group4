@@ -231,6 +231,10 @@ services:
       - OLLAMA_MODEL=qwen2.5:0.5b
       - MCP_SERVER_URL=http://host.docker.internal:5100/mcp
       - RAG_SERVER_URL=http://host.docker.internal:5101
+      - AI_ENABLED:${AI_ENABLED:-true}
+      - MCP_ENABLED:${MCP_ENABLED:-true}
+      - RAG_ENABLED:${RAG_ENABLED:-true}
+  
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:

@@ -147,4 +147,4 @@ def test_delete_budget(auth_headers, created_budget):
 def test_agent_chat_reachable(auth_headers):
     payload = {"message": "list my budgets"}
     resp = requests.post(f"{BASE_URL}/agent/chat", json=payload, headers=auth_headers)
-    assert resp.status_code in (200, 502)
+    assert resp.status_code in (200, 502, 503)

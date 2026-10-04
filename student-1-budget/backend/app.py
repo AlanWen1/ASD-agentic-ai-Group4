@@ -52,6 +52,9 @@ def agent_chat():
         return err
     user_id = user["id"]
 
+    if not AI_ENABLED:
+        return jsonify({"error": "AI-Mode is disabled in this environment"}), 503
+
     body = request.get_json(silent=True) or {}
     user_message = body.get("message", "").strip()
     if not user_message:
@@ -277,16 +280,22 @@ def health():
     return jsonify({
         "status": "ok",
         "service": "budget-manager-backend",
-        "database": db_status
+        "database": db_status,
+        "ai": "enabled" if AI_ENABLED else "disabled",
+        "mcp": "enabled" if MCP_ENABLED else "disabled",
+        "rag": "enabled" if RAG_ENABLED else "disabled"
     }), 200
 
 
 # ---------------------------------------------------------------------------
 # Release 1: shared MCP + RAG server access.
 # The frontend only ever calls these two routes on this backend.
+# AI-Mode, MCP and RAG can be disabled via env vars (set to false in CI/CD).
 # ---------------------------------------------------------------------------
 RAG_SERVER_URL = os.environ.get("RAG_SERVER_URL", "http://rag-server:5101").rstrip("/")
-
+MCP_ENABLED = os.environ.get("MCP_ENABLED", "true").lower() == "true"
+RAG_ENABLED = os.environ.get("RAG_ENABLED", "true").lower() == "true"
+AI_ENABLED = os.environ.get("AI_ENABLED", "true").lower() == "true"
 
 @app.route("/api/mcp/query", methods=["POST"])
 def mcp_query():
@@ -296,6 +305,9 @@ def mcp_query():
     if err:
         return err
     user_id = user["id"]
+
+    if not MCP_ENABLED:
+        return jsonify({"error": "MCP is disabled in this environment"}), 503
 
     result = call_mcp_tool("get_budgets", user_id=user_id)
     status_code = 502 if isinstance(result, dict) and "error" in result else 200
@@ -310,6 +322,9 @@ def mcp_overview():
         return err
     user_id = user["id"]
 
+    if not MCP_ENABLED:
+        return jsonify({"error": "MCP is disabled in this environment"}), 503
+
     result = call_mcp_tool("get_budget_overview", user_id=user_id, status="active")
     status_code = 502 if isinstance(result, dict) and "error" in result else 200
     return jsonify({"tool": "get_budget_overview", "result": result}), status_code
@@ -321,6 +336,9 @@ def rag_ask():
     if err:
         return err
     user_id = user["id"]
+
+    if not RAG_ENABLED:
+        return jsonify({"error": "RAG is disabled in this environment"}), 503
 
     data = request.get_json(silent=True) or {}
     question = (data.get("message") or "").strip()
