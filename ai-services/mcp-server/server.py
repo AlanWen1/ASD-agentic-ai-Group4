@@ -62,13 +62,13 @@ AVAILABLE_TOOLS = [
 @mcp.tool(name="get_expenses")
 def get_expenses_tool(user_id: int, category_id: int | None = None):
     """List a user's expenses (Expense & Category Manager), optionally filtered by category_id."""
-    return get_expenses(user_id, category_id)
+    return json.dumps(get_expenses(user_id, category_id), default=str)
 
 
 @mcp.tool(name="get_categories")
 def get_categories_tool(user_id: int):
     """List a user's expense categories (Expense & Category Manager)."""
-    return get_categories(user_id)
+    return json.dumps(get_categories(user_id), default=str)
 
 
 @mcp.tool(name="get_bills")
@@ -86,20 +86,20 @@ def get_bills_summary_tool(user_id: int):
 @mcp.tool(name="get_income_sources")
 def get_income_sources_tool(user_id: int):
     """List a user's income sources (Income & Pay Schedule Manager)."""
-    return get_income_sources(user_id)
+    return json.dumps(get_income_sources(user_id), default=str)
 
 
 @mcp.tool(name="get_pay_schedules")
 def get_pay_schedules_tool(user_id: int):
     """List a user's pay schedules (Income & Pay Schedule Manager)."""
-    return get_pay_schedules(user_id)
+    return json.dumps(get_pay_schedules(user_id), default=str)
 
 
 @mcp.tool(name="get_savings_goals")
 def get_savings_goals_tool(user_id: int | None = None):
     """List savings goals (Savings Goal Manager). Note: the underlying
     endpoint does not currently filter by user; see tools.py docstring."""
-    return get_savings_goals(user_id)
+    return json.dumps(get_savings_goals(user_id), default=str)
 
 
 @mcp.tool(name="get_budgets")
