@@ -77,7 +77,21 @@
       </form>
       <div id="rag-answer"></div>
     </section>
-  </main>
+   
+    <section class="panel multi-agent-panel">
+      <div class="section-heading">
+        <div><h2>Release 2: Multi-Agent Review</h2><p>Planner, Worker and Reviewer analyse your bills. A person must approve, correct or reject each proposal.</p></div>
+      </div>
+      <form id="multi-agent-form" class="chat-form">
+        <label for="multi-agent-task">Task for the agents</label>
+        <!-- <input id="multi-agent-task" autocomplete="off" placeholder="e.g. Review pending bills, check due dates and suggest a priority order." maxlength="2000" required> -->
+        <textarea id="multi-agent-task" rows="3" maxlength="4000" required placeholder="e.g. Review pending bills, check due dates and suggest a priority order."></textarea>
+        <button type="submit">Run multi-agent review</button>
+      </form>
+      <div id="multi-agent-result" aria-live="polite"><p>No review run yet.</p></div>
+    </section>
+
+</main>
 
   <dialog id="bill-dialog">
     <form method="dialog" id="bill-form" class="form-card">

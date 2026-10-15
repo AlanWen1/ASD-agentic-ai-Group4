@@ -164,3 +164,84 @@ $("rag-form").addEventListener("submit", async event => {
   }
   input.value = "";
 });
+
+
+// Release 2: shared Planner / Worker / Reviewer workflow with explicit human review.
+function maNode(tag, text, parent) {
+  const node = document.createElement(tag);
+  if (text !== undefined) node.textContent = text;
+  parent.appendChild(node);
+  return node;
+}
+function renderMultiAgentRun(run) {
+  const root = $("multi-agent-result");
+  if (!root) return;
+  root.replaceChildren();
+  maNode("h3", "Status: " + run.status.replaceAll("_", " "), root);
+  maNode("p", "Run " + run.run_id + " · Corrections: " + (run.correction_count || 0) + "/3", root);
+  const section = (title, value) => {
+    const details = maNode("details", undefined, root);
+    maNode("summary", title, details);
+    maNode("pre", typeof value === "string" ? value : JSON.stringify(value ?? {}, null, 2), details);
+  };
+  section("Planner plan", run.plan || {});
+  section("Worker proposal", run.worker_output || "");
+  section("Reviewer assessment", run.review || {});
+  if (run.status === "awaiting_human_review") {
+    maNode("p", "Human review required. Approval is explicit and will not modify bills automatically.", root);
+    const feedback = maNode("textarea", undefined, root);
+    feedback.rows = 3; feedback.maxLength = 2000;
+    feedback.placeholder = "Optional rejection reason or required correction instructions";
+    feedback.setAttribute("aria-label", "Review feedback");
+    const actions = maNode("div", undefined, root);
+    actions.className = "actions";
+    [["approve", "Approve"], ["correct", "Request correction"], ["reject", "Reject"]].forEach(([decision, label]) => {
+      const button = maNode("button", label, actions);
+      if (decision !== "approve") button.className = decision === "reject" ? "danger" : "secondary";
+      button.type = "button";
+      button.addEventListener("click", async () => {
+        const note = feedback.value.trim();
+        if (decision === "correct" && !note) { alert("Enter correction instructions first."); return; }
+        button.disabled = true;
+        try {
+          const updated = await api("/multi-agent/runs/" + run.run_id + "/decision", {
+            method: "POST", body: JSON.stringify({ decision, feedback: note })
+          });
+          renderMultiAgentRun(updated);
+        } catch (error) {
+          maNode("p", "Error: " + error.message, root);
+          button.disabled = false;
+        }
+      });
+    });
+  } else if (run.status === "approved") {
+    maNode("p", "Approved by human reviewer.", root);
+  } else if (run.status === "rejected") {
+    maNode("p", "Rejected by human reviewer. No application data was changed.", root);
+  }
+}
+async function loadMultiAgentRuns() {
+  const root = $("multi-agent-result");
+  if (!root) return;
+  try {
+    const data = await api("/multi-agent/runs");
+    if (data.runs && data.runs.length) renderMultiAgentRun(data.runs[0]);
+    else root.textContent = "No review run yet.";
+  } catch (error) { root.textContent = "Multi-Agent Server: " + error.message; }
+}
+const multiAgentForm = $("multi-agent-form");
+if (multiAgentForm) {
+  multiAgentForm.addEventListener("submit", async event => {
+    event.preventDefault();
+    const task = $("multi-agent-task").value.trim();
+    if (!task) return;
+    const root = $("multi-agent-result"); root.textContent = "Running Planner, Worker and Reviewer. This may take a few minutes…";
+    const submit = multiAgentForm.querySelector("button[type=submit]"); submit.disabled = true;
+    try {
+      const run = await api("/multi-agent/run", {method: "POST", body: JSON.stringify({task})});
+      renderMultiAgentRun(run);
+    } catch (error) { root.textContent = "Multi-Agent error: " + error.message; }
+    finally { submit.disabled = false; }
+  });
+  if (token()) loadMultiAgentRuns();
+}

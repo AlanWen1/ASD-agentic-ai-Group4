@@ -29,8 +29,10 @@ consistent non-containerised pattern and connection convention.
 - `rag-server/` — Release 1 requirement. Implemented — see
   `rag-server/README.md` for the knowledge base, retrieval approach, and
   how to run it.
-- `multi-agent-server/` — Release 2 requirement (Planner/Worker/Reviewer
-  agents). Not implemented yet.
+- `multi-agent-server/` — Release 2 implemented. One shared, non-containerised
+  Planner/Worker/Reviewer service with mandatory human review, persistent run
+  history, and terminal client. Runs at `localhost:5102` via
+  `multi-agent-server/run_local.sh`; do not add it to Docker Compose.
 
 ## Backend integration (all 5 student modules wired in)
 
@@ -94,3 +96,19 @@ that module specifically; both backends' routes were renamed to
 `/mcp/query` / `/rag/ask` to match their own convention, and re-verified
 with a mocked-backend test confirming the proxy now constructs the
 correct backend URL.
+
+
+## Release 2: Multi-Agent Server
+
+All five feature-module backends now expose their own authenticated Release 2
+routes and gather module-specific evidence before forwarding a task to the
+shared host process. Each frontend can display the Planner plan, Worker
+proposal and Reviewer risks/recommendations, then let the user approve, request
+a correction or reject the output. The Finance Application's shared login and
+home page is not modified with this feature.
+
+Backend URL: `http://host.docker.internal:5102`; configure
+`MULTI_AGENT_API_KEY` consistently for the local server and Dockerised app.
+CI explicitly sets `MULTI_AGENT_ENABLED=false`, so tests do not require
+Ollama or the local server. See `multi-agent-server/README.md` for startup,
+terminal usage and API details.

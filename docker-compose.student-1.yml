@@ -6,6 +6,9 @@ services:
     volumes:
       - ./student-1-budget/database:/app/database
     environment:
+      - MULTI_AGENT_URL=http://host.docker.internal:5102
+      - MULTI_AGENT_API_KEY=${MULTI_AGENT_API_KEY:-local-dev-key-change-me}
+      - MULTI_AGENT_ENABLED=${MULTI_AGENT_ENABLED:-true}
       - DATABASE_PATH=/app/database/budget_manager.db
     networks:
       - budget-network

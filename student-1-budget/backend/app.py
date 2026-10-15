@@ -356,5 +356,59 @@ def rag_ask():
         return jsonify({"error": f"RAG server unavailable: {exc}"}), 502
 
 
+
+# Release 2: shared Planner / Worker / Reviewer workflow.
+MULTI_AGENT_URL = os.getenv("MULTI_AGENT_URL", "http://host.docker.internal:5102").rstrip("/")
+MULTI_AGENT_API_KEY = os.getenv("MULTI_AGENT_API_KEY", "local-dev-key-change-me")
+MULTI_AGENT_ENABLED = os.getenv("MULTI_AGENT_ENABLED", "true").strip().lower() in {"true", "1", "yes", "on"}
+
+def _multi_agent_call(method, path, **kwargs):
+    if not MULTI_AGENT_ENABLED:
+        return jsonify({"error": "Multi-Agent is disabled in this environment"}), 503
+    try:
+        upstream = requests.request(method, f"{MULTI_AGENT_URL}{path}",
+            headers={"X-Multi-Agent-Key": MULTI_AGENT_API_KEY}, timeout=420, **kwargs)
+    except requests.RequestException as exc:
+        return jsonify({"error": f"Multi-Agent Server unavailable: {exc}"}), 502
+    try:
+        payload = upstream.json()
+    except ValueError:
+        payload = {"error": "Multi-Agent Server returned invalid JSON"}
+    return jsonify(payload), upstream.status_code
+
+@app.route("/api/multi-agent/run", methods=["POST"])
+def multi_agent_run():
+    user, err = current_user()
+    if err: return err
+    body = request.get_json(silent=True) or {}
+    task = str(body.get("task") or body.get("message") or "").strip()
+    if not task: return jsonify({"error": "task is required"}), 400
+    user_id = user["id"]
+    evidence = {"source": "budget-database", "budgets": [], "budget_overview": None}
+    try:
+        budgets = db_get("/api/budgets", params={"user_id": user_id})
+        evidence["budgets"] = budgets.json() if budgets.ok else {"error": "Could not retrieve budgets"}
+        overview = db_get("/api/budgets/overview", params={"user_id": user_id})
+        evidence["budget_overview"] = overview.json() if overview.ok else {"note": "Budget overview unavailable"}
+    except (requests.RequestException, ValueError) as exc:
+        evidence["retrieval_note"] = f"Some budget evidence was unavailable: {exc}"
+    return _multi_agent_call("POST", "/runs", json={"module": "budget", "user_id": str(user_id), "task": task, "evidence": evidence})
+
+@app.route("/api/multi-agent/runs", methods=["GET"])
+def multi_agent_runs():
+    user, err = current_user()
+    if err: return err
+    return _multi_agent_call("GET", "/runs", params={"module": "budget", "user_id": str(user["id"])})
+
+@app.route("/api/multi-agent/runs/<run_id>/decision", methods=["POST"])
+def multi_agent_decision(run_id):
+    user, err = current_user()
+    if err: return err
+    body = request.get_json(silent=True) or {}
+    decision = str(body.get("decision", "")).strip().lower()
+    payload = {"module": "budget", "user_id": str(user["id"]), "decision": decision, "feedback": str(body.get("feedback", "")).strip()}
+    return _multi_agent_call("POST", f"/runs/{run_id}/decision", json=payload)
+
+
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5001)

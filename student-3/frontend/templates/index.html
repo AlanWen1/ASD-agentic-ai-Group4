@@ -227,7 +227,20 @@
         <div id="ragAnswer"></div>
       </aside>
     </section>
-  </main>
+  
+      <aside class="panel" id="multiAgentPanel">
+        <p class="eyebrow">Release 2</p>
+        <h2>Multi-Agent Income Review</h2>
+        <p class="subtle">Planner → Worker → Reviewer, using income-source and pay-schedule evidence. Human approval is required.</p>
+        <form id="multiAgentForm" class="chat-form">
+          <label class="sr-only" for="multiAgentTask">Task for the agents</label>
+          <textarea id="multiAgentTask" rows="3" maxlength="4000" required placeholder="e.g. Compare scheduled and received payments and identify timing gaps."></textarea>
+          <div class="chat-actions"><button type="submit">Run multi-agent review</button></div>
+        </form>
+        <div id="multiAgentResult" aria-live="polite">No review run yet.</div>
+      </aside>
+
+</main>
 
   <script src="{{ url_for('static', filename='app.js') }}" defer></script>
 </body>

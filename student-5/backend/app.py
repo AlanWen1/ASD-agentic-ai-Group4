@@ -519,6 +519,59 @@ def rag_ask():
     return jsonify(result), response.status_code
 
 
+
+# Release 2: shared Planner / Worker / Reviewer workflow.
+MULTI_AGENT_URL = os.getenv("MULTI_AGENT_URL", "http://host.docker.internal:5102").rstrip("/")
+MULTI_AGENT_API_KEY = os.getenv("MULTI_AGENT_API_KEY", "local-dev-key-change-me")
+MULTI_AGENT_ENABLED = os.getenv("MULTI_AGENT_ENABLED", "true").strip().lower() in {"true", "1", "yes", "on"}
+
+def _multi_agent_call(method, path, **kwargs):
+    if not MULTI_AGENT_ENABLED:
+        return jsonify({"error": "Multi-Agent is disabled in this environment"}), 503
+    try:
+        upstream = requests.request(method, f"{MULTI_AGENT_URL}{path}",
+            headers={"X-Multi-Agent-Key": MULTI_AGENT_API_KEY}, timeout=420, **kwargs)
+    except requests.RequestException as exc:
+        return jsonify({"error": f"Multi-Agent Server unavailable: {exc}"}), 502
+    try:
+        payload = upstream.json()
+    except ValueError:
+        payload = {"error": "Multi-Agent Server returned invalid JSON"}
+    return jsonify(payload), upstream.status_code
+
+@app.route("/multi-agent/run", methods=["POST"])
+def multi_agent_run():
+    user, error = current_user()
+    if error: return error
+    body = request.get_json(silent=True) or {}
+    task = str(body.get("task") or body.get("message") or "").strip()
+    if not task: return jsonify({"error": "task is required"}), 400
+    try:
+        response = requests.get(f"{DATABASE_API_URL}/goals", timeout=10)
+        response.raise_for_status()
+        all_goals = response.json()
+        goals = [goal for goal in all_goals if str(goal.get("user_id")) == str(user["id"])]
+        for goal in goals: calculate_goal_fields(goal)
+        evidence = {"source": "savings-database", "goals": goals}
+    except (requests.RequestException, ValueError) as exc:
+        evidence = {"source": "savings-database", "retrieval_error": str(exc), "goals": []}
+    return _multi_agent_call("POST", "/runs", json={"module": "savings", "user_id": str(user["id"]), "task": task, "evidence": evidence})
+
+@app.route("/multi-agent/runs", methods=["GET"])
+def multi_agent_runs():
+    user, error = current_user()
+    if error: return error
+    return _multi_agent_call("GET", "/runs", params={"module": "savings", "user_id": str(user["id"])})
+
+@app.route("/multi-agent/runs/<run_id>/decision", methods=["POST"])
+def multi_agent_decision(run_id):
+    user, error = current_user()
+    if error: return error
+    body = request.get_json(silent=True) or {}
+    payload = {"module": "savings", "user_id": str(user["id"]), "decision": str(body.get("decision", "")).strip().lower(), "feedback": str(body.get("feedback", "")).strip()}
+    return _multi_agent_call("POST", f"/runs/{run_id}/decision", json=payload)
+
+
 if __name__ == "__main__":
     app.run(
         host="0.0.0.0",

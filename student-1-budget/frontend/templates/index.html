@@ -182,6 +182,19 @@
 
     </div>
   </div>
+
+  <section class="panel" id="multiAgentPanel">
+    <p class="eyebrow">Release 2</p>
+    <h2>Multi-Agent Review</h2>
+    <p class="subtle">Planner creates the plan, Worker analyses your budget evidence, and Reviewer checks the result. Human approval is required.</p>
+    <form id="multiAgentForm" class="chat-form">
+      <label for="multiAgentTask">Task for the agents</label>
+      <textarea id="multiAgentTask" rows="3" maxlength="4000" required placeholder="e.g. Review my active budgets and flag allocations that may need attention."></textarea>
+      <button type="submit">Run multi-agent review</button>
+    </form>
+    <div id="multiAgentResult" aria-live="polite">No review run yet.</div>
+  </section>
+
 </main>
 
 <script src="/static/app.js"></script>
