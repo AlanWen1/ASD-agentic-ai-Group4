@@ -342,6 +342,81 @@ def chat():
     </div>
     """
 
+
+@app.route("/multi-agent/run", methods=["POST"])
+def multi_agent_run_ui():
+    task = request.form.get("task", "").strip()
+    if not task:
+        return render_template("partials/multi_agent_result.html", error="Please enter a task.")
+    try:
+        response = requests.post(
+            f"{BACKEND_API_URL}/multi-agent/run",
+            json={"task": task},
+            headers=auth_headers(),
+            timeout=2100,
+        )
+    except requests.RequestException:
+        return render_template("partials/multi_agent_result.html", error="Could not reach the Multi-Agent backend.")
+    if response.status_code == 401:
+        return "<p>Authentication required. Please sign in again.</p>"
+    try:
+        data = response.json()
+    except ValueError:
+        data = {"error": "The Multi-Agent backend returned invalid data."}
+    if not response.ok:
+        return render_template("partials/multi_agent_result.html", error=data.get("error", "Multi-Agent run failed."))
+    return render_template("partials/multi_agent_result.html", run=data)
+
+
+@app.route("/multi-agent/decision", methods=["POST"])
+def multi_agent_decision_ui():
+    run_id = request.form.get("run_id", "").strip()
+    decision = request.form.get("decision", "").strip().lower()
+    feedback = request.form.get("feedback", "").strip()
+    if not run_id:
+        return render_template("partials/multi_agent_result.html", error="Run identifier is missing.")
+    try:
+        response = requests.post(
+            f"{BACKEND_API_URL}/multi-agent/runs/{run_id}/decision",
+            json={"decision": decision, "feedback": feedback},
+            headers=auth_headers(),
+            timeout=2100,
+        )
+    except requests.RequestException:
+        return render_template("partials/multi_agent_result.html", error="Could not reach the Multi-Agent backend.")
+    if response.status_code == 401:
+        return "<p>Authentication required. Please sign in again.</p>"
+    try:
+        data = response.json()
+    except ValueError:
+        data = {"error": "The Multi-Agent backend returned invalid data."}
+    if not response.ok:
+        return render_template("partials/multi_agent_result.html", error=data.get("error", "Human decision failed."))
+    return render_template("partials/multi_agent_result.html", run=data)
+
+
+
+@app.route("/multi-agent/latest", methods=["GET"])
+def multi_agent_latest_ui():
+    try:
+        response = requests.get(
+            f"{BACKEND_API_URL}/multi-agent/runs",
+            headers=auth_headers(),
+            timeout=30,
+        )
+    except requests.RequestException:
+        return render_template("partials/multi_agent_result.html", error="Could not reach the Multi-Agent backend.")
+    if response.status_code == 401:
+        return "<p>Authentication required. Please sign in again.</p>"
+    try:
+        data = response.json()
+    except ValueError:
+        data = {"error": "The Multi-Agent backend returned invalid data."}
+    if not response.ok:
+        return render_template("partials/multi_agent_result.html", error=data.get("error", "Could not load the latest review."))
+    runs = data.get("runs", [])
+    return render_template("partials/multi_agent_result.html", run=runs[0] if runs else None)
+
 if __name__ == "__main__":
     app.run(
         host="0.0.0.0",

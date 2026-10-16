@@ -258,7 +258,7 @@ def multi_agent_run_ui():
     if not task:
         return render_template("partials/multi_agent_result.html", error="Please enter a task.")
     try:
-        resp = api_post("/api/multi-agent/run", json={"task": task}, timeout=420)
+        resp = api_post("/api/multi-agent/run", json={"task": task}, timeout=2100)
     except requests.RequestException:
         return render_template("partials/multi_agent_result.html", error="Could not reach the Multi-Agent backend.")
     if resp.status_code == 401:
@@ -285,7 +285,7 @@ def multi_agent_decision_ui():
         resp = api_post(
             f"/api/multi-agent/runs/{run_id}/decision",
             json={"decision": decision, "feedback": feedback},
-            timeout=420,
+            timeout=2100,
         )
     except requests.RequestException:
         return render_template("partials/multi_agent_result.html", error="Could not reach the Multi-Agent backend.")

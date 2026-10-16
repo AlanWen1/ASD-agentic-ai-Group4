@@ -58,7 +58,7 @@ def create_app(backend_url: str | None = None) -> Flask:
                 params=request.args,
                 data=request.get_data(),
                 headers=headers,
-                timeout=420 if path.startswith("multi-agent/") else 100,
+                timeout=2100 if path.startswith("multi-agent/") else 100,
             )
         except requests.RequestException as exc:
             return jsonify(

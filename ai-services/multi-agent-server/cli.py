@@ -8,7 +8,7 @@ DEFAULT_KEY=os.getenv("MULTI_AGENT_API_KEY","local-dev-key-change-me")
 
 def request_json(method,url,**kwargs):
     headers=dict(kwargs.pop("headers",{}) or {}); headers["X-Multi-Agent-Key"]=DEFAULT_KEY
-    try: response=requests.request(method,url,headers=headers,timeout=kwargs.pop("timeout",420),**kwargs)
+    try: response=requests.request(method,url,headers=headers,timeout=kwargs.pop("timeout",2100),**kwargs)
     except requests.RequestException as exc: raise RuntimeError(f"Cannot connect to {DEFAULT_URL}. Start it with ./run_local.sh first. {exc}") from exc
     try: data=response.json()
     except ValueError: data={"error":response.text or f"HTTP {response.status_code}"}

@@ -532,7 +532,7 @@ def create_app(
             return jsonify({"error": "Multi-Agent is disabled in this environment"}), 503
         try:
             upstream = requests.request(method, f"{app.config['MULTI_AGENT_URL']}{path}",
-                headers={"X-Multi-Agent-Key": app.config["MULTI_AGENT_API_KEY"]}, timeout=420, **kwargs)
+                headers={"X-Multi-Agent-Key": app.config["MULTI_AGENT_API_KEY"]}, timeout=2100, **kwargs)
         except requests.RequestException as exc:
             return jsonify({"error": f"Multi-Agent Server unavailable: {exc}"}), 502
         try:

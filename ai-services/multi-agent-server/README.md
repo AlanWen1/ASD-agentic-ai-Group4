@@ -11,7 +11,7 @@ Application remains the shared login/home page and receives no Release 2 UI.
 2. Worker (qwen2.5:0.5b) performs the requested analysis using that plan and
    the supplied application evidence. It proposes results; it cannot write to
    finance databases or execute transactions.
-3. Reviewer (llama3.1:8b) checks the Worker output against the plan/evidence
+3. Reviewer (qwen2.5:0.5b by default) checks the Worker output against the plan/evidence
    and records findings, risks, evidence gaps and recommendations.
 4. Human review is mandatory. A person must approve, request a correction or
    reject the result. Corrections re-run Worker and Reviewer using the feedback
@@ -27,20 +27,44 @@ beside this file by default). Set MULTI_AGENT_DB_PATH to change the path.
 
 - Python 3.11+
 - Ollama running locally at http://localhost:11434 by default
-- The qwen2.5:0.5b and llama3.1:8b models available in Ollama
+- The qwen2.5:0.5b model available in Ollama (used by all three agents by default)
 
 From the repository root:
 
     ollama pull qwen2.5:0.5b
-    ollama pull llama3.1:8b
     ./ai-services/multi-agent-server/run_local.sh
 
-The service listens on port 5102. It binds to 0.0.0.0 by default so
-Dockerised backends can reach the host through host.docker.internal. The API
+The service listens on port 5102. Planner, Worker and Reviewer default to qwen2.5:0.5b to reduce local memory pressure. On a machine with enough RAM/VRAM, set REVIEWER_MODEL=llama3.1:8b before launching to opt into the larger Reviewer model. It binds to 0.0.0.0 by default so
+Dockerised backends can reach the host through host.docker.internal. Ollama
+chat is read as a stream rather than waiting for one complete response; this
+lets long generations make progress without hitting a single 180-second idle
+read. The read-timeout allowance defaults to 600 seconds and the module
+backend/frontend proxies allow up to 2100 seconds for the three agents to
+run sequentially. The API
 requires the X-Multi-Agent-Key header. Its development default is
 local-dev-key-change-me: set MULTI_AGENT_API_KEY to a private value in both
 the host-server environment and application environment beyond a local demo.
 Do not add this process to docker-compose.yml.
+
+### Ollama performance and timeout settings
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `MULTI_AGENT_OLLAMA_TIMEOUT_SECONDS` | `600` | Maximum idle wait for an Ollama response chunk; streamed tokens can keep a request alive longer overall |
+| `MULTI_AGENT_OLLAMA_CONNECT_TIMEOUT_SECONDS` | `10` | Time allowed to establish a connection to Ollama |
+| `MULTI_AGENT_OLLAMA_KEEP_ALIVE` | `10m` | Ask Ollama to keep each model loaded temporarily between calls |
+| `MULTI_AGENT_OLLAMA_NUM_PREDICT` | `768` | Maximum generated tokens per agent response |
+| `MULTI_AGENT_OLLAMA_NUM_CTX` | `8192` | Context size requested for the agent call |
+
+After changing server code or these environment variables, stop the running
+Multi-Agent Server with Ctrl+C and start `run_local.sh` again.
+
+If a task still times out, first check that Ollama is responsive and both
+models are present with `ollama list`; try a simple direct chat using
+`qwen2.5:0.5b` before retrying the multi-agent task. The Planner, Worker and
+Reviewer run sequentially, so their combined duration is naturally longer
+than a single AI-mode chat request. Keep evidence focused on the task rather
+than sending full exports if they are not needed.
 
 ## Terminal use
 

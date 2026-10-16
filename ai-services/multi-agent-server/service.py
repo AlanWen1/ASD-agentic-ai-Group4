@@ -10,8 +10,13 @@ from flask import Flask, jsonify, request
 VALID_MODULES = {"budget", "expenses", "income", "bills", "savings"}
 PLANNER_MODEL = os.getenv("PLANNER_MODEL", "qwen2.5:0.5b")
 WORKER_MODEL = os.getenv("WORKER_MODEL", "qwen2.5:0.5b")
-REVIEWER_MODEL = os.getenv("REVIEWER_MODEL", "llama3.1:8b")
+REVIEWER_MODEL = os.getenv("REVIEWER_MODEL", "qwen2.5:0.5b")
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434").rstrip("/")
+OLLAMA_TIMEOUT_SECONDS = int(os.getenv("MULTI_AGENT_OLLAMA_TIMEOUT_SECONDS", "600"))
+OLLAMA_CONNECT_TIMEOUT_SECONDS = int(os.getenv("MULTI_AGENT_OLLAMA_CONNECT_TIMEOUT_SECONDS", "10"))
+OLLAMA_KEEP_ALIVE = os.getenv("MULTI_AGENT_OLLAMA_KEEP_ALIVE", "10m")
+OLLAMA_NUM_PREDICT = int(os.getenv("MULTI_AGENT_OLLAMA_NUM_PREDICT", "768"))
+OLLAMA_NUM_CTX = int(os.getenv("MULTI_AGENT_OLLAMA_NUM_CTX", "8192"))
 MAX_TASK_CHARS, MAX_EVIDENCE_CHARS, MAX_CORRECTIONS = 4000, 24000, 3
 
 class AgentServiceError(RuntimeError):
@@ -38,22 +43,51 @@ def parse_json_response(content: str, fallback_key: str) -> dict[str, Any]:
         except json.JSONDecodeError: pass
     return {fallback_key: cleaned or "The model returned an empty response."}
 
-def call_model(model: str, system_prompt: str, user_prompt: str, timeout: int = 180) -> str:
-    """Call Ollama directly; each agent has an independent role and configured model."""
+def call_model(model: str, system_prompt: str, user_prompt: str, timeout: int | None = None) -> str:
+    """Read Ollama's streaming chat response so long local inference can make progress."""
+    request_timeout = timeout if timeout is not None else OLLAMA_TIMEOUT_SECONDS
     try:
-        response = requests.post(f"{OLLAMA_URL}/api/chat", json={
-            "model": model, "stream": False,
-            "messages": [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
-            "options": {"temperature": 0.2},
-        }, timeout=timeout)
-        response.raise_for_status()
-        content = response.json().get("message", {}).get("content", "")
-        if not isinstance(content, str) or not content.strip():
-            raise AgentServiceError(f"Model {model!r} returned an empty message.")
-        return content.strip()
-    except AgentServiceError: raise
+        with requests.post(f"{OLLAMA_URL}/api/chat", json={
+            "model": model,
+            "stream": True,
+            "keep_alive": OLLAMA_KEEP_ALIVE,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            "options": {
+                "temperature": 0.2,
+                "num_predict": OLLAMA_NUM_PREDICT,
+                "num_ctx": OLLAMA_NUM_CTX,
+            },
+        }, timeout=(OLLAMA_CONNECT_TIMEOUT_SECONDS, request_timeout), stream=True) as response:
+            response.raise_for_status()
+            parts = []
+            for line in response.iter_lines(decode_unicode=True):
+                if not line:
+                    continue
+                try:
+                    chunk = json.loads(line)
+                except json.JSONDecodeError as exc:
+                    raise AgentServiceError("Ollama returned an unreadable streaming response.") from exc
+                if chunk.get("error"):
+                    raise AgentServiceError(f"Ollama error for model {model!r}: {chunk['error']}")
+                message = chunk.get("message") or {}
+                piece = message.get("content", "")
+                if isinstance(piece, str) and piece:
+                    parts.append(piece)
+            content = "".join(parts).strip()
+            if not content:
+                raise AgentServiceError(f"Model {model!r} returned an empty message.")
+            return content
+    except AgentServiceError:
+        raise
     except (requests.RequestException, ValueError, TypeError, KeyError) as exc:
-        raise AgentServiceError(f"Could not complete an Ollama request for model {model!r} at {OLLAMA_URL}. Check Ollama and the model are available. ({exc})") from exc
+        raise AgentServiceError(
+            f"Could not complete an Ollama request for model {model!r} at {OLLAMA_URL}. "
+            f"Streaming timeout is {request_timeout}s (read timeout resets as chunks arrive). "
+            f"Check Ollama is responsive and the model is available. ({exc})"
+        ) from exc
 
 class RunStore:
     """SQLite store persists proposed work and human decisions between requests."""

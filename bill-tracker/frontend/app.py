@@ -25,7 +25,7 @@ def proxy(path):
             params=request.args,
             json=request.get_json(silent=True) if request.method in {"POST", "PUT"} else None,
             headers=headers,
-            timeout=420 if path.startswith("multi-agent/") else (130 if path == "chat" else 30),
+            timeout=2100 if path.startswith("multi-agent/") else (130 if path == "chat" else 30),
         )
         content_type = response.headers.get("Content-Type", "application/json")
         if "application/json" in content_type:
