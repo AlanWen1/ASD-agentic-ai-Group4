@@ -69,3 +69,7 @@ jobs:
         working-directory: bill-tracker
         run: |
           docker compose build
+
+      - name: Post-commit endpoint tests (bills collection and summary)
+        working-directory: bill-tracker/backend
+        run: pytest -q test_post_commit_endpoints.py

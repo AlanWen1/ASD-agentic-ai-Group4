@@ -56,6 +56,11 @@ jobs:
       - name: Run Student 3 tests
         run: pytest -q student-3/tests ai-services/agentic-loop/tests
 
+      - name: Post-commit endpoint tests (income sources and pay schedules)
+        env:
+          PYTHONPATH: student-3/backend
+        run: pytest -q student-3/tests/test_post_commit_endpoints.py
+
       - name: Test frontend response rendering
         run: node --test student-3/tests/test_frontend_rendering.cjs
 

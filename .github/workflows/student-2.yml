@@ -62,6 +62,12 @@ jobs:
         working-directory: expense-category-tracker/database
         run: pytest tests -v
 
+      - name: Post-commit endpoint tests (categories and expenses)
+        working-directory: expense-category-tracker/backend
+        env:
+          PYTHONPATH: .
+        run: pytest -q tests/test_post_commit_endpoints.py
+
       - name: Validate Docker Compose configuration
         run: docker compose config --quiet
 
