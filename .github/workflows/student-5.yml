@@ -93,7 +93,7 @@ jobs:
       - name: Post-commit endpoint tests (goal collection and goal details)
         env:
           PYTHONPATH: student-5/backend
-        run: python -m pytest -q student-5/tests/test_post_commit_endpoints.py
+        run: python -m pytest -q student-5/tests/test_post_commit_backend_endpoints.py
 
       - name: Show Docker logs on failure
         if: failure()

@@ -1,27 +1,73 @@
 <div id="multi-agent-result" class="chat-response" aria-live="polite">
-{% if error %}
-  <p class="error">{{ error }}</p>
-{% elif run %}
-  <h3>Status: {{ run.status|replace('_', ' ')|title }}</h3>
-  <p>Run {{ run.run_id }} · Corrections: {{ run.correction_count or 0 }}/3</p>
-  <details><summary>Planner plan</summary><pre>{{ run.plan|tojson(indent=2) }}</pre></details>
-  <details><summary>Worker proposal</summary><pre>{{ run.worker_output or '' }}</pre></details>
-  <details><summary>Reviewer assessment</summary><pre>{{ run.review|tojson(indent=2) }}</pre></details>
-  {% if run.status == 'awaiting_human_review' %}
-    <p><strong>Human review required.</strong> Approval does not change savings goals automatically.</p>
-    <form hx-post="/multi-agent/decision" hx-target="#multi-agent-result" hx-swap="outerHTML">
-      <input type="hidden" name="run_id" value="{{ run.run_id }}">
-      <label>Feedback <textarea name="feedback" rows="3" maxlength="2000" placeholder="Required for a correction; optional reason for rejection"></textarea></label>
-      <button type="submit" name="decision" value="approve" class="primary-action">Approve</button>
-      <button type="submit" name="decision" value="correct" class="primary-action">Request correction</button>
-      <button type="submit" name="decision" value="reject" class="primary-action">Reject</button>
-    </form>
-  {% elif run.status == 'approved' %}
-    <p>Approved by human reviewer.</p>
-  {% elif run.status == 'rejected' %}
-    <p>Rejected by human reviewer. No application records were changed.</p>
-  {% endif %}
-{% else %}
-  <p>No review run yet.</p>
-{% endif %}
+    {% if error %}
+        <p class="error">{{ error }}</p>
+
+    {% elif run %}
+        <h3>Status: {{ run.status | replace('_', ' ') | title }}</h3>
+
+        <p>Run {{ run.run_id }} · Corrections: {{ run.correction_count or 0 }}/3</p>
+
+        <details>
+            <summary>Planner plan</summary>
+            <pre>{{ run.plan | tojson(indent=2) }}</pre>
+        </details>
+
+        <details>
+            <summary>Worker proposal</summary>
+            <pre>{{ run.worker_output or '' }}</pre>
+        </details>
+
+        <details>
+            <summary>Reviewer assessment</summary>
+            <pre>{{ run.review | tojson(indent=2) }}</pre>
+        </details>
+
+        {% if run.status == 'awaiting_human_review' %}
+            <p><strong>Human review required.</strong> Approval does not change savings goals automatically.</p>
+
+            <form
+                hx-post="/multi-agent/decision"
+                hx-target="#multi-agent-result"
+                hx-swap="outerHTML">
+
+                <input
+                    type="hidden"
+                    name="run_id"
+                    value="{{ run.run_id }}">
+
+                <label>Feedback <textarea
+                    name="feedback"
+                    rows="3"
+                    maxlength="2000"
+                    placeholder="Required for a correction; optional reason for rejection"></textarea></label>
+
+                <button
+                    type="submit"
+                    name="decision"
+                    value="approve"
+                    class="primary-action">Approve</button>
+
+                <button
+                    type="submit"
+                    name="decision"
+                    value="correct"
+                    class="primary-action">Request correction</button>
+
+                <button
+                    type="submit"
+                    name="decision"
+                    value="reject"
+                    class="primary-action">Reject</button>
+            </form>
+
+        {% elif run.status == 'approved' %}
+            <p>Approved by human reviewer.</p>
+
+        {% elif run.status == 'rejected' %}
+            <p>Rejected by human reviewer. No application records were changed.</p>
+        {% endif %}
+
+    {% else %}
+        <p>No review run yet.</p>
+    {% endif %}
 </div>
