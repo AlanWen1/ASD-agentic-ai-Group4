@@ -117,16 +117,28 @@ class RunStore:
         return [self._decode(row) for row in rows]
     def update(self, run_id, **fields):
         allowed={"plan_json","worker_output","review_json","status","decision_json","correction_count","history_json"}
-        updates=[]; values=[]
-        for key,value in fields.items():
+        for key in fields:
             if key not in allowed: raise ValueError(f"Unsupported run field: {key}")
-            updates.append(f"{key}=?")
-            values.append(json.dumps(value,ensure_ascii=False,default=str) if key.endswith("_json") else value)
-        updates.append("updated_at=?"); values.extend([utc_now(),run_id])
-        with self.connect() as conn: conn.execute(f"UPDATE runs SET {', '.join(updates)} WHERE run_id=?",values)
+        field_values={key:(json.dumps(value,ensure_ascii=False,default=str) if key.endswith("_json") else value) for key,value in fields.items()}
+        query="""UPDATE runs SET
+            plan_json=CASE WHEN ? THEN ? ELSE plan_json END,
+            worker_output=CASE WHEN ? THEN ? ELSE worker_output END,
+            review_json=CASE WHEN ? THEN ? ELSE review_json END,
+            status=CASE WHEN ? THEN ? ELSE status END,
+            decision_json=CASE WHEN ? THEN ? ELSE decision_json END,
+            correction_count=CASE WHEN ? THEN ? ELSE correction_count END,
+            history_json=CASE WHEN ? THEN ? ELSE history_json END,
+            updated_at=?
+            WHERE run_id=?"""
+        values=[]
+        for key in ("plan_json","worker_output","review_json","status","decision_json","correction_count","history_json"):
+            values.extend((key in field_values,field_values.get(key)))
+        values.extend([utc_now(),run_id])
+        with self.connect() as conn: conn.execute(query,values)
         result=self.get(run_id)
         if result is None: raise KeyError(run_id)
         return result
+
     @staticmethod
     def _decode(row):
         run=dict(row)

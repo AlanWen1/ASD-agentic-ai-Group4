@@ -12,7 +12,7 @@ sys.path.insert(
     str(Path(__file__).resolve().parent.parent / "backend"),
 )
 
-import app as backend  # noqa: E402
+import app as backend 
 
 
 @pytest.fixture

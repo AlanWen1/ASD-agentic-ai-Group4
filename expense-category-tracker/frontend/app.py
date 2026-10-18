@@ -39,15 +39,18 @@ def auth_headers():
 
 
 def api_get(path, **kwargs):
-    return requests.get(f"{BACKEND_URL}{path}", headers=auth_headers(), **kwargs)
+    timeout = kwargs.pop("timeout", 20)
+    return requests.get(f"{BACKEND_URL}{path}", headers=auth_headers(), timeout=timeout, **kwargs)
 
 
 def api_post(path, **kwargs):
-    return requests.post(f"{BACKEND_URL}{path}", headers=auth_headers(), **kwargs)
+    timeout = kwargs.pop("timeout", 20)
+    return requests.post(f"{BACKEND_URL}{path}", headers=auth_headers(), timeout=timeout, **kwargs)
 
 
 def api_delete(path, **kwargs):
-    return requests.delete(f"{BACKEND_URL}{path}", headers=auth_headers(), **kwargs)
+    timeout = kwargs.pop("timeout", 20)
+    return requests.delete(f"{BACKEND_URL}{path}", headers=auth_headers(), timeout=timeout, **kwargs)
 
 
 def gate(error=None):
@@ -321,4 +324,4 @@ def multi_agent_latest_ui():
     return render_template("partials/multi_agent_result.html", run=runs[0] if runs else None)
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=3002, debug=True)
+    app.run(host="0.0.0.0", port=3002, debug=False)
