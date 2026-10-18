@@ -213,5 +213,54 @@ def unhandled_error(exc):
     return jsonify({"error": "Internal server error"}), 500
 
 
+
+# Release 2: shared Planner / Worker / Reviewer workflow.
+MULTI_AGENT_URL = os.getenv("MULTI_AGENT_URL", "http://host.docker.internal:5102").rstrip("/")
+MULTI_AGENT_API_KEY = os.getenv("MULTI_AGENT_API_KEY", "local-dev-key-change-me")
+MULTI_AGENT_ENABLED = os.getenv("MULTI_AGENT_ENABLED", "true").strip().lower() in {"true", "1", "yes", "on"}
+
+def _multi_agent_call(method, path, **kwargs):
+    if not MULTI_AGENT_ENABLED:
+        return jsonify({"error": "Multi-Agent is disabled in this environment"}), 503
+    try:
+        upstream = requests.request(method, f"{MULTI_AGENT_URL}{path}",
+            headers={"X-Multi-Agent-Key": MULTI_AGENT_API_KEY}, timeout=2100, **kwargs)
+    except requests.RequestException as exc:
+        return jsonify({"error": f"Multi-Agent Server unavailable: {exc}"}), 502
+    try:
+        payload = upstream.json()
+    except ValueError:
+        payload = {"error": "Multi-Agent Server returned invalid JSON"}
+    return jsonify(payload), upstream.status_code
+
+@app.route("/multi-agent/run", methods=["POST"])
+def multi_agent_run():
+    user, error = current_user()
+    if error: return error
+    body = request.get_json(silent=True) or {}
+    task = str(body.get("task") or body.get("message") or "").strip()
+    if not task: return jsonify({"error": "task is required"}), 400
+    try:
+        bills = get_bills(user["id"])
+        evidence = {"source": "bill-database", **bill_context(bills)}
+    except RuntimeError as exc:
+        evidence = {"source": "bill-database", "retrieval_error": str(exc), "bills": []}
+    return _multi_agent_call("POST", "/runs", json={"module": "bills", "user_id": str(user["id"]), "task": task, "evidence": evidence})
+
+@app.route("/multi-agent/runs", methods=["GET"])
+def multi_agent_runs():
+    user, error = current_user()
+    if error: return error
+    return _multi_agent_call("GET", "/runs", params={"module": "bills", "user_id": str(user["id"])})
+
+@app.route("/multi-agent/runs/<run_id>/decision", methods=["POST"])
+def multi_agent_decision(run_id):
+    user, error = current_user()
+    if error: return error
+    body = request.get_json(silent=True) or {}
+    payload = {"module": "bills", "user_id": str(user["id"]), "decision": str(body.get("decision", "")).strip().lower(), "feedback": str(body.get("feedback", "")).strip()}
+    return _multi_agent_call("POST", f"/runs/{run_id}/decision", json=payload)
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5004)

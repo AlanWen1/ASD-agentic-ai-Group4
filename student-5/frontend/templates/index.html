@@ -153,6 +153,46 @@
             </form>
             <div id="rag-answer" class="chat-response"></div>
         </section>
+        
+        <section class="panel" id="multi-agent-panel">
+            <h2>Release 2: Multi-Agent Savings Review</h2>
+
+            <p>
+                The Planner sets out a plan, the Worker reviews your savings-goal evidence, and the Reviewer checks its findings. You must approve, request a correction, or reject the result.
+            </p>
+
+            <form
+                class="chat-form"
+                hx-post="/multi-agent/run"
+                hx-target="#multi-agent-result"
+                hx-swap="outerHTML">
+
+                <label for="multi-agent-task">Task for the agents</label>
+
+                <textarea
+                    id="multi-agent-task"
+                    name="task"
+                    rows="3"
+                    maxlength="4000"
+                    required
+                    placeholder="e.g. Assess progress towards my savings goals and identify evidence-backed next steps."></textarea>
+
+                <button type="submit" class="primary-action">
+                    Run multi-agent review
+                </button>
+            </form>
+
+            <div
+                id="multi-agent-result"
+                class="chat-response"
+                aria-live="polite"
+                hx-get="/multi-agent/latest"
+                hx-trigger="load"
+                hx-swap="outerHTML">
+                Loading latest review…
+            </div>
+        </section>
+
     </main>
 
     <script src="/static/app.js"></script>

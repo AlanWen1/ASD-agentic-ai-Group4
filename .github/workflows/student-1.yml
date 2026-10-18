@@ -2,7 +2,6 @@ name: Student 1 - Budget Manager CI
 
 on:
   push:
-    branches: [ main, budget-vishal, budget-mcp ]
     paths:
       - 'student-1-budget/**'
       - 'docker-compose.yml'
@@ -21,7 +20,7 @@ env:
   AI_ENABLED: "false"
   MCP_ENABLED: "false"
   RAG_ENABLED: "false"
-
+  MULTI_AGENT_ENABLED: "false"
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
@@ -78,6 +77,11 @@ jobs:
       - name: Run Student 1 API tests
         working-directory: student-1-budget
         run: pytest tests/test_budget_api.py -v
+
+      - name: Post-commit endpoint tests (list budgets and retrieve budget)
+        env:
+          PYTHONPATH: student-1-budget/backend
+        run: pytest -q student-1-budget/backend/test_post_commit_endpoints.py
 
       - name: Build frontend image
         run: docker compose build budget-frontend

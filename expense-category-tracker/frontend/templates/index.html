@@ -87,4 +87,17 @@
     <h2>All Expenses</h2>
     {% include "partials/expense_list.html" %}
 </section>
+
+<section class="card">
+    <h2>Release 2: Multi-Agent Expense Review</h2>
+    <p class="assistant-hint">Planner creates the plan, Worker analyses your spending evidence, and Reviewer checks it against the evidence. Human approval is required.</p>
+    <form hx-post="/multi-agent/run" hx-target="#multi-agent-result" hx-swap="outerHTML">
+        <label>Task for the agents
+            <textarea name="task" rows="3" maxlength="4000" required placeholder="e.g. Review spending by category and flag patterns that need attention."></textarea>
+        </label>
+        <button type="submit" class="primary">Run multi-agent review</button>
+    </form>
+    <div id="multi-agent-result" aria-live="polite" hx-get="/multi-agent/latest" hx-trigger="load" hx-swap="outerHTML">Loading latest review…</div>
+</section>
+
 {% endblock %}

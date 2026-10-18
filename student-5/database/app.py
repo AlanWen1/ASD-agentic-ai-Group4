@@ -215,4 +215,4 @@ def delete_goal(goal_id):
 if __name__ == "__main__":
     create_database()
     seed_data()
-    app.run(host="0.0.0.0", port=6005, debug=True)
+    app.run(host="0.0.0.0", port=6005, debug=False)

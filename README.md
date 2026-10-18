@@ -98,7 +98,7 @@ exact startup sequence if a test fails with a connection error here.
   there and what's still missing).
 - `ai-services/` — shared AI-mode/MCP/RAG/Multi-Agent services described in
   the project spec; `ai-mode/` is implemented as a running shared service
-  every backend's AI calls go through, the rest are still placeholders —
+  every backend's AI calls go through; the shared MCP, RAG and Release 2 Multi-Agent servers are implemented as local host processes —
   see `ai-services/README.md` for the current state.
 - `scripts/` — build and test helper scripts.
 
@@ -107,3 +107,13 @@ exact startup sequence if a test fails with a connection error here.
 This project was built with AI assistance (see the project spec's AI Usage
 Policy). All AI-generated code, documentation, and tests were reviewed and
 validated by the responsible student before being committed.
+
+
+## Release 2: Shared Multi-Agent workflow
+
+The five feature modules include an optional human-reviewed Planner/Worker/Reviewer
+workflow through the shared, non-containerised host process at port 5102. The
+Finance Application remains the authentication/home page and has no Release 2
+entry point. Start `ai-services/multi-agent-server/run_local.sh` before using
+these panels; terminal usage, model configuration and review API are documented
+in `ai-services/multi-agent-server/README.md`.

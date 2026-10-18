@@ -22,7 +22,8 @@ def auth_headers():
             "username": username,
             "email": email,
             "password": password
-        }
+        },
+        timeout=10
     )
 
     assert register_response.status_code == 201
@@ -32,7 +33,8 @@ def auth_headers():
         json={
             "identifier": username,
             "password": password
-        }
+        },
+        timeout=10
     )
 
     assert login_response.status_code == 200
@@ -56,7 +58,8 @@ def created_goal(auth_headers):
     response = requests.post(
         f"{BASE_URL}/goals",
         json=payload,
-        headers=auth_headers
+        headers=auth_headers,
+        timeout=10
     )
 
     assert response.status_code == 201
@@ -67,7 +70,8 @@ def created_goal(auth_headers):
 def test_get_all_goals(auth_headers):
     response = requests.get(
         f"{BASE_URL}/goals",
-        headers=auth_headers
+        headers=auth_headers,
+        timeout=10
     )
 
     assert response.status_code == 200
@@ -85,7 +89,8 @@ def test_create_goal(auth_headers):
     response = requests.post(
         f"{BASE_URL}/goals",
         json=payload,
-        headers=auth_headers
+        headers=auth_headers,
+        timeout=10
     )
 
     assert response.status_code == 201
@@ -95,7 +100,8 @@ def test_create_goal(auth_headers):
 def test_get_single_goal(created_goal, auth_headers):
     response = requests.get(
         f"{BASE_URL}/goals/{created_goal}",
-        headers=auth_headers
+        headers=auth_headers,
+        timeout=10
     )
 
     assert response.status_code == 200
@@ -120,14 +126,16 @@ def test_update_goal(created_goal, auth_headers):
     response = requests.put(
         f"{BASE_URL}/goals/{created_goal}",
         json=payload,
-        headers=auth_headers
+        headers=auth_headers,
+        timeout=10
     )
 
     assert response.status_code == 200
 
     response = requests.get(
         f"{BASE_URL}/goals/{created_goal}",
-        headers=auth_headers
+        headers=auth_headers,
+        timeout=10
     )
 
     data = response.json()
@@ -140,7 +148,8 @@ def test_update_goal(created_goal, auth_headers):
 def test_goal_not_found(auth_headers):
     response = requests.get(
         f"{BASE_URL}/goals/999999",
-        headers=auth_headers
+        headers=auth_headers,
+        timeout=10
     )
 
     assert response.status_code == 404
@@ -149,7 +158,8 @@ def test_goal_not_found(auth_headers):
 def test_ai_explanation(created_goal, auth_headers):
     response = requests.get(
         f"{BASE_URL}/goals/{created_goal}/explanation",
-        headers=auth_headers
+        headers=auth_headers,
+        timeout=120
     )
 
     if os.getenv("AI_ENABLED", "true").lower() == "false":
@@ -163,14 +173,16 @@ def test_ai_explanation(created_goal, auth_headers):
 def test_delete_goal(created_goal, auth_headers):
     response = requests.delete(
         f"{BASE_URL}/goals/{created_goal}",
-        headers=auth_headers
+        headers=auth_headers,
+        timeout=10
     )
 
     assert response.status_code == 200
 
     response = requests.get(
         f"{BASE_URL}/goals/{created_goal}",
-        headers=auth_headers
+        headers=auth_headers,
+        timeout=10
     )
 
     assert response.status_code == 404
@@ -181,7 +193,8 @@ def test_get_goals_response_time(auth_headers):
 
     response = requests.get(
         f"{BASE_URL}/goals",
-        headers=auth_headers
+        headers=auth_headers,
+        timeout=10
     )
 
     end_time = time.perf_counter()

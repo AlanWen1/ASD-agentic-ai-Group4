@@ -23,7 +23,7 @@ jobs:
       AI_ENABLED: "false"
       MCP_ENABLED: "false"
       RAG_ENABLED: "false"
-
+      MULTI_AGENT_ENABLED: "false"
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -61,6 +61,12 @@ jobs:
       - name: Run database tests
         working-directory: expense-category-tracker/database
         run: pytest tests -v
+
+      - name: Post-commit endpoint tests (categories and expenses)
+        working-directory: expense-category-tracker/backend
+        env:
+          PYTHONPATH: .
+        run: pytest -q tests/test_post_commit_endpoints.py
 
       - name: Validate Docker Compose configuration
         run: docker compose config --quiet

@@ -2,8 +2,6 @@ name: Student 5 CI
 
 on:
   push:
-    branches:
-      - student-5-savings-goal
   pull_request:
     branches:
       - main
@@ -17,7 +15,7 @@ jobs:
       AI_ENABLED: "false"
       MCP_ENABLED: "false"
       RAG_ENABLED: "false"
-
+      MULTI_AGENT_ENABLED: "false"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -91,6 +89,11 @@ jobs:
       - name: Run Student 5 integration tests
         run: |
           python -m pytest student-5/tests/test_savings_goal_api.py -v
+
+      - name: Post-commit endpoint tests (goal collection and goal details)
+        env:
+          PYTHONPATH: student-5/backend
+        run: python -m pytest -q student-5/tests/test_post_commit_endpoints.py
 
       - name: Show Docker logs on failure
         if: failure()

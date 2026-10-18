@@ -441,3 +441,64 @@ document.getElementById("ragForm").addEventListener("submit", async (e) => {
     showMessage("ragMessage", err.message, true);
   }
 });
+
+
+// Release 2: Multi-Agent Review UI. Keep model output in text nodes, not HTML.
+function maText(parent, tag, text) {
+  const el = document.createElement(tag); if (text !== undefined) el.textContent = text; parent.appendChild(el); return el;
+}
+function renderMultiAgentRun(run) {
+  const root = document.getElementById("multiAgentResult"); if (!root) return;
+  root.replaceChildren();
+  maText(root, "h3", "Status: " + String(run.status).replaceAll("_", " "));
+  maText(root, "p", "Run " + run.run_id + " · Corrections: " + (run.correction_count || 0) + "/3");
+  [["Planner plan", run.plan], ["Worker proposal", run.worker_output], ["Reviewer assessment", run.review]].forEach(([title, value]) => {
+    const details = maText(root, "details", undefined); maText(details, "summary", title);
+    maText(details, "pre", typeof value === "string" ? value : JSON.stringify(value || {}, null, 2));
+  });
+  if (run.status === "awaiting_human_review") {
+    maText(root, "p", "Human review required. Approval does not automatically change your budgets.");
+    const feedback = maText(root, "textarea", undefined); feedback.rows = 3; feedback.maxLength = 2000;
+    feedback.placeholder = "Optional rejection reason or required correction instructions";
+    const actions = maText(root, "div", undefined); actions.className = "quick-prompts";
+    [["approve","Approve"],["correct","Request correction"],["reject","Reject"]].forEach(([decision,label]) => {
+      const button = maText(actions, "button", label); button.type = "button";
+      button.addEventListener("click", async () => {
+        const note = feedback.value.trim();
+        if (decision === "correct" && !note) { alert("Enter correction instructions first."); return; }
+        button.disabled = true;
+        try {
+          const response = await fetch(API_BASE + "/multi-agent/runs/" + run.run_id + "/decision", {
+            method: "POST", headers: apiHeaders(), body: JSON.stringify({decision, feedback: note})
+          });
+          const data = await response.json(); if (!response.ok) throw new Error(data.error || "Decision failed");
+          renderMultiAgentRun(data);
+        } catch (err) { maText(root, "p", "Error: " + err.message); button.disabled = false; }
+      });
+    });
+  } else if (run.status === "approved") maText(root, "p", "Approved by human reviewer.");
+  else if (run.status === "rejected") maText(root, "p", "Rejected by human reviewer. No budget data was changed.");
+}
+async function loadMultiAgentRuns() {
+  const root = document.getElementById("multiAgentResult"); if (!root) return;
+  try {
+    const response = await fetch(API_BASE + "/multi-agent/runs", {headers: apiHeaders()});
+    const data = await response.json(); if (!response.ok) throw new Error(data.error || "Could not load reviews");
+    if (data.runs && data.runs.length) renderMultiAgentRun(data.runs[0]); else root.textContent = "No review run yet.";
+  } catch (err) { root.textContent = "Multi-Agent Server: " + err.message; }
+}
+const multiAgentForm = document.getElementById("multiAgentForm");
+if (multiAgentForm) {
+  multiAgentForm.addEventListener("submit", async event => {
+    event.preventDefault(); const task = document.getElementById("multiAgentTask").value.trim(); if (!task) return;
+    const root = document.getElementById("multiAgentResult"); root.textContent = "Running Planner, Worker and Reviewer. This may take a few minutes…";
+    const submit = multiAgentForm.querySelector("button[type=submit]"); submit.disabled = true;
+    try {
+      const response = await fetch(API_BASE + "/multi-agent/run", {method:"POST",headers:apiHeaders(),body:JSON.stringify({task})});
+      const data = await response.json(); if (!response.ok) throw new Error(data.error || "Multi-Agent run failed");
+      renderMultiAgentRun(data);
+    } catch (err) { root.textContent = "Multi-Agent error: " + err.message; }
+    finally { submit.disabled = false; }
+  });
+  loadMultiAgentRuns();
+}

@@ -135,7 +135,8 @@ def calculate_goal_fields(goal):
 
 def get_owned_goal(goal_id, user_id):
     response = requests.get(
-        f"{DATABASE_API_URL}/goals/{goal_id}"
+        f"{DATABASE_API_URL}/goals/{goal_id}",
+        timeout=10
     )
 
     if response.status_code == 404:
@@ -175,7 +176,8 @@ def get_goals():
         return error
 
     response = requests.get(
-        f"{DATABASE_API_URL}/goals"
+        f"{DATABASE_API_URL}/goals",
+        timeout=10
     )
 
     if response.status_code != 200:
@@ -230,7 +232,8 @@ def create_goal():
 
     response = requests.post(
         f"{DATABASE_API_URL}/goals",
-        json=data
+        json=data,
+        timeout=10
     )
 
     return jsonify(
@@ -259,7 +262,8 @@ def update_goal(goal_id):
 
     response = requests.put(
         f"{DATABASE_API_URL}/goals/{goal_id}",
-        json=data
+        json=data,
+        timeout=10
     )
 
     return jsonify(
@@ -283,7 +287,8 @@ def delete_goal(goal_id):
         return error
 
     response = requests.delete(
-        f"{DATABASE_API_URL}/goals/{goal_id}"
+        f"{DATABASE_API_URL}/goals/{goal_id}",
+        timeout=10
     )
 
     return jsonify(
@@ -377,7 +382,8 @@ advice.
             "options": {
                 "temperature": 0.1
             }
-        }
+        },
+        timeout=120
     )
 
     if ollama_response.status_code != 200:
@@ -519,9 +525,179 @@ def rag_ask():
     return jsonify(result), response.status_code
 
 
+
+# Release 2: shared Planner / Worker / Reviewer workflow.
+MULTI_AGENT_CONFIG = {
+    "url": os.getenv(
+        "MULTI_AGENT_URL",
+        "http://host.docker.internal:5102"
+    ).rstrip("/"),
+    "api_key": os.getenv(
+        "MULTI_AGENT_API_KEY",
+        "local-dev-key-change-me"
+    ),
+    "enabled": os.getenv(
+        "MULTI_AGENT_ENABLED", "true"
+    ).strip().lower() in {"true", "1", "yes", "on"}
+}
+
+
+class MultiAgentGateway:
+    """Handle communication with the shared Multi-Agent Server."""
+
+    def __init__(self, config):
+        self.base_url = config["url"]
+        self.api_key = config["api_key"]
+        self.enabled = config["enabled"]
+
+    def request(self, method, endpoint, **options):
+        if not self.enabled:
+            return jsonify({
+                "error": "Multi-Agent is disabled in this environment"
+            }), 503
+
+        try:
+            response = requests.request(
+                method,
+                self.base_url + endpoint,
+                headers={
+                    "X-Multi-Agent-Key": self.api_key
+                },
+                timeout=2100,
+                **options
+            )
+        except requests.RequestException as exc:
+            return jsonify({
+                "error": f"Multi-Agent Server unavailable: {exc}"
+            }), 502
+
+        try:
+            result = response.json()
+        except ValueError:
+            result = {
+                "error": "Multi-Agent Server returned invalid JSON"
+            }
+
+        return jsonify(result), response.status_code
+
+
+multi_agent_gateway = MultiAgentGateway(MULTI_AGENT_CONFIG)
+
+
+def prepare_savings_evidence(user_id):
+    """Prepare savings-goal evidence for the shared workflow."""
+
+    try:
+        response = requests.get(
+            f"{DATABASE_API_URL}/goals",
+            timeout=10
+        )
+        response.raise_for_status()
+
+        owned_goals = []
+
+        for goal in response.json():
+            if str(goal.get("user_id")) == str(user_id):
+                owned_goals.append(
+                    calculate_goal_fields(goal)
+                )
+
+        return {
+            "source": "savings-database",
+            "goals": owned_goals
+        }
+    except (requests.RequestException, ValueError) as exc:
+        return {
+            "source": "savings-database",
+            "retrieval_error": str(exc),
+            "goals": []
+        }
+
+
+@app.route("/multi-agent/run", methods=["POST"])
+def create_multi_agent_workflow():
+    """Start a savings-goal Multi-Agent workflow."""
+
+    user, error = current_user()
+
+    if error:
+        return error
+
+    data = request.get_json(silent=True) or {}
+
+    task = str(
+        data.get("task") or data.get("message") or ""
+    ).strip()
+
+    if not task:
+        return jsonify({
+            "error": "task is required"
+        }), 400
+
+    return multi_agent_gateway.request(
+        "POST",
+        "/runs",
+        json={
+            "module": "savings",
+            "user_id": str(user["id"]),
+            "task": task,
+            "evidence": prepare_savings_evidence(user["id"])
+        }
+    )
+
+
+@app.route("/multi-agent/runs", methods=["GET"])
+def retrieve_multi_agent_workflows():
+    """Retrieve the authenticated user's workflow history."""
+
+    user, error = current_user()
+
+    if error:
+        return error
+
+    return multi_agent_gateway.request(
+        "GET",
+        "/runs",
+        params={
+            "module": "savings",
+            "user_id": str(user["id"])
+        }
+    )
+
+
+@app.route(
+    "/multi-agent/runs/<run_id>/decision",
+    methods=["POST"]
+)
+def submit_multi_agent_decision(run_id):
+    """Forward a human-review decision to the shared server."""
+
+    user, error = current_user()
+
+    if error:
+        return error
+
+    data = request.get_json(silent=True) or {}
+
+    return multi_agent_gateway.request(
+        "POST",
+        f"/runs/{run_id}/decision",
+        json={
+            "module": "savings",
+            "user_id": str(user["id"]),
+            "decision": str(
+                data.get("decision", "")
+            ).strip().lower(),
+            "feedback": str(
+                data.get("feedback", "")
+            ).strip()
+        }
+    )
+
+
 if __name__ == "__main__":
     app.run(
         host="0.0.0.0",
         port=5005,
-        debug=True
+        debug=False
     )

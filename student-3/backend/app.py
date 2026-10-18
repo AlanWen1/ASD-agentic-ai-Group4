@@ -521,6 +521,61 @@ def create_app(
     def handle_unknown_route(_error):
         return jsonify({"error": "Route not found"}), 404
 
+
+    # Release 2: shared Planner / Worker / Reviewer workflow.
+    app.config["MULTI_AGENT_URL"] = os.getenv("MULTI_AGENT_URL", "http://host.docker.internal:5102").rstrip("/")
+    app.config["MULTI_AGENT_API_KEY"] = os.getenv("MULTI_AGENT_API_KEY", "local-dev-key-change-me")
+    app.config["MULTI_AGENT_ENABLED"] = env_enabled("MULTI_AGENT_ENABLED")
+
+    def multi_agent_call(method: str, path: str, **kwargs):
+        if not app.config["MULTI_AGENT_ENABLED"]:
+            return jsonify({"error": "Multi-Agent is disabled in this environment"}), 503
+        try:
+            upstream = requests.request(method, f"{app.config['MULTI_AGENT_URL']}{path}",
+                headers={"X-Multi-Agent-Key": app.config["MULTI_AGENT_API_KEY"]}, timeout=2100, **kwargs)
+        except requests.RequestException as exc:
+            return jsonify({"error": f"Multi-Agent Server unavailable: {exc}"}), 502
+        try:
+            payload = upstream.json()
+        except ValueError:
+            payload = {"error": "Multi-Agent Server returned invalid JSON"}
+        return jsonify(payload), upstream.status_code
+
+    @app.post("/api/multi-agent/run")
+    def multi_agent_run():
+        user, error = current_user()
+        if error: return error
+        body = request.get_json(silent=True) or {}
+        task = str(body.get("task") or body.get("message") or "").strip()
+        if not task: return jsonify({"error": "task is required"}), 400
+        user_id = user["id"]
+        try:
+            sources, sources_status = database_json("GET", "/api/income-sources", params={"user_id": user_id})
+            schedules, schedules_status = database_json("GET", "/api/pay-schedules", params={"user_id": user_id})
+            evidence = {
+                "source": "income-and-pay-schedule-database",
+                "income_sources": sources if sources_status == 200 else {"note": "Income sources unavailable"},
+                "pay_schedules": schedules if schedules_status == 200 else {"note": "Pay schedules unavailable"},
+            }
+        except RuntimeError as exc:
+            evidence = {"source": "income-and-pay-schedule-database", "retrieval_error": str(exc)}
+        return multi_agent_call("POST", "/runs", json={"module": "income", "user_id": str(user_id), "task": task, "evidence": evidence})
+
+    @app.get("/api/multi-agent/runs")
+    def multi_agent_runs():
+        user, error = current_user()
+        if error: return error
+        return multi_agent_call("GET", "/runs", params={"module": "income", "user_id": str(user["id"])})
+
+    @app.post("/api/multi-agent/runs/<run_id>/decision")
+    def multi_agent_decision(run_id: str):
+        user, error = current_user()
+        if error: return error
+        body = request.get_json(silent=True) or {}
+        payload = {"module": "income", "user_id": str(user["id"]), "decision": str(body.get("decision", "")).strip().lower(), "feedback": str(body.get("feedback", "")).strip()}
+        return multi_agent_call("POST", f"/runs/{run_id}/decision", json=payload)
+
+
     return app
 
 

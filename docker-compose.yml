@@ -51,6 +51,9 @@ services:
     ports:
       - "5004:5004"
     environment:
+      - MULTI_AGENT_URL=http://host.docker.internal:5102
+      - MULTI_AGENT_API_KEY=${MULTI_AGENT_API_KEY:-local-dev-key-change-me}
+      - MULTI_AGENT_ENABLED=${MULTI_AGENT_ENABLED:-true}
       - DATABASE_URL=http://bill-database:6004
       - AUTH_DATABASE_URL=http://finance-database:6000
       - OLLAMA_URL=http://host.docker.internal:5099
@@ -92,6 +95,9 @@ services:
     ports:
       - "5005:5005"
     environment:
+      - MULTI_AGENT_URL=http://host.docker.internal:5102
+      - MULTI_AGENT_API_KEY=${MULTI_AGENT_API_KEY:-local-dev-key-change-me}
+      - MULTI_AGENT_ENABLED=${MULTI_AGENT_ENABLED:-true}
       - DATABASE_API_URL=http://savings-database:6005
       - OLLAMA_API_URL=http://host.docker.internal:5099/api/generate
       - AI_ENABLED=${AI_ENABLED:-true}
@@ -122,6 +128,9 @@ services:
     ports:
       - "5002:5002"
     environment:
+      - MULTI_AGENT_URL=http://host.docker.internal:5102
+      - MULTI_AGENT_API_KEY=${MULTI_AGENT_API_KEY:-local-dev-key-change-me}
+      - MULTI_AGENT_ENABLED=${MULTI_AGENT_ENABLED:-true}
       - AUTH_DATABASE_URL=http://finance-database:6000
       - DATABASE_URL=http://expense-database:6002
       - OLLAMA_URL=http://host.docker.internal:5099
@@ -176,6 +185,9 @@ services:
     ports:
       - "5003:5003"
     environment:
+      - MULTI_AGENT_URL=http://host.docker.internal:5102
+      - MULTI_AGENT_API_KEY=${MULTI_AGENT_API_KEY:-local-dev-key-change-me}
+      - MULTI_AGENT_ENABLED=${MULTI_AGENT_ENABLED:-true}
       - DATABASE_SERVICE_URL=http://student-3-database:6003
       - AUTH_DATABASE_URL=http://finance-database:6000
       - OLLAMA_BASE_URL=http://host.docker.internal:5099/v1
@@ -225,6 +237,9 @@ services:
     ports:
       - "5001:5001"
     environment:
+      - MULTI_AGENT_URL=http://host.docker.internal:5102
+      - MULTI_AGENT_API_KEY=${MULTI_AGENT_API_KEY:-local-dev-key-change-me}
+      - MULTI_AGENT_ENABLED=${MULTI_AGENT_ENABLED:-true}
       - DATABASE_URL=http://budget-database:6001
       - AUTH_DATABASE_URL=http://finance-database:6000
       - OLLAMA_URL=http://host.docker.internal:5099

@@ -30,7 +30,8 @@ def index():
 def render_goals():
     response = requests.get(
         f"{BACKEND_API_URL}/goals",
-        headers=auth_headers()
+        headers=auth_headers(),
+        timeout=10
     )
 
     if response.status_code == 401:
@@ -131,7 +132,8 @@ def goals():
         create_response = requests.post(
             f"{BACKEND_API_URL}/goals",
             json=data,
-            headers=auth_headers()
+            headers=auth_headers(),
+            timeout=10
         )
 
         if create_response.status_code == 401:
@@ -155,7 +157,8 @@ def update_goal(goal_id):
     update_response = requests.put(
         f"{BACKEND_API_URL}/goals/{goal_id}",
         json=data,
-        headers=auth_headers()
+        headers=auth_headers(),
+        timeout=10
     )
 
     if update_response.status_code == 401:
@@ -171,7 +174,8 @@ def update_goal(goal_id):
 def delete_goal(goal_id):
     delete_response = requests.delete(
         f"{BACKEND_API_URL}/goals/{goal_id}",
-        headers=auth_headers()
+        headers=auth_headers(),
+        timeout=10
     )
 
     if delete_response.status_code == 401:
@@ -187,7 +191,8 @@ def delete_goal(goal_id):
 def goal_explanation(goal_id):
     response = requests.get(
         f"{BACKEND_API_URL}/goals/{goal_id}/explanation",
-        headers=auth_headers()
+        headers=auth_headers(),
+        timeout=120
     )
 
     if response.status_code == 401:
@@ -342,9 +347,146 @@ def chat():
     </div>
     """
 
+
+
+MULTI_AGENT_TEMPLATE = "partials/multi_agent_result.html"
+
+
+def display_multi_agent_result(run=None, error=None):
+    """Render the existing Multi-Agent result panel."""
+    return render_template(
+        MULTI_AGENT_TEMPLATE,
+        run=run,
+        error=error
+    )
+
+
+def multi_agent_backend_request(method, path, payload=None, timeout=2100):
+    """Send a request to the backend and standardise the response."""
+    try:
+        response = requests.request(
+            method,
+            f"{BACKEND_API_URL}{path}",
+            json=payload,
+            headers=auth_headers(),
+            timeout=timeout
+        )
+    except requests.RequestException:
+        return "connection_error", None
+
+    if response.status_code == 401:
+        return "unauthorized", None
+
+    try:
+        result = response.json()
+    except ValueError:
+        result = {
+            "error": "The Multi-Agent backend returned invalid data."
+        }
+
+    if not response.ok:
+        return "backend_error", result
+
+    return "success", result
+
+
+def render_multi_agent_backend_result(status, data, fallback_error):
+    """Convert a backend result into the expected frontend response."""
+    if status == "connection_error":
+        return display_multi_agent_result(
+            error="Could not reach the Multi-Agent backend."
+        )
+
+    if status == "unauthorized":
+        return "<p>Authentication required. Please sign in again.</p>"
+
+    if status == "backend_error":
+        return display_multi_agent_result(
+            error=data.get("error", fallback_error)
+        )
+
+    return display_multi_agent_result(run=data)
+
+
+@app.route("/multi-agent/run", methods=["POST"])
+def start_savings_multi_agent_review():
+    """Start a new Multi-Agent review for savings goals."""
+    task = request.form.get("task", "").strip()
+
+    if not task:
+        return display_multi_agent_result(
+            error="Please enter a task."
+        )
+
+    status, data = multi_agent_backend_request(
+        method="POST",
+        path="/multi-agent/run",
+        payload={"task": task},
+        timeout=2100
+    )
+
+    return render_multi_agent_backend_result(
+        status,
+        data,
+        "Multi-Agent run failed."
+    )
+
+
+@app.route("/multi-agent/decision", methods=["POST"])
+def submit_savings_multi_agent_decision():
+    """Forward the human review decision to the backend."""
+    run_id = request.form.get("run_id", "").strip()
+
+    if not run_id:
+        return display_multi_agent_result(
+            error="Run identifier is missing."
+        )
+
+    decision_data = {
+        "decision": request.form.get("decision", "").strip().lower(),
+        "feedback": request.form.get("feedback", "").strip()
+    }
+
+    status, data = multi_agent_backend_request(
+        method="POST",
+        path=f"/multi-agent/runs/{run_id}/decision",
+        payload=decision_data,
+        timeout=2100
+    )
+
+    return render_multi_agent_backend_result(
+        status,
+        data,
+        "Human decision failed."
+    )
+
+
+@app.route("/multi-agent/latest", methods=["GET"])
+def show_latest_savings_multi_agent_review():
+    """Display the latest saved Multi-Agent review."""
+    status, data = multi_agent_backend_request(
+        method="GET",
+        path="/multi-agent/runs",
+        timeout=30
+    )
+
+    if status != "success":
+        return render_multi_agent_backend_result(
+            status,
+            data,
+            "Could not load the latest review."
+        )
+
+    runs = data.get("runs", [])
+
+    return display_multi_agent_result(
+        run=runs[0] if runs else None
+    )
+
+
 if __name__ == "__main__":
     app.run(
         host="0.0.0.0",
         port=3005,
-        debug=True
+        debug=False
     )
