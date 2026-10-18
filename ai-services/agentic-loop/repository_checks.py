@@ -73,6 +73,54 @@ def devops_check(root):
             }
     return result
 
+def pre_commit_check(root):
+    cfg = root / ".pre-commit-config.yaml"
+    workflow = root / ".github" / "workflows" / "security-testing.yml"
+    secrets_baseline = root / ".secrets.baseline"
+    hooks = []
+    if cfg.is_file():
+        hooks = re.findall(r"^\s*-\s*id:\s*(\S+)", cfg.read_text(encoding="utf-8"), re.M)
+    return {
+        "config_exists": cfg.is_file(),
+        "hooks": hooks,
+        "security_workflow_exists": workflow.is_file(),
+        "secrets_baseline_exists": secrets_baseline.is_file(),
+    }
+
+def post_commit_check(root):
+    workflows = {}
+    for p in repo_files(root):
+        rel = p.relative_to(root).as_posix()
+        if rel.startswith(".github/workflows/student-") and rel.endswith(".yml"):
+            text = read(root, rel, 20000)
+            workflows[rel] = {"has_endpoint_tests": bool(re.search(r"test_post_commit_endpoints|pytest", text))}
+    endpoint_test_files = sorted(
+        p.relative_to(root).as_posix() for p in repo_files(root) if p.name == "test_post_commit_endpoints.py"
+    )
+    return {"workflows": workflows, "endpoint_test_files": endpoint_test_files}
+
+def reports_check(root, keyword):
+    reports_dir = root / "docs" / "reports"
+    if not reports_dir.is_dir():
+        return []
+    return sorted(
+        p.relative_to(root).as_posix()
+        for p in reports_dir.rglob("*")
+        if p.is_file() and keyword.lower() in p.name.lower()
+    )
+
+def deployment_check(root):
+    deploy_dir = root / "scripts" / "deploy"
+    scripts = []
+    if deploy_dir.is_dir():
+        scripts = sorted(p.name for p in deploy_dir.iterdir() if p.is_file() and p.suffix in {".sh", ".yml", ".yaml"})
+    workflow_exists = (root / "cloud-deployment.yml").is_file() or (root / ".github" / "workflows" / "cloud-deployment.yml").is_file()
+    return {
+        "cloud_deployment_workflow_exists": workflow_exists,
+        "deploy_scripts": scripts,
+        "deployment_reports": reports_check(root, "deploy"),
+    }
+
 def candidates(root, mode):
     paths = [p.relative_to(root).as_posix() for p in repo_files(root)]
     if mode == "database":
@@ -87,6 +135,23 @@ def candidates(root, mode):
         paths = [p for p in paths if p.startswith("ai-services/mcp-server/") or p.endswith("/mcp_client.py")]
     elif mode == "rag":
         paths = [p for p in paths if p.startswith("ai-services/rag-server/") or p.endswith("/app.py")]
+    elif mode == "testing":
+        paths = [
+            p for p in paths
+            if p in {".pre-commit-config.yaml", ".secrets.baseline"}
+            or p.startswith(".github/workflows/")
+            or p.endswith("test_post_commit_endpoints.py")
+            or p.startswith("docs/reports/")
+            or p.startswith("scripts/security/")
+        ]
+    elif mode == "deployment":
+        paths = [
+            p for p in paths
+            if p.startswith("scripts/deploy/")
+            or p in {"cloud-deployment.yml"}
+            or p.startswith(".github/workflows/cloud-deployment")
+            or p.startswith("docs/reports/")
+        ]
     return sorted(set(paths), key=lambda p: (len(p), p))[:80]
 
 def static_evidence(root, mode):
@@ -120,4 +185,15 @@ def static_evidence(root, mode):
             "bad_records": bad,
             "pipeline": read(root, "ai-services/rag-server/rag_pipeline.py", 11000)
         }
+    elif mode == "testing":
+        out["testing"] = {
+            "pre_commit": pre_commit_check(root),
+            "post_commit": post_commit_check(root),
+            "reports": sorted(set(
+                reports_check(root, "testing") + reports_check(root, "security")
+                + reports_check(root, "pre-commit") + reports_check(root, "post-commit")
+            )),
+        }
+    elif mode == "deployment":
+        out["deployment"] = deployment_check(root)
     return out
