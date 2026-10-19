@@ -68,7 +68,7 @@ build_image bill-backend ./bill-tracker/backend Dockerfile
 build_image bill-frontend ./bill-tracker/frontend Dockerfile
 build_image budget-database ./student-1-budget/database Dockerfile
 build_image budget-backend ./student-1-budget/backend Dockerfile
-build_image budget-frontend ./student-1-budget/frontend Dockerfile
+build_image budget-frontend . student-1-budget/frontend/Dockerfile
 build_image expense-database ./expense-category-tracker/database Dockerfile
 build_image expense-backend ./expense-category-tracker/backend Dockerfile
 build_image expense-frontend . expense-category-tracker/frontend/Dockerfile
