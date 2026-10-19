@@ -140,6 +140,75 @@ async def validate_mcp(url=None, user_id=None, repo_root=None):
     return out
 
 
+MULTI_AGENT_VALIDATION_MODULE = os.environ.get('MULTI_AGENT_VALIDATION_MODULE', 'expenses')
+
+
+def validate_multi_agent(url=None, api_key=None, run_live_workflow=True):
+    """Live validation of the shared Multi-Agent Server: a health check, then
+    one real Planner -> Worker -> Reviewer run with synthetic evidence,
+    stopping once the run reaches awaiting_human_review. It deliberately
+    never submits approve/correct/reject: human review must stay a real
+    human decision, not something this script fakes on their behalf."""
+    base = (url or os.environ.get('MULTI_AGENT_URL', 'http://localhost:5102')).rstrip('/')
+    key = api_key or os.environ.get('MULTI_AGENT_API_KEY', 'local-dev-key-change-me')
+    headers = {'X-Multi-Agent-Key': key}
+    out = {'health': None, 'run': None, 'errors': [], 'passed': False}
+
+    try:
+        health_resp = requests.get(base + '/health', timeout=10)
+        health_resp.raise_for_status()
+        out['health'] = health_resp.json()
+        if not (isinstance(out['health'], dict) and out['health'].get('status') == 'ok'):
+            raise ValueError('health check did not report ok')
+    except (requests.RequestException, ValueError) as exc:
+        out['errors'].append(f'health: {exc}')
+        return out
+
+    if not run_live_workflow:
+        out['passed'] = not out['errors']
+        return out
+
+    user_id = 'agentic-loop-validation'
+    try:
+        body = {
+            'module': MULTI_AGENT_VALIDATION_MODULE,
+            'user_id': user_id,
+            'task': 'Automated agentic-loop validation run: confirm Planner, Worker and Reviewer complete end to end.',
+            'evidence': {'source': 'agentic-loop-validation', 'note': 'synthetic validation run, not real financial data'},
+        }
+        run_resp = requests.post(base + '/runs', json=body, headers=headers, timeout=600)
+        run_resp.raise_for_status()
+        out['run'] = run_resp.json()
+        run = out['run']
+        run_id = run.get('run_id')
+        status = run.get('status')
+        if not run_id:
+            raise ValueError('response did not include run_id')
+        if status == 'failed':
+            raise ValueError('run failed')
+        if status != 'awaiting_human_review':
+            raise ValueError(f'unexpected status after run: {status}')
+    except (requests.RequestException, ValueError) as exc:
+        out['errors'].append(f'run: {exc}')
+        out['passed'] = False
+        return out
+
+    try:
+        list_resp = requests.get(
+            base + '/runs', params={'module': MULTI_AGENT_VALIDATION_MODULE, 'user_id': user_id},
+            headers=headers, timeout=30,
+        )
+        list_resp.raise_for_status()
+        listed = list_resp.json().get('runs', [])
+        if not any(item.get('run_id') == run_id for item in listed):
+            out['errors'].append('list: GET /runs did not include the run just created')
+    except (requests.RequestException, ValueError) as exc:
+        out['errors'].append(f'list: {exc}')
+
+    out['passed'] = not out['errors']
+    return out
+
+
 RAG_QUERIES = (
     'how do I set a budget',
     'what does an overdue bill mean',
@@ -240,6 +309,20 @@ def validate_rag(url=None):
 
 def print_validation(mode, data):
     print('\n' + '=' * 70 + '\n' + mode.upper() + ' VALIDATION\n' + '=' * 70)
+    if mode == 'multi_agent':
+        health_ok = isinstance(data.get('health'), dict) and data['health'].get('status') == 'ok'
+        print('[{}] Health check'.format('PASS' if health_ok else 'FAIL'))
+        run = data.get('run') or {}
+        run_ok = run.get('status') == 'awaiting_human_review'
+        print('[{}] Planner -> Worker -> Reviewer run reached awaiting_human_review'.format('PASS' if run_ok else 'FAIL'))
+        if run.get('run_id'):
+            print('  Run ID: ' + run['run_id'])
+        print('  NOTE: this check never submits approve/correct/reject -- a human must still decide.')
+        for error in data.get('errors', []):
+            print('[FAIL] ' + error)
+        passed = bool(data.get('passed'))
+        print('[{}] {} overall'.format('PASS' if passed else 'FAIL', mode.upper()))
+        return passed
     if mode == 'mcp':
         print('[{}] MCP connection'.format('PASS' if data.get('connected') else 'FAIL'))
         print('[{}] Tool discovery: {}/{}'.format(

@@ -1,0 +1,136 @@
+name: Release 2 Azure Cloud Deployment
+
+on:
+  push:
+    branches: [main, release-2-security-endpoint-testing]
+    paths:
+      - "finance-application/**"
+      - "student-1-budget/**"
+      - "expense-category-tracker/**"
+      - "student-3/**"
+      - "bill-tracker/**"
+      - "student-5/**"
+      - "docker-compose.yml"
+      - "scripts/deploy/**"
+      - ".github/workflows/cloud-deployment.yml"
+  pull_request:
+    branches: [main, release-2-security-endpoint-testing]
+    paths:
+      - "finance-application/**"
+      - "student-1-budget/**"
+      - "expense-category-tracker/**"
+      - "student-3/**"
+      - "bill-tracker/**"
+      - "student-5/**"
+      - "docker-compose.yml"
+      - "scripts/deploy/**"
+      - ".github/workflows/cloud-deployment.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: release2-cloud-deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  AI_ENABLED: "false"
+  MCP_ENABLED: "false"
+  RAG_ENABLED: "false"
+  MULTI_AGENT_ENABLED: "false"
+
+jobs:
+  validate:
+    name: Integrated CI validation (AI services disabled)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile all Python modules
+        run: |
+          python - <<'PY'
+          import pathlib, py_compile, sys
+          roots = ["finance-application", "student-1-budget", "expense-category-tracker", "student-3", "bill-tracker", "student-5"]
+          files = [p for root in roots for p in pathlib.Path(root).rglob("*.py") if ".venv" not in p.parts]
+          failures = []
+          for path in files:
+              try:
+                  py_compile.compile(str(path), doraise=True)
+              except py_compile.PyCompileError as exc:
+                  failures.append(f"{path}: {exc}")
+          print(f"Compiled {len(files) - len(failures)}/{len(files)} Python files")
+          if failures:
+              print("\n".join(failures), file=sys.stderr)
+              raise SystemExit(1)
+          PY
+      - name: Install module test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt
+          python -m pip install -r student-1-budget/backend/requirements.txt
+          python -m pip install -r expense-category-tracker/backend/requirements.txt
+          python -m pip install -r student-3/backend/requirements.txt
+          python -m pip install -r bill-tracker/backend/requirements.txt
+      - name: Run all five students' post-commit endpoint tests
+        run: |
+          set -e
+          for test in \
+            student-1-budget/backend/test_post_commit_endpoints.py \
+            expense-category-tracker/backend/tests/test_post_commit_endpoints.py \
+            student-3/tests/test_post_commit_endpoints.py \
+            bill-tracker/backend/test_post_commit_endpoints.py \
+            student-5/tests/test_post_commit_endpoints.py; do
+            if [ ! -f "$test" ]; then
+              echo "::error::Required endpoint test file is missing: $test"
+              exit 1
+            fi
+            python -m pytest -q "$test"
+          done
+      - name: Validate Compose configuration with AI services disabled
+        run: docker compose config --quiet
+
+  deploy:
+    name: Build and deploy integrated app to Azure Container Apps
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release-2-security-endpoint-testing'))
+    needs: validate
+    runs-on: ubuntu-latest
+    environment: azure-release2
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Azure login using OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Configure deployment environment
+        shell: bash
+        run: |
+          echo "AZURE_RESOURCE_GROUP=${{ vars.AZURE_RESOURCE_GROUP }}" >> "$GITHUB_ENV"
+          echo "AZURE_LOCATION=${{ vars.AZURE_LOCATION }}" >> "$GITHUB_ENV"
+          echo "AZURE_CONTAINER_REGISTRY=${{ vars.AZURE_CONTAINER_REGISTRY }}" >> "$GITHUB_ENV"
+          echo "AZURE_CONTAINERAPPS_ENVIRONMENT=${{ vars.AZURE_CONTAINERAPPS_ENVIRONMENT }}" >> "$GITHUB_ENV"
+          echo "AZURE_STORAGE_ACCOUNT=${{ vars.AZURE_STORAGE_ACCOUNT }}" >> "$GITHUB_ENV"
+      - name: Install/update Azure Container Apps CLI support
+        run: az extension add --name containerapp --upgrade
+      - name: Deploy
+        run: bash scripts/deploy/azure-deploy.sh
+      - name: Publish deployment summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Azure Release 2 deployment"
+            echo "- Validation job: ${{ needs.validate.result }}"
+            echo "- Deployment job: ${{ job.status }}"
+            echo "- Resource group: ${{ vars.AZURE_RESOURCE_GROUP }}"
+            echo "- Location: ${{ vars.AZURE_LOCATION }}"
+            echo "- AI-Mode, MCP, RAG, Multi-Agent: disabled"
+          } >> "$GITHUB_STEP_SUMMARY"

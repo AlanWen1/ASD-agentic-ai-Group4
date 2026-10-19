@@ -8,7 +8,7 @@ import requests
 
 from llm import ask, health, parse_json
 from repository_checks import candidates, static_evidence, read
-from validation import validate_mcp, validate_rag, print_validation
+from validation import validate_mcp, validate_rag, validate_multi_agent, print_validation
 
 LABELS = {
     "database": "Database review",
@@ -17,6 +17,9 @@ LABELS = {
     "devops": "DevOps pipeline review",
     "mcp": "MCP validation",
     "rag": "RAG validation",
+    "multi_agent": "Multi-Agent workflow validation",
+    "testing": "Testing report review (pre-commit + post-commit evidence)",
+    "deployment": "Cloud deployment report review",
 }
 
 GOALS = {
@@ -26,6 +29,9 @@ GOALS = {
     "devops": "Review GitHub Actions, tests, builds, Docker, environment assumptions and CI coverage.",
     "mcp": "Validate the real MCP server, registered tools, user scoping and Streamable HTTP.",
     "rag": "Validate corpus, retrieval, grounded generation, citations, confidence and REST integration.",
+    "multi_agent": "Validate the shared Multi-Agent Server: health, then a live Planner/Worker/Reviewer run that stops at human review.",
+    "testing": "Review pre-commit security scan evidence and post-commit CI/CD endpoint test evidence against the Release 2 requirements.",
+    "deployment": "Review cloud deployment scripts, the cloud-deployment.yml workflow, and deployment evidence against the Release 2 requirements.",
 }
 
 def _wrap(value, width=92):
@@ -184,6 +190,78 @@ def _deterministic_review(mode, evidence, pool):
             "recommendation": "Run again with a working local model for deeper behavioural analysis.",
         })
 
+    elif mode == "testing":
+        testing = evidence.get("testing", {})
+        pre = testing.get("pre_commit", {})
+        post = testing.get("post_commit", {})
+        if pre.get("config_exists"):
+            findings.append({
+                "severity": "info",
+                "title": "Pre-commit security scanning is configured",
+                "file": ".pre-commit-config.yaml",
+                "evidence": f"Hooks configured: {', '.join(pre.get('hooks', [])) or '(none detected)'}",
+                "recommendation": "Confirm Ruff (S rules), detect-secrets and pip-audit are all present and run pre-commit run --all-files before each commit.",
+            })
+        else:
+            findings.append({
+                "severity": "high",
+                "title": "No pre-commit security configuration found",
+                "file": ".pre-commit-config.yaml",
+                "evidence": "The file does not exist in the repository.",
+                "recommendation": "Add .pre-commit-config.yaml with Ruff security rules, detect-secrets and pip-audit hooks.",
+            })
+        endpoint_tests = post.get("endpoint_test_files", [])
+        findings.append({
+            "severity": "info" if endpoint_tests else "medium",
+            "title": "Post-commit endpoint test coverage",
+            "file": ", ".join(endpoint_tests) if endpoint_tests else "(none found)",
+            "evidence": f"{len(endpoint_tests)} test_post_commit_endpoints.py file(s) found across modules.",
+            "recommendation": "Each student needs automated tests for at least two endpoint functions, wired into their own student-x.yml workflow.",
+        })
+        reports = testing.get("reports", [])
+        findings.append({
+            "severity": "info" if reports else "medium",
+            "title": "Written testing evidence in docs/reports",
+            "file": ", ".join(reports) if reports else "docs/reports/",
+            "evidence": f"{len(reports)} matching report file(s) found." if reports else "No pre-commit/post-commit report documents found yet.",
+            "recommendation": "Add each student's pre-commit security testing report and post-commit CI/CD testing report to docs/reports/.",
+        })
+
+    elif mode == "deployment":
+        deployment = evidence.get("deployment", {})
+        if deployment.get("cloud_deployment_workflow_exists"):
+            findings.append({
+                "severity": "info",
+                "title": "cloud-deployment.yml workflow found",
+                "file": "cloud-deployment.yml",
+                "evidence": "The required cloud deployment CI/CD workflow file exists.",
+                "recommendation": "Confirm it deploys with AI-Mode, MCP, RAG and Multi-Agent disabled by default.",
+            })
+        else:
+            findings.append({
+                "severity": "high",
+                "title": "cloud-deployment.yml workflow not found",
+                "file": "cloud-deployment.yml",
+                "evidence": "Neither the repository root nor .github/workflows contains this file yet.",
+                "recommendation": "Add the cloud-deployment.yml GitHub Actions workflow per the Release 2 brief.",
+            })
+        scripts = deployment.get("deploy_scripts", [])
+        findings.append({
+            "severity": "info" if scripts else "high",
+            "title": "Cloud deployment scripts",
+            "file": ", ".join(scripts) if scripts else "scripts/deploy/",
+            "evidence": f"{len(scripts)} script(s) found in scripts/deploy/." if scripts else "scripts/deploy/ has no scripts yet (placeholder only).",
+            "recommendation": "Add the Azure/AWS deployment script chain (env setup, build, deploy, deployment test, cleanup).",
+        })
+        reports = deployment.get("deployment_reports", [])
+        findings.append({
+            "severity": "info" if reports else "medium",
+            "title": "Written deployment evidence in docs/reports",
+            "file": ", ".join(reports) if reports else "docs/reports/",
+            "evidence": f"{len(reports)} matching report file(s) found." if reports else "No deployment report document found yet.",
+            "recommendation": "Add the cloud deployment report (deployed URL, CRUD verification, AI services disabled-by-default confirmation).",
+        })
+
     return {
         "summary": (
             f"{LABELS[mode]} completed using deterministic repository checks because "
@@ -211,13 +289,15 @@ def _print_findings(findings):
         _print_block("Recommendation", item.get("recommendation", "(none)"), indent="     ")
 
 def review_mode(root, mode, model, ollama_url, iterations):
-    if mode in {"mcp", "rag"}:
+    if mode in {"mcp", "rag", "multi_agent"}:
         _print_header(LABELS[mode].upper())
         if mode == "mcp":
             import asyncio
             live = asyncio.run(validate_mcp(repo_root=root))
-        else:
+        elif mode == "rag":
             live = validate_rag()
+        else:
+            live = validate_multi_agent()
         return 0 if print_validation(mode, live) else 1
 
     _print_header(LABELS[mode].upper())
@@ -321,27 +401,25 @@ def review_mode(root, mode, model, ollama_url, iterations):
 def choose_mode():
     print("\nLOCAL AGENTIC REVIEWER")
     print("Primary model: llama3.1:8b")
-    print("  1. Database review")
-    print("  2. Implementation review")
-    print("  3. Microservices architecture review")
-    print("  4. DevOps pipeline review")
-    print("  5. MCP validation")
-    print("  6. RAG validation")
-    print("  7. All reviews + MCP/RAG validation")
+    keys = list(LABELS)
+    for number, key in enumerate(keys, 1):
+        print(f"  {number}. {LABELS[key]}")
+    all_option = len(keys) + 1
+    print(f"  {all_option}. All reviews + validations")
     print("  0. Exit")
     while True:
         value = input("Selection: ").strip()
         if value == "0":
             raise SystemExit(0)
-        if value == "7":
-            return list(LABELS)
+        if value == str(all_option):
+            return keys
         try:
             index = int(value) - 1
-            if 0 <= index < len(LABELS):
-                return [list(LABELS)[index]]
+            if 0 <= index < len(keys):
+                return [keys[index]]
         except ValueError:
             pass
-        print("Choose 0-7.")
+        print(f"Choose 0-{all_option}.")
 
 def main():
     parser = argparse.ArgumentParser(description="Local llama3.1:8b agentic repository reviewer")
