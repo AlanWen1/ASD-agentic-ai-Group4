@@ -13,6 +13,7 @@ cd "$ROOT_DIR"
 : "${AZURE_STORAGE_ACCOUNT:?Set AZURE_STORAGE_ACCOUNT to a globally unique storage account name}"
 
 command -v az >/dev/null || { echo "Azure CLI (az) is required." >&2; exit 2; }
+command -v docker >/dev/null || { echo "Docker is required (ACR Tasks is not available on this subscription, so images are built and pushed locally)." >&2; exit 2; }
 
 AI_ENABLED=false
 MCP_ENABLED=false
@@ -26,6 +27,9 @@ az group show --name "$AZURE_RESOURCE_GROUP" --output none # Resource group must
 az acr create --resource-group "$AZURE_RESOURCE_GROUP" --name "$AZURE_CONTAINER_REGISTRY" --sku Basic --admin-enabled false --output none 2>/dev/null || true
 ACR_ID="$(az acr show --resource-group "$AZURE_RESOURCE_GROUP" --name "$AZURE_CONTAINER_REGISTRY" --query id --output tsv)"
 ACR_LOGIN_SERVER="$(az acr show --resource-group "$AZURE_RESOURCE_GROUP" --name "$AZURE_CONTAINER_REGISTRY" --query loginServer --output tsv)"
+# ACR Tasks (az acr build) is blocked on this subscription type (TasksOperationsNotAllowed),
+# so images are built locally with docker and pushed directly to ACR instead.
+az acr login --name "$AZURE_CONTAINER_REGISTRY" --output none
 az containerapp env create --name "$AZURE_CONTAINERAPPS_ENVIRONMENT" --resource-group "$AZURE_RESOURCE_GROUP" --location "$AZURE_LOCATION" --output none 2>/dev/null || true
 
 # Use managed identity for image pulls. Never put registry credentials in app settings.
@@ -43,9 +47,16 @@ done
 
 build_image() {
   local image="$1" context="$2" dockerfile="$3"
-  # A Dockerfile path is relative to the build context for az acr build.
-  echo "Building $image using Dockerfile $dockerfile (context: $context)"
-  az acr build --registry "$AZURE_CONTAINER_REGISTRY" --image "$image:release2" --file "$dockerfile" "$context"
+  local full_dockerfile="$dockerfile"
+  # When context is a subdirectory, dockerfile is just a filename relative to it
+  # (e.g. "Dockerfile"); when context is "." dockerfile is already a full
+  # relative path from the repo root (e.g. "expense-category-tracker/frontend/Dockerfile").
+  if [[ "$context" != "." && "$dockerfile" != /* ]]; then
+    full_dockerfile="$context/$dockerfile"
+  fi
+  echo "Building $image using Dockerfile $full_dockerfile (context: $context)"
+  docker build --tag "$ACR_LOGIN_SERVER/$image:release2" --file "$full_dockerfile" "$context"
+  docker push "$ACR_LOGIN_SERVER/$image:release2"
 }
 
 # Build application services only. AI-Mode, MCP, RAG and Multi-Agent are deliberately excluded.
@@ -159,7 +170,7 @@ deploy_app bill-backend bill-backend 5004 false $'DATABASE_URL=http://bill-datab
 deploy_app budget-backend budget-backend 5001 false $'DATABASE_URL=http://budget-database:6001\nAUTH_DATABASE_URL=http://finance-database:6000\nMULTI_AGENT_ENABLED=false\nAI_ENABLED=false\nMCP_ENABLED=false\nRAG_ENABLED=false'
 deploy_app expense-backend expense-backend 5002 false $'DATABASE_URL=http://expense-database:6002\nAUTH_DATABASE_URL=http://finance-database:6000\nMULTI_AGENT_ENABLED=false\nAI_ENABLED=false\nMCP_ENABLED=false\nRAG_ENABLED=false'
 deploy_app income-backend income-backend 5003 false $'DATABASE_SERVICE_URL=http://income-database:6003\nAUTH_DATABASE_URL=http://finance-database:6000\nMULTI_AGENT_ENABLED=false\nAI_ENABLED=false\nMCP_ENABLED=false\nRAG_ENABLED=false'
-deploy_app savings-backend savings-backend 5005 false 
+deploy_app savings-backend savings-backend 5005 false $'DATABASE_API_URL=http://savings-database:6005\nAUTH_DATABASE_URL=http://finance-database:6000\nMULTI_AGENT_ENABLED=false\nAI_ENABLED=false\nMCP_ENABLED=false\nRAG_ENABLED=false'
 
 # Frontends are the public entry points; they communicate with their internal backend apps.
 deploy_app finance-frontend finance-frontend 3000 true $'BACKEND_URL=http://finance-backend:5000'
@@ -191,22 +202,6 @@ done
 
 echo
 echo "Deployment and basic endpoint smoke tests succeeded. Frontend URLs:"
-for app in finance-frontend budget-frontend expense-frontend income-frontend bill-frontend savings-frontend; do
-  url="$(az containerapp show --name "$app" --resource-group "$AZURE_RESOURCE_GROUP" --query properties.configuration.ingress.fqdn --output tsv)"
-  printf '  %-20s https://%s\n' "$app" "$url"
-done
-DATABASE_API_URL=http://savings-database:6005\nAUTH_DATABASE_URL=http://finance-database:6000\nMULTI_AGENT_ENABLED=false\nAI_ENABLED=false\nMCP_ENABLED=false\nRAG_ENABLED=false'
-
-# Frontends are the public entry points; they communicate with their internal backend apps.
-deploy_app finance-frontend finance-frontend 3000 true $'BACKEND_URL=http://finance-backend:5000'
-deploy_app budget-frontend budget-frontend 3001 true $'BACKEND_URL=http://budget-backend:5001'
-deploy_app expense-frontend expense-frontend 3002 true $'BACKEND_URL=http://expense-backend:5002'
-deploy_app income-frontend income-frontend 3003 true $'BACKEND_SERVICE_URL=http://income-backend:5003'
-deploy_app bill-frontend bill-frontend 3004 true $'BACKEND_URL=http://bill-backend:5004'
-deploy_app savings-frontend savings-frontend 3005 true $'BACKEND_API_URL=http://savings-backend:5005'
-
-echo
-echo "Deployment commands completed. Public frontend URLs:"
 for app in finance-frontend budget-frontend expense-frontend income-frontend bill-frontend savings-frontend; do
   url="$(az containerapp show --name "$app" --resource-group "$AZURE_RESOURCE_GROUP" --query properties.configuration.ingress.fqdn --output tsv)"
   printf '  %-20s https://%s\n' "$app" "$url"
