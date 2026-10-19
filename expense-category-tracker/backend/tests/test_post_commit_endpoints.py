@@ -1,5 +1,10 @@
 """Post-commit endpoint smoke tests for Expense & Category Manager."""
-import app as backend
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+import app as backend  # noqa: E402
 
 
 def test_categories_endpoint_forwards_user(monkeypatch):
