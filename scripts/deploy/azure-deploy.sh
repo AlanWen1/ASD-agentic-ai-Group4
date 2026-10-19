@@ -118,6 +118,7 @@ properties:
       external: $ingress
       targetPort: $port
       transport: auto
+      allowInsecure: false
   template:
     containers:
       - name: $app
