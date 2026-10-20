@@ -15,9 +15,30 @@ OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434").rstrip("/")
 OLLAMA_TIMEOUT_SECONDS = int(os.getenv("MULTI_AGENT_OLLAMA_TIMEOUT_SECONDS", "600"))
 OLLAMA_CONNECT_TIMEOUT_SECONDS = int(os.getenv("MULTI_AGENT_OLLAMA_CONNECT_TIMEOUT_SECONDS", "10"))
 OLLAMA_KEEP_ALIVE = os.getenv("MULTI_AGENT_OLLAMA_KEEP_ALIVE", "10m")
-OLLAMA_NUM_PREDICT = int(os.getenv("MULTI_AGENT_OLLAMA_NUM_PREDICT", "768"))
+OLLAMA_NUM_PREDICT = int(os.getenv("MULTI_AGENT_OLLAMA_NUM_PREDICT", "1024"))
 OLLAMA_NUM_CTX = int(os.getenv("MULTI_AGENT_OLLAMA_NUM_CTX", "8192"))
 MAX_TASK_CHARS, MAX_EVIDENCE_CHARS, MAX_CORRECTIONS = 4000, 24000, 3
+
+PLANNER_SYSTEM = (
+    "You are the Planner for a personal finance app. Output ONLY one JSON object. "
+    "Do NOT copy or repeat the evidence. Write a short plan for the task. Example:\n"
+    '{"objective":"Review active budgets and flag unusual allocations",'
+    '"steps":["List each active budget with month and total","Compare each category to the budget total","Flag categories over 40% or budgets with no categories"],'
+    '"required_evidence":["budget list","category amounts"],"checks":["category shares sum to 100%"],'
+    '"risks":["budgets with no categories"],"assumptions":[],"success_criteria":["every active budget is covered"]}'
+)
+
+def summarise_evidence(evidence):
+    if isinstance(evidence, dict):
+        return {k: (f"list of {len(v)} items" if isinstance(v, list) else type(v).__name__) for k, v in evidence.items()}
+    return type(evidence).__name__
+
+def evidence_for_prompt(evidence):
+    if isinstance(evidence, dict) and "summary_text" in evidence:
+        flags = evidence.get("precomputed_flags") or []
+        flag_text = "\n".join("- " + f for f in flags) or "- none"
+        return "BUDGETS:\n" + evidence["summary_text"] + "\n\nFLAGS COMPUTED BY THE APPLICATION (verified):\n" + flag_text
+    return compact_json(evidence, MAX_EVIDENCE_CHARS)
 
 class AgentServiceError(RuntimeError):
     """A model or downstream service could not complete the requested stage."""
@@ -43,13 +64,13 @@ def parse_json_response(content: str, fallback_key: str) -> dict[str, Any]:
         except json.JSONDecodeError: pass
     return {fallback_key: cleaned or "The model returned an empty response."}
 
-def call_model(model: str, system_prompt: str, user_prompt: str, timeout: int | None = None) -> str:
-    """Read Ollama's streaming chat response so long local inference can make progress."""
+def call_model(model: str, system_prompt: str, user_prompt: str, timeout: int | None = None, json_mode: bool = False, num_predict: int | None = None) -> str:    
     request_timeout = timeout if timeout is not None else OLLAMA_TIMEOUT_SECONDS
     try:
         with requests.post(f"{OLLAMA_URL}/api/chat", json={
             "model": model,
             "stream": True,
+            **({"format": "json"} if json_mode else {}),
             "keep_alive": OLLAMA_KEEP_ALIVE,
             "messages": [
                 {"role": "system", "content": system_prompt},
@@ -57,8 +78,10 @@ def call_model(model: str, system_prompt: str, user_prompt: str, timeout: int | 
             ],
             "options": {
                 "temperature": 0.2,
-                "num_predict": OLLAMA_NUM_PREDICT,
+                "num_predict": num_predict or OLLAMA_NUM_PREDICT,
+                "repeat_penalty": 1.1,                
                 "num_ctx": OLLAMA_NUM_CTX,
+                "repeat_penalty": 1.1,
             },
         }, timeout=(OLLAMA_CONNECT_TIMEOUT_SECONDS, request_timeout), stream=True) as response:
             response.raise_for_status()
@@ -162,14 +185,17 @@ def create_app(store: RunStore | None = None):
         return None
 
     def execute_worker_and_reviewer(run, feedback=""):
-        evidence_text=compact_json(run["evidence"],MAX_EVIDENCE_CHARS); plan=run.get("plan") or {}
+        evidence_text=evidence_for_prompt(run["evidence"]); plan=run.get("plan") or {}
         correction_note=f"\nHUMAN CORRECTION REQUEST:\n{feedback}" if feedback else ""
         worker_text=call_model(WORKER_MODEL,
-            "You are the Worker agent for a personal finance application. Follow the Planner plan and use only supplied application evidence. Do not invent transactions, amounts, dates or account details. Separate facts from suggestions. Never write to databases, execute transactions or take external actions; return a proposal for human review.",
-            "MODULE: "+run["module"]+"\nTASK:\n"+run["task"]+"\nPLANNER PLAN:\n"+compact_json(plan,10000)+"\nSUPPLIED APPLICATION EVIDENCE:\n"+evidence_text+correction_note+"\nReturn proposed results, evidence references, calculations, assumptions and unresolved questions.")
+            "You are the Worker agent for a personal finance application. Use ONLY the supplied evidence. Copy month, year, budget ids, category names and amounts exactly. Never invent numbers, months or names. Treat the FLAGS section as verified and do not recompute percentages. Do not repeat yourself. Write under 200 words in exactly three sections: 'Facts' (one line per budget), 'Flagged items' (from the FLAGS section, or 'none'), 'Suggestions' (at most 3 short bullets). Never write to databases or take actions; this is a proposal for human review.",
+            "TASK:\n"+run["task"]+"\nPLAN STEPS:\n"+"\n".join("- "+str(s) for s in plan.get("steps",[]))+"\n\nEVIDENCE:\n"+evidence_text+correction_note,
+            num_predict=500)
         review_text=call_model(REVIEWER_MODEL,
-            "You are the independent Reviewer. Compare Worker output with the Planner plan and supplied application evidence. Identify unsupported claims, arithmetic/date risks, privacy concerns, missing evidence and deviations. The model output is not itself evidence. Return JSON keys verdict (pass|needs_attention), findings (array), risks (array), evidence_gaps (array), recommendations (array), and plan_coverage (string).",
-            "MODULE: "+run["module"]+"\nTASK:\n"+run["task"]+"\nPLAN:\n"+compact_json(plan,10000)+"\nEVIDENCE:\n"+evidence_text+"\nWORKER OUTPUT:\n"+worker_text+"\nReview strictly against evidence; do not silently rewrite Worker output.")
+            "You are the independent Reviewer. Check the Worker output against the evidence: every figure and flag must appear in the evidence, and every verified flag should be mentioned. Do NOT repeat the Worker output. Return ONLY JSON with keys verdict ('pass' or 'needs_attention'), findings, risks, evidence_gaps, recommendations (each an array of at most 3 short distinct strings) and plan_coverage (one sentence). Example: "
+            '{"verdict":"pass","findings":["All figures match the evidence"],"risks":[],"evidence_gaps":[],"recommendations":["Review the flagged category"],"plan_coverage":"All plan steps were covered."}',
+            "TASK:\n"+run["task"]+"\n\nEVIDENCE:\n"+evidence_text+"\n\nWORKER OUTPUT:\n"+worker_text,
+            json_mode=True, num_predict=400)
         review=parse_json_response(review_text,"review_text")
         for key,fallback in {"verdict":"needs_attention","findings":[],"risks":[],"evidence_gaps":[],"recommendations":[],"plan_coverage":"Inspect the raw review; it could not be fully structured."}.items(): review.setdefault(key,fallback)
         review["reviewer_model"]=REVIEWER_MODEL
@@ -190,11 +216,16 @@ def create_app(store: RunStore | None = None):
         if len(compact_json(evidence,MAX_EVIDENCE_CHARS+1))>MAX_EVIDENCE_CHARS: return jsonify({"error":f"evidence must be at most {MAX_EVIDENCE_CHARS} characters"}),413
         run=run_store.create(module,user_id,task,evidence)
         try:
-            planner_text=call_model(PLANNER_MODEL,
-                "You are the Planner for a personal finance application. Convert the task into a safe executable plan. Identify work, the supplied evidence required and fields to use, calculations/checks, risks, assumptions and unresolved questions. Never invent evidence, make transactions or modify accounts. Return JSON keys objective, steps (array), required_evidence (array), checks (array), risks (array), assumptions (array), success_criteria (array).",
-                "MODULE: "+module+"\nUSER TASK:\n"+task+"\nAVAILABLE APPLICATION EVIDENCE:\n"+compact_json(evidence,MAX_EVIDENCE_CHARS)+"\nExplicitly list requested evidence that is missing.")
+            planner_text=call_model(PLANNER_MODEL, PLANNER_SYSTEM,
+                "MODULE: "+module+"\nUSER TASK:\n"+task+"\nEVIDENCE AVAILABLE (summary only):\n"+json.dumps(summarise_evidence(evidence)),
+                json_mode=True)
             plan=parse_json_response(planner_text,"plan_text")
+            allowed={"objective","steps","required_evidence","checks","risks","assumptions","success_criteria"}
+            plan={k:v for k,v in plan.items() if k in allowed}
             for key,fallback in {"objective":task,"steps":[],"required_evidence":[],"checks":[],"risks":[],"assumptions":[],"success_criteria":[]}.items(): plan.setdefault(key,fallback)
+            if not plan["steps"]:
+                plan["steps"]=["Retrieve the supplied budget evidence","Compute totals and category shares from the evidence","Flag allocations that look unusual","Return a proposal for human review"]
+                plan["fallback"]=True  # visible in the audit trail
             plan["planner_model"]=PLANNER_MODEL
             run=run_store.update(run["run_id"],plan_json=plan,status="working")
             run=execute_worker_and_reviewer(run)
