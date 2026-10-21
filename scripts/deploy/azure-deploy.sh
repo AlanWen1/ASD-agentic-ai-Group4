@@ -2,6 +2,7 @@
 # Deploy the integrated Release 2 app to Azure Container Apps.
 # Required: az CLI, Docker, an Azure subscription, and a pre-created resource group.
 set -Eeuo pipefail
+umask 077
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT_DIR"
@@ -15,11 +16,23 @@ cd "$ROOT_DIR"
 command -v az >/dev/null || { echo "Azure CLI (az) is required." >&2; exit 2; }
 command -v docker >/dev/null || { echo "Docker is required (ACR Tasks is not available on this subscription, so images are built and pushed locally)." >&2; exit 2; }
 
-AI_ENABLED=false
-MCP_ENABLED=false
-RAG_ENABLED=false
-MULTI_AGENT_ENABLED=false
+CLOUD_AI_PROFILE="${CLOUD_AI_PROFILE:-baseline}"
+case "$CLOUD_AI_PROFILE" in
+  baseline) AI_ENABLED=false ;;
+  bonus) AI_ENABLED=true ;;
+  *) echo "CLOUD_AI_PROFILE must be baseline or bonus" >&2; exit 2 ;;
+esac
+MCP_ENABLED="$AI_ENABLED"
+RAG_ENABLED="$AI_ENABLED"
+MULTI_AGENT_ENABLED="$AI_ENABLED"
+IMAGE_TAG="${IMAGE_TAG:-$(git rev-parse --short=12 HEAD)}"
 export AI_ENABLED MCP_ENABLED RAG_ENABLED MULTI_AGENT_ENABLED
+FRONTEND_SECRET="$(python -c 'import secrets; print(secrets.token_hex(32))')"
+MULTI_AGENT_SECRET="$(python -c 'import secrets; print(secrets.token_hex(32))')"
+if [[ "${GITHUB_ACTIONS:-}" == "true" ]]; then
+  echo "::add-mask::$FRONTEND_SECRET"
+  echo "::add-mask::$MULTI_AGENT_SECRET"
+fi
 
 echo "Checking Azure login and subscription..."
 az account show --output none
@@ -38,9 +51,10 @@ IDENTITY_PRINCIPAL="$(az identity show --name finance-release2-acr-pull --resour
 az role assignment create --assignee-object-id "$IDENTITY_PRINCIPAL" --assignee-principal-type ServicePrincipal --role AcrPull --scope "$ACR_ID" --output none 2>/dev/null || true
 
 # SQLite databases use Azure Files shares mounted at /data to survive container restarts.
-az storage account create --name "$AZURE_STORAGE_ACCOUNT" --resource-group "$AZURE_RESOURCE_GROUP" --location "$AZURE_LOCATION" --sku Standard_LRS --kind StorageV2 --output none 2>/dev/null || true
+az storage account create --name "$AZURE_STORAGE_ACCOUNT" --resource-group "$AZURE_RESOURCE_GROUP" --location "$AZURE_LOCATION" --sku Standard_LRS --kind StorageV2 --https-only true --min-tls-version TLS1_2 --allow-blob-public-access false --output none 2>/dev/null || true
+az storage account update --name "$AZURE_STORAGE_ACCOUNT" --resource-group "$AZURE_RESOURCE_GROUP" --https-only true --min-tls-version TLS1_2 --allow-blob-public-access false --output none
 STORAGE_KEY="$(az storage account keys list --account-name "$AZURE_STORAGE_ACCOUNT" --resource-group "$AZURE_RESOURCE_GROUP" --query '[0].value' --output tsv)"
-for share in finance-db bill-db budget-db expense-db income-db savings-db; do
+for share in finance-db bill-db budget-db expense-db income-db savings-db multi-agent-db; do
   az storage share-rm create --resource-group "$AZURE_RESOURCE_GROUP" --storage-account "$AZURE_STORAGE_ACCOUNT" --name "$share" --quota 5 --output none 2>/dev/null || true
   az containerapp env storage set --name "$AZURE_CONTAINERAPPS_ENVIRONMENT" --resource-group "$AZURE_RESOURCE_GROUP" --storage-name "$share" --azure-file-account-name "$AZURE_STORAGE_ACCOUNT" --azure-file-account-key "$STORAGE_KEY" --azure-file-share-name "$share" --access-mode ReadWrite --output none
 done
@@ -55,8 +69,8 @@ build_image() {
     full_dockerfile="$context/$dockerfile"
   fi
   echo "Building $image using Dockerfile $full_dockerfile (context: $context)"
-  docker build --tag "$ACR_LOGIN_SERVER/$image:release2" --file "$full_dockerfile" "$context"
-  docker push "$ACR_LOGIN_SERVER/$image:release2"
+  docker build --tag "$ACR_LOGIN_SERVER/$image:$IMAGE_TAG" --file "$full_dockerfile" "$context"
+  docker push "$ACR_LOGIN_SERVER/$image:$IMAGE_TAG"
 }
 
 # Build application services only. AI-Mode, MCP, RAG and Multi-Agent are deliberately excluded.
@@ -79,10 +93,13 @@ build_image savings-database ./student-5/database Dockerfile
 build_image savings-backend ./student-5/backend Dockerfile
 build_image savings-frontend . student-5/frontend/Dockerfile
 
-# Shared Ollama runtime + AI-Mode proxy, used only for the Release 2 cloud
-# bonus (B1 Cloud AI-Mode and friends). Not part of the required baseline.
-build_image ollama ./ai-services/ollama Dockerfile
-build_image ai-mode ./ai-services/ai-mode Dockerfile
+if [[ "$CLOUD_AI_PROFILE" == "bonus" ]]; then
+  build_image ollama ./ai-services/ollama Dockerfile
+  build_image ai-mode ./ai-services/ai-mode Dockerfile
+  build_image mcp-server ./ai-services/mcp-server Dockerfile
+  build_image rag-server ./ai-services/rag-server Dockerfile
+  build_image multi-agent-server ./ai-services/multi-agent-server Dockerfile
+fi
 
 # Create/update an app with a minimal YAML manifest. Database apps mount Azure Files at /data.
 deploy_app() {
@@ -91,30 +108,37 @@ deploy_app() {
   local ENV_DEFAULT_DOMAIN
   ENV_DEFAULT_DOMAIN="$(az containerapp env show --name "$AZURE_CONTAINERAPPS_ENVIRONMENT" --resource-group "$AZURE_RESOURCE_GROUP" --query properties.defaultDomain --output tsv)"
   local INTERNAL_SUFFIX="internal.$ENV_DEFAULT_DOMAIN"
-  envs="${envs//http:\/\/finance-database:6000/http:\/\/finance-database.$INTERNAL_SUFFIX:6000}"
-  envs="${envs//http:\/\/bill-database:6004/http:\/\/bill-database.$INTERNAL_SUFFIX:6004}"
-  envs="${envs//http:\/\/budget-database:6001/http:\/\/budget-database.$INTERNAL_SUFFIX:6001}"
-  envs="${envs//http:\/\/expense-database:6002/http:\/\/expense-database.$INTERNAL_SUFFIX:6002}"
-  envs="${envs//http:\/\/income-database:6003/http:\/\/income-database.$INTERNAL_SUFFIX:6003}"
-  envs="${envs//http:\/\/savings-database:6005/http:\/\/savings-database.$INTERNAL_SUFFIX:6005}"
-  envs="${envs//http:\/\/finance-backend:5000/http:\/\/finance-backend.$INTERNAL_SUFFIX:5000}"
-  envs="${envs//http:\/\/bill-backend:5004/http:\/\/bill-backend.$INTERNAL_SUFFIX:5004}"
-  envs="${envs//http:\/\/budget-backend:5001/http:\/\/budget-backend.$INTERNAL_SUFFIX:5001}"
-  envs="${envs//http:\/\/expense-backend:5002/http:\/\/expense-backend.$INTERNAL_SUFFIX:5002}"
-  envs="${envs//http:\/\/income-backend:5003/http:\/\/income-backend.$INTERNAL_SUFFIX:5003}"
-  envs="${envs//http:\/\/savings-backend:5005/http:\/\/savings-backend.$INTERNAL_SUFFIX:5005}"
-  envs="${envs//http:\/\/ollama:11434/http:\/\/ollama.$INTERNAL_SUFFIX:11434}"
-  envs="${envs//http:\/\/ai-mode:5099/http:\/\/ai-mode.$INTERNAL_SUFFIX:5099}"
-  # Public (external) hostnames for browser-side cross-app navigation links
-  # (Home buttons, "Open X Manager" links) -- these are followed by the
-  # visitor's own browser, so they must be the real public HTTPS URL, not
-  # the internal-only address used for container-to-container calls above.
-  envs="${envs//http:\/\/finance-frontend:3000/https:\/\/finance-frontend.$ENV_DEFAULT_DOMAIN}"
-  envs="${envs//http:\/\/budget-frontend:3001/https:\/\/budget-frontend.$ENV_DEFAULT_DOMAIN}"
-  envs="${envs//http:\/\/expense-frontend:3002/https:\/\/expense-frontend.$ENV_DEFAULT_DOMAIN}"
-  envs="${envs//http:\/\/income-frontend:3003/https:\/\/income-frontend.$ENV_DEFAULT_DOMAIN}"
-  envs="${envs//http:\/\/bill-frontend:3004/https:\/\/bill-frontend.$ENV_DEFAULT_DOMAIN}"
-  envs="${envs//http:\/\/savings-frontend:3005/https:\/\/savings-frontend.$ENV_DEFAULT_DOMAIN}"
+  envs="${envs//http:\/\/finance-database:6000/https:\/\/finance-database.$INTERNAL_SUFFIX}"
+  envs="${envs//http:\/\/bill-database:6004/https:\/\/bill-database.$INTERNAL_SUFFIX}"
+  envs="${envs//http:\/\/budget-database:6001/https:\/\/budget-database.$INTERNAL_SUFFIX}"
+  envs="${envs//http:\/\/expense-database:6002/https:\/\/expense-database.$INTERNAL_SUFFIX}"
+  envs="${envs//http:\/\/income-database:6003/https:\/\/income-database.$INTERNAL_SUFFIX}"
+  envs="${envs//http:\/\/savings-database:6005/https:\/\/savings-database.$INTERNAL_SUFFIX}"
+  envs="${envs//http:\/\/finance-backend:5000/https:\/\/finance-backend.$INTERNAL_SUFFIX}"
+  envs="${envs//http:\/\/bill-backend:5004/https:\/\/bill-backend.$INTERNAL_SUFFIX}"
+  envs="${envs//http:\/\/budget-backend:5001/https:\/\/budget-backend.$INTERNAL_SUFFIX}"
+  envs="${envs//http:\/\/expense-backend:5002/https:\/\/expense-backend.$INTERNAL_SUFFIX}"
+  envs="${envs//http:\/\/income-backend:5003/https:\/\/income-backend.$INTERNAL_SUFFIX}"
+  envs="${envs//http:\/\/savings-backend:5005/https:\/\/savings-backend.$INTERNAL_SUFFIX}"
+  envs="${envs//http:\/\/ollama:11434/https:\/\/ollama.$INTERNAL_SUFFIX}"
+  envs="${envs//http:\/\/ai-mode:5099/https:\/\/ai-mode.$INTERNAL_SUFFIX}"
+  envs="${envs//http:\/\/mcp-server:5100/https:\/\/mcp-server.$INTERNAL_SUFFIX}"
+  envs="${envs//http:\/\/rag-server:5101/https:\/\/rag-server.$INTERNAL_SUFFIX}"
+  envs="${envs//http:\/\/multi-agent-server:5102/https:\/\/multi-agent-server.$INTERNAL_SUFFIX}"
+  envs+=$'\nAPP_ENV=cloud'
+  if [[ "$app" == *-frontend ]]; then
+    envs+=$'\nFINANCE_URL=https://finance-frontend.'"$ENV_DEFAULT_DOMAIN"
+  fi
+  local secrets_yaml=""
+  if [[ "$envs" == *"secretref:"* ]]; then
+    secrets_yaml="    secrets:"
+    if [[ "$envs" == *"secretref:frontend-session-key"* ]]; then
+      secrets_yaml+=$'\n      - name: frontend-session-key\n        value: '"$FRONTEND_SECRET"
+    fi
+    if [[ "$envs" == *"secretref:multi-agent-key"* ]]; then
+      secrets_yaml+=$'\n      - name: multi-agent-key\n        value: '"$MULTI_AGENT_SECRET"
+    fi
+  fi
   manifest="$(mktemp)"
   {
     printf 'name: %s\nlocation: %s\n' "$app" "$AZURE_LOCATION"
@@ -128,6 +152,7 @@ properties:
   managedEnvironmentId: $(az containerapp env show --name "$AZURE_CONTAINERAPPS_ENVIRONMENT" --resource-group "$AZURE_RESOURCE_GROUP" --query id --output tsv)
   configuration:
     activeRevisionsMode: single
+$secrets_yaml
     registries:
       - server: $ACR_LOGIN_SERVER
         identity: $IDENTITY_ID
@@ -139,14 +164,20 @@ properties:
   template:
     containers:
       - name: $app
-        image: $ACR_LOGIN_SERVER/$image:release2
+        image: $ACR_LOGIN_SERVER/$image:$IMAGE_TAG
 YAML
     env_entries=""
     while IFS='=' read -r key value; do
       [[ -z "$key" ]] && continue
-      env_entries+="          - name: ${key}
+      if [[ "$value" == secretref:* ]]; then
+        env_entries+="          - name: ${key}
+            secretRef: ${value#secretref:}
+"
+      else
+        env_entries+="          - name: ${key}
             value: \"${value//\"/\\\"}\"
 "
+      fi
     done <<< "$envs"
     if [[ -n "$env_entries" ]]; then
       printf '        env:\n%s' "$env_entries"
@@ -192,60 +223,40 @@ deploy_app expense-database expense-database 6002 false $'DATABASE_PATH=/data/ex
 deploy_app income-database income-database 6003 false $'DATABASE_PATH=/data/student-3-income.db' income-db
 deploy_app savings-database savings-database 6005 false $'DATABASE_PATH=/data/savings.db' savings-db
 
-# Shared Ollama runtime + AI-Mode proxy for the Release 2 cloud bonus (B1).
-# Internal-only; not reachable from outside the Container Apps Environment.
-# Extra CPU/memory for ollama: LLM inference is heavier than a typical REST call.
-deploy_app ollama ollama 11434 false '' '' 1.0 2Gi
-deploy_app ai-mode ai-mode 5099 false $'OLLAMA_URL=http://ollama:11434'
+# Bonus services are opt-in. Local Compose still contains no AI services.
+ENV_DOMAIN="$(az containerapp env show --name "$AZURE_CONTAINERAPPS_ENVIRONMENT" --resource-group "$AZURE_RESOURCE_GROUP" --query properties.defaultDomain --output tsv)"
+PUBLIC_HOME="https://finance-frontend.$ENV_DOMAIN"
+if [[ "$CLOUD_AI_PROFILE" == "bonus" ]]; then
+  deploy_app ollama ollama 11434 false '' '' 2.0 4Gi
+  deploy_app ai-mode ai-mode 5099 false $'OLLAMA_URL=http://ollama:11434\nAI_MODE_TIMEOUT=180'
+  MCP_ENV=$'EXPENSE_DB_URL=http://expense-database:6002\nBILL_DB_URL=http://bill-database:6004\nINCOME_DB_URL=http://income-database:6003\nSAVINGS_DB_URL=http://savings-database:6005\nBUDGET_DB_URL=http://budget-database:6001\nMCP_STATELESS=true'
+  MCP_ENV+=$'\nMCP_ALLOWED_HOSTS='"mcp-server.internal.$ENV_DOMAIN"
+  deploy_app mcp-server mcp-server 5100 false "$MCP_ENV"
+  deploy_app rag-server rag-server 5101 false $'AI_MODE_URL=http://ai-mode:5099\nRAG_GENERATION_TIMEOUT=180'
+  deploy_app multi-agent-server multi-agent-server 5102 false $'OLLAMA_URL=http://ollama:11434\nMULTI_AGENT_API_KEY=secretref:multi-agent-key\nMULTI_AGENT_DB_PATH=/data/runs.sqlite3\nMULTI_AGENT_OLLAMA_NUM_CTX=4096\nMULTI_AGENT_OLLAMA_NUM_PREDICT=512' multi-agent-db
+fi
 
-# Backends. Optional AI-related features are explicitly off by default. budget-backend
-# is the exception: AI_ENABLED=true demonstrates the Release 2 cloud bonus (B1 Cloud
-# AI-Mode) through its existing /api/agent/chat endpoint.
+COMMON_AI="AI_ENABLED=$AI_ENABLED"$'\n'"MCP_ENABLED=$MCP_ENABLED"$'\n'"RAG_ENABLED=$RAG_ENABLED"$'\n'"MULTI_AGENT_ENABLED=$MULTI_AGENT_ENABLED"
+COMMON_AI+=$'\nOLLAMA_URL=http://ai-mode:5099\nOLLAMA_MODEL=qwen2.5:0.5b\nOLLAMA_BASE_URL=http://ai-mode:5099/v1\nOLLAMA_API_URL=http://ai-mode:5099/api/generate\nMCP_SERVER_URL=http://mcp-server:5100/mcp\nRAG_SERVER_URL=http://rag-server:5101\nMULTI_AGENT_URL=http://multi-agent-server:5102\nMULTI_AGENT_API_KEY=secretref:multi-agent-key'
+
 deploy_app finance-backend finance-backend 5000 false $'DATABASE_URL=http://finance-database:6000\nBILL_DATABASE_URL=http://bill-database:6004'
-deploy_app bill-backend bill-backend 5004 false $'DATABASE_URL=http://bill-database:6004\nAUTH_DATABASE_URL=http://finance-database:6000\nMULTI_AGENT_ENABLED=false\nAI_ENABLED=false\nMCP_ENABLED=false\nRAG_ENABLED=false'
-deploy_app budget-backend budget-backend 5001 false $'DATABASE_URL=http://budget-database:6001\nAUTH_DATABASE_URL=http://finance-database:6000\nMULTI_AGENT_ENABLED=false\nAI_ENABLED=true\nOLLAMA_URL=http://ai-mode:5099\nMCP_ENABLED=false\nRAG_ENABLED=false'
-deploy_app expense-backend expense-backend 5002 false $'DATABASE_URL=http://expense-database:6002\nAUTH_DATABASE_URL=http://finance-database:6000\nMULTI_AGENT_ENABLED=false\nAI_ENABLED=false\nMCP_ENABLED=false\nRAG_ENABLED=false'
-deploy_app income-backend income-backend 5003 false $'DATABASE_SERVICE_URL=http://income-database:6003\nAUTH_DATABASE_URL=http://finance-database:6000\nMULTI_AGENT_ENABLED=false\nAI_ENABLED=false\nMCP_ENABLED=false\nRAG_ENABLED=false'
-deploy_app savings-backend savings-backend 5005 false $'DATABASE_API_URL=http://savings-database:6005\nAUTH_DATABASE_URL=http://finance-database:6000\nMULTI_AGENT_ENABLED=false\nAI_ENABLED=false\nMCP_ENABLED=false\nRAG_ENABLED=false'
+deploy_app bill-backend bill-backend 5004 false "$COMMON_AI"$'\nDATABASE_URL=http://bill-database:6004\nAUTH_DATABASE_URL=http://finance-database:6000'
+deploy_app budget-backend budget-backend 5001 false "$COMMON_AI"$'\nDATABASE_URL=http://budget-database:6001\nAUTH_DATABASE_URL=http://finance-database:6000'
+deploy_app expense-backend expense-backend 5002 false "$COMMON_AI"$'\nDATABASE_URL=http://expense-database:6002\nAUTH_DATABASE_URL=http://finance-database:6000'
+deploy_app income-backend income-backend 5003 false "$COMMON_AI"$'\nDATABASE_SERVICE_URL=http://income-database:6003\nAUTH_DATABASE_URL=http://finance-database:6000'
+deploy_app savings-backend savings-backend 5005 false "$COMMON_AI"$'\nDATABASE_API_URL=http://savings-database:6005\nAUTH_DATABASE_URL=http://finance-database:6000'
 
-# Frontends are the public entry points; they communicate with their internal backend apps.
-deploy_app finance-frontend finance-frontend 3000 true $'BACKEND_URL=http://finance-backend:5000\nINCOME_URL=http://income-frontend:3003\nBILL_URL=http://bill-frontend:3004\nBUDGET_URL=http://budget-frontend:3001\nSAVINGS_URL=http://savings-frontend:3005\nEXPENSE_URL=http://expense-frontend:3002'
-deploy_app budget-frontend budget-frontend 3001 true $'BACKEND_URL=http://budget-backend:5001\nFINANCE_URL=http://finance-frontend:3000'
-deploy_app expense-frontend expense-frontend 3002 true $'BACKEND_URL=http://expense-backend:5002\nFINANCE_URL=http://finance-frontend:3000'
-deploy_app income-frontend income-frontend 3003 true $'BACKEND_SERVICE_URL=http://income-backend:5003\nFINANCE_URL=http://finance-frontend:3000'
-deploy_app bill-frontend bill-frontend 3004 true $'BACKEND_URL=http://bill-backend:5004\nFINANCE_URL=http://finance-frontend:3000'
-deploy_app savings-frontend savings-frontend 3005 true $'BACKEND_API_URL=http://savings-backend:5005\nFINANCE_URL=http://finance-frontend:3000'
-
-echo
-echo "Checking deployed backend feature flags..."
-# budget-backend AI_ENABLED=true is the documented Release 2 cloud bonus (B1 Cloud
-# AI-Mode) demo target. Every other backend/flag combination must still be "false" to
-# satisfy the required baseline (AI-Mode/MCP/RAG/Multi-Agent disabled by default).
-for app in bill-backend budget-backend expense-backend income-backend savings-backend; do
-  for flag in AI_ENABLED MCP_ENABLED RAG_ENABLED MULTI_AGENT_ENABLED; do
-    expected=false
-    if [[ "$app" == "budget-backend" && "$flag" == "AI_ENABLED" ]]; then
-      expected=true
-    fi
-    value="$(az containerapp show --name "$app" --resource-group "$AZURE_RESOURCE_GROUP" --query "properties.template.containers[0].env[?name=='$flag'].value | [0]" --output tsv)"
-    if [[ "$value" != "$expected" ]]; then
-      echo "ERROR: $app has $flag=$value (expected $expected)" >&2
-      exit 1
-    fi
-  done
+HOME_ENV=$'BACKEND_URL=http://finance-backend:5000'
+for module in budget expense income bill savings; do
+  HOME_ENV+=$'\n'"${module^^}_FRONTEND_URL=https://$module-frontend.$ENV_DOMAIN"
 done
+deploy_app finance-frontend finance-frontend 3000 true "$HOME_ENV"
+deploy_app budget-frontend budget-frontend 3001 true $'BACKEND_URL=http://budget-backend:5001'
+deploy_app expense-frontend expense-frontend 3002 true $'BACKEND_URL=http://expense-backend:5002\nSECRET_KEY=secretref:frontend-session-key'
+deploy_app income-frontend income-frontend 3003 true $'BACKEND_SERVICE_URL=http://income-backend:5003'
+deploy_app bill-frontend bill-frontend 3004 true $'BACKEND_URL=http://bill-backend:5004'
+deploy_app savings-frontend savings-frontend 3005 true $'BACKEND_API_URL=http://savings-backend:5005'
 
-echo "Checking frontend HTTPS endpoints..."
-for app in finance-frontend budget-frontend expense-frontend income-frontend bill-frontend savings-frontend; do
-  url="$(az containerapp show --name "$app" --resource-group "$AZURE_RESOURCE_GROUP" --query properties.configuration.ingress.fqdn --output tsv)"
-  printf 'Checking %-20s https://%s/ ... ' "$app" "$url"
-  curl --fail --silent --show-error --location --max-time 20 --retry 12 --retry-delay 5 --retry-all-errors "https://$url/" --output /dev/null
-  echo "OK"
-done
-
-echo
-echo "Deployment and basic endpoint smoke tests succeeded. Frontend URLs:"
-for app in finance-frontend budget-frontend expense-frontend income-frontend bill-frontend savings-frontend; do
-  url="$(az containerapp show --name "$app" --resource-group "$AZURE_RESOURCE_GROUP" --query properties.configuration.ingress.fqdn --output tsv)"
-  printf '  %-20s https://%s\n' "$app" "$url"
-done
+mkdir -p docs/release-2/evidence/cloud
+python scripts/deploy/verify_azure.py --profile "$CLOUD_AI_PROFILE" --output docs/release-2/evidence/cloud/azure-controls.json
+python scripts/deploy/cloud_smoke.py --deployment docs/release-2/evidence/cloud/azure-controls.json --output docs/release-2/evidence/cloud/application-tests.json

@@ -97,8 +97,12 @@ def test_review_mode_returns_nonzero_on_validation_failure(monkeypatch, passed, 
     monkeypatch.setattr(agent_review, 'validate_rag', lambda: {'passed': passed})
     assert agent_review.review_mode(ROOT, 'rag', 'unused', 'unused', 1) == code
 
-def test_cli_propagates_failure(monkeypatch):
-    monkeypatch.setattr(sys, 'argv', ['agent_review.py', '--mode', 'rag'])
+@pytest.mark.parametrize('mode', ['mcp', 'rag', 'multi_agent'])
+def test_cli_propagates_failure(monkeypatch, tmp_path, mode):
+    monkeypatch.setattr(sys, 'argv', ['agent_review.py', '--mode', mode, '--output-dir', str(tmp_path)])
     monkeypatch.setattr(agent_review, 'health', lambda *a: (True, []))
     monkeypatch.setattr(agent_review, 'review_mode', lambda *a: 1)
     assert agent_review.main() == 1
+    import json
+    log = json.loads(next(tmp_path.glob('*.json')).read_text())
+    assert log['status'] == 'failed' and log['validation_exit_code'] == 1

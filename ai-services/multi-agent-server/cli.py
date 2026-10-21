@@ -22,12 +22,20 @@ def show_review(run):
     print("\nREVIEWER ASSESSMENT"); print(json.dumps(run.get("review") or {},indent=2,ensure_ascii=False))
     print("\nHuman decision required: [a]pprove, [c]orrect, [r]eject")
 
+def save_evidence(run, destination=None):
+    target = Path(destination) if destination else Path(__file__).resolve().parents[2] / "docs/release-2/evidence/multi-agent" / (run["run_id"] + ".json")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(json.dumps(run, indent=2, ensure_ascii=False), encoding="utf-8")
+    print("Workflow evidence saved:", target)
+
 def main():
     parser=argparse.ArgumentParser(description="Run Planner -> Worker -> Reviewer with mandatory human review.")
     parser.add_argument("--module",required=True,choices=["budget","expenses","income","bills","savings"])
     parser.add_argument("--task",required=True); parser.add_argument("--evidence-file")
     parser.add_argument("--evidence-json"); parser.add_argument("--user-id",default="terminal")
-    parser.add_argument("--url",default=DEFAULT_URL); args=parser.parse_args()
+    parser.add_argument("--url",default=DEFAULT_URL)
+    parser.add_argument("--output", help="Save the workflow and real human decisions as JSON")
+    args=parser.parse_args()
     if args.evidence_file and args.evidence_json: parser.error("use either --evidence-file or --evidence-json, not both")
     try:
         if args.evidence_file: evidence=json.loads(Path(args.evidence_file).read_text(encoding="utf-8"))
@@ -36,13 +44,16 @@ def main():
         url=args.url.rstrip("/")
         run=request_json("POST",url+"/runs",json={"module":args.module,"task":args.task,"evidence":evidence,"user_id":args.user_id})
         while True:
+            save_evidence(run, args.output)
             show_review(run); action=input("\nChoose a/c/r: ").strip().lower()
             if action in {"a","approve"}:
                 run=request_json("POST",url+"/runs/"+run["run_id"]+"/decision",json={"module":args.module,"user_id":args.user_id,"decision":"approve"})
+                save_evidence(run, args.output)
                 print("\nApproved by human. Final status:",run["status"]); return 0
             if action in {"r","reject"}:
                 feedback=input("Reason for rejection (optional): ").strip()
                 run=request_json("POST",url+"/runs/"+run["run_id"]+"/decision",json={"module":args.module,"user_id":args.user_id,"decision":"reject","feedback":feedback})
+                save_evidence(run, args.output)
                 print("\nRejected by human. Final status:",run["status"]); return 0
             if action in {"c","correct"}:
                 feedback=input("What should the Worker correct or reconsider? ").strip()

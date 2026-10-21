@@ -1,10 +1,15 @@
 import os
 
 import requests
+from flask import Response
 from flask import Flask, render_template, request, redirect, session, url_for
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-change-me")
+if os.getenv("APP_ENV") == "cloud" and len(app.secret_key) < 32:
+    raise RuntimeError("Cloud Expense frontend requires a secret SECRET_KEY")
+app.config.update(SESSION_COOKIE_SECURE=os.getenv("APP_ENV") == "cloud",
+                  SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE="Lax")
 BACKEND_URL = os.environ.get("BACKEND_URL", "http://expense-backend:5002")
 # Where to send people to sign in — the shared Finance Application login.
 FINANCE_URL = os.environ.get("FINANCE_URL", "http://localhost:3000")
@@ -322,6 +327,36 @@ def multi_agent_latest_ui():
         return render_template("partials/multi_agent_result.html", error=data.get("error", "Could not load the latest review."))
     runs = data.get("runs", [])
     return render_template("partials/multi_agent_result.html", run=runs[0] if runs else None)
+
+
+
+@app.route("/api/<path:path>", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
+def json_api_proxy(path):
+    headers = auth_headers()
+    if request.headers.get("Authorization"):
+        headers["Authorization"] = request.headers["Authorization"]
+    if request.content_type:
+        headers["Content-Type"] = request.content_type
+    try:
+        upstream = requests.request(request.method, f"{BACKEND_URL}/api/{path}",
+            params=request.args, data=request.get_data(), headers=headers,
+            timeout=2100 if path.startswith("multi-agent/") else 180)
+        return Response(upstream.content, status=upstream.status_code,
+                        content_type=upstream.headers.get("Content-Type", "application/json"))
+    except requests.RequestException:
+        return {"error": "Backend service is unavailable"}, 503
+
+
+@app.after_request
+def security_headers(response):
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["Content-Security-Policy"] = "frame-ancestors 'none'; base-uri 'self'; object-src 'none'"
+    if os.getenv("APP_ENV") == "cloud":
+        response.headers["Strict-Transport-Security"] = "max-age=31536000"
+    return response
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=3002, debug=False)

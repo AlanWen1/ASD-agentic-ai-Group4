@@ -10,9 +10,6 @@ app = Flask(__name__)
 # it to the Container Apps internal hostname.
 BACKEND_URL = os.environ.get("BACKEND_URL", "http://localhost:5001")
 
-# Where to send people for the shared Finance Application hub/login.
-FINANCE_URL = os.environ.get("FINANCE_URL", "http://localhost:3000")
-
 # Headers that must never be copied as-is between hops (RFC 7230 section 6.1),
 # plus Host/Content-Length, which have to be recomputed for the new request.
 _HOP_BY_HOP_HEADERS = {
@@ -24,7 +21,7 @@ _HOP_BY_HOP_HEADERS = {
 
 @app.route("/")
 def index():
-    return render_template("index.html", finance_url=FINANCE_URL)
+    return render_template("index.html", finance_url=os.getenv("FINANCE_URL", "http://localhost:3000/"))
 
 
 @app.route("/api/<path:path>", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
@@ -49,7 +46,7 @@ def api_proxy(path):
             headers=forward_headers,
             params=request.args,
             data=request.get_data(),
-            timeout=60,
+            timeout=2100 if path.startswith("multi-agent/") else 180,
         )
     except requests.RequestException as exc:
         return {"error": f"Could not reach budget-backend: {exc}"}, 502
@@ -60,6 +57,19 @@ def api_proxy(path):
         if key.lower() not in _HOP_BY_HOP_HEADERS
     ]
     return Response(upstream.content, status=upstream.status_code, headers=response_headers)
+
+
+
+
+@app.after_request
+def security_headers(response):
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["Content-Security-Policy"] = "frame-ancestors 'none'; base-uri 'self'; object-src 'none'"
+    if os.getenv("APP_ENV") == "cloud":
+        response.headers["Strict-Transport-Security"] = "max-age=31536000"
+    return response
 
 
 if __name__ == "__main__":

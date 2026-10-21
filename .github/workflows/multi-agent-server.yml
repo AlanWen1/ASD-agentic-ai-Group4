@@ -2,13 +2,13 @@ name: Shared Multi-Agent Server CI
 
 on:
   push:
-    branches: [ main, release-2-multi-agent ]
+    branches: [main, feature/student-3-release-2-final, feature/student-3-release-2-bonus]
     paths:
-      - 'ai-services/multi-agent-server/**'
+      - 'ai-services/**'
       - '.github/workflows/multi-agent-server.yml'
   pull_request:
     paths:
-      - 'ai-services/multi-agent-server/**'
+      - 'ai-services/**'
       - '.github/workflows/multi-agent-server.yml'
   workflow_dispatch:
 
@@ -27,9 +27,18 @@ jobs:
       - name: Install service and test dependencies
         run: |
           python -m pip install -r ai-services/multi-agent-server/requirements.txt
-          python -m pip install pytest
+          python -m pip install pytest -r ai-services/mcp-server/requirements.txt
       - name: Compile-check server and client
         run: python -m compileall -q ai-services/multi-agent-server
       - name: Run mocked workflow tests
         working-directory: ai-services/multi-agent-server
+        run: python -m pytest tests -q
+      - name: Verify retained AI-Mode service
+        working-directory: ai-services/ai-mode
+        run: python -m pytest tests -q
+      - name: Verify retained MCP tool contracts
+        working-directory: ai-services/mcp-server
+        run: python -m pytest tests -q
+      - name: Verify retained RAG pipeline
+        working-directory: ai-services/rag-server
         run: python -m pytest tests -q

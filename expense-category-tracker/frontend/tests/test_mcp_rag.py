@@ -21,7 +21,7 @@ def client():
         yield client
 
 
-def _signed_in(client, token="abc123"):
+def _signed_in(client, token="abc123"):  # noqa: S107 -- synthetic test credential
     with client.session_transaction() as sess:
         sess["finance_token"] = token
 

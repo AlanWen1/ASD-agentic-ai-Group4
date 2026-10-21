@@ -9,6 +9,7 @@ import requests
 from llm import ask, health, parse_json
 from repository_checks import candidates, static_evidence, read
 from validation import validate_mcp, validate_rag, validate_multi_agent, print_validation
+from evidence_log import logged_review, check_workflow
 
 LABELS = {
     "database": "Database review",
@@ -297,7 +298,24 @@ def review_mode(root, mode, model, ollama_url, iterations):
         elif mode == "rag":
             live = validate_rag()
         else:
-            live = validate_multi_agent()
+            evidence_path = os.getenv("MULTI_AGENT_EVIDENCE")
+            if evidence_path:
+                run = json.loads(Path(evidence_path).read_text(encoding="utf-8"))
+                live = {"health": None, "run": run, "errors": check_workflow(run), "source": evidence_path}
+                live["passed"] = not live["errors"]
+            else:
+                live = validate_multi_agent()
+                live["errors"].extend(check_workflow(live.get("run") or {}))
+                live["passed"] = bool(live["passed"] and not live["errors"])
+            run = live.get("run") or {}
+            result, error = safe_llm(ollama_url, model,
+                "Review this Multi-Agent workflow against its plan, evidence, reviewer findings, coordination "
+                "audit and human history. Never invent missing stages or approve a release. Return JSON "
+                "with summary, risks and recommendations.", json.dumps(run, default=str)[:24000])
+            print("WORKFLOW REVIEW: " + json.dumps(result if not error else {
+                "method": "deterministic_fallback", "findings": live["errors"],
+                "recommendations": ["Resolve each validation finding and preserve the final human decision"],
+                "model_error": error}, ensure_ascii=False))
         return 0 if print_validation(mode, live) else 1
 
     _print_header(LABELS[mode].upper())
@@ -428,9 +446,14 @@ def main():
     parser.add_argument("--model", default=os.environ.get("AGENT_MODEL", "llama3.1:8b"))
     parser.add_argument("--ollama-url", default=os.environ.get("OLLAMA_URL", "http://localhost:11434"))
     parser.add_argument("--max-iterations", type=int, default=int(os.environ.get("AGENT_MAX_ITERATIONS", "3")))
+    parser.add_argument("--workflow-evidence", help="Exported workflow JSON containing the real human decision")
+    parser.add_argument("--output-dir", default=os.getenv("AGENT_OUTPUT_DIR"), help="Directory for timestamped text and JSON logs")
     args = parser.parse_args()
 
     root = Path(args.repo).resolve() if args.repo else Path(__file__).resolve().parents[2]
+    if args.workflow_evidence:
+        os.environ["MULTI_AGENT_EVIDENCE"] = str(Path(args.workflow_evidence).resolve())
+    output_dir = Path(args.output_dir) if args.output_dir else root / "docs/release-2/evidence/reviews"
     ok, names = health(args.ollama_url, args.model)
     if ok:
         print(f"[PASS] Ollama model listed: {args.model} at {args.ollama_url}")
@@ -453,14 +476,9 @@ def main():
 
     for mode in selected:
         try:
-            result = review_mode(
-                root,
-                mode,
-                args.model,
-                args.ollama_url,
-                max(1, args.max_iterations),
-            )
-            if mode in {"mcp", "rag"}:
+            result = logged_review(root, output_dir, mode, args.model, ok,
+                lambda: review_mode(root, mode, args.model, args.ollama_url, max(1, args.max_iterations)))
+            if mode in {"mcp", "rag", "multi_agent"}:
                 validation_count += 1
                 failures += int(result != 0)
             else:

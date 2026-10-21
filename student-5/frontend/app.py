@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request
+from flask import Flask, Response, render_template, request
 from markupsafe import escape
 import requests
 import os
@@ -9,9 +9,6 @@ BACKEND_API_URL = os.getenv(
     "BACKEND_API_URL",
     "http://127.0.0.1:5005"
 ).rstrip("/")
-
-# Where to send people for the shared Finance Application hub/login.
-FINANCE_URL = os.getenv("FINANCE_URL", "http://localhost:3000")
 
 
 def auth_headers():
@@ -27,7 +24,7 @@ def auth_headers():
 
 @app.route("/")
 def index():
-    return render_template("index.html", finance_url=FINANCE_URL)
+    return render_template("index.html", finance_url=os.getenv("FINANCE_URL", "http://localhost:3000/"))
 
 
 def render_goals():
@@ -50,7 +47,7 @@ def render_goals():
     for goal in goals:
         html += f"""
         <div class="goal-card">
-            <h3>{goal["goal_name"]}</h3>
+            <h3>{escape(goal["goal_name"])}</h3>
 
             <p>Target: ${goal["target_amount"]:.2f}</p>
             <p>Saved: ${goal["current_amount"]:.2f}</p>
@@ -79,7 +76,7 @@ def render_goals():
                     <input
                         type="text"
                         name="goal_name"
-                        value="{goal["goal_name"]}"
+                        value="{escape(goal["goal_name"])}"
                         required>
 
                     <label>Target Amount:</label>
@@ -102,7 +99,7 @@ def render_goals():
                     <input
                         type="date"
                         name="target_date"
-                        value="{goal["target_date"]}"
+                        value="{escape(goal["target_date"])}"
                         required>
 
                     <button type="submit">Save Changes</button>
@@ -485,6 +482,34 @@ def show_latest_savings_multi_agent_review():
     return display_multi_agent_result(
         run=runs[0] if runs else None
     )
+
+
+
+
+@app.route("/api/<path:path>", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
+def json_api_proxy(path):
+    headers = auth_headers()
+    if request.content_type:
+        headers["Content-Type"] = request.content_type
+    try:
+        upstream = requests.request(request.method, f"{BACKEND_API_URL}/{path}",
+            params=request.args, data=request.get_data(), headers=headers,
+            timeout=2100 if path.startswith("multi-agent/") else 180)
+        return Response(upstream.content, status=upstream.status_code,
+                        content_type=upstream.headers.get("Content-Type", "application/json"))
+    except requests.RequestException:
+        return {"error": "Backend service is unavailable"}, 503
+
+
+@app.after_request
+def security_headers(response):
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["Content-Security-Policy"] = "frame-ancestors 'none'; base-uri 'self'; object-src 'none'"
+    if os.getenv("APP_ENV") == "cloud":
+        response.headers["Strict-Transport-Security"] = "max-age=31536000"
+    return response
 
 
 if __name__ == "__main__":

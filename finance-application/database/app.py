@@ -207,7 +207,7 @@ def update_user(user_id):
 
     try:
         with closing(get_db()) as conn:
-            cursor = conn.execute(f"UPDATE users SET {set_clause} WHERE id = ?", values)
+            cursor = conn.execute(f"UPDATE users SET {set_clause} WHERE id = ?", values)  # noqa: S608 -- fixed column whitelist; values are bound
             if cursor.rowcount == 0:
                 conn.rollback()
                 return jsonify({"error": "User not found"}), 404

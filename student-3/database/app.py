@@ -297,7 +297,7 @@ def create_app(database_path: str | None = None) -> Flask:
         where = f" WHERE {' AND '.join(clauses)}" if clauses else ""
         with closing(get_connection()) as connection:
             rows = connection.execute(
-                f"SELECT * FROM income_sources{where} ORDER BY active DESC, source_name", values
+                f"SELECT * FROM income_sources{where} ORDER BY active DESC, source_name", values  # noqa: S608 -- fixed SQL clauses; user values are bound
             ).fetchall()
         return jsonify({"items": [dict(row) for row in rows], "count": len(rows)})
 
@@ -396,7 +396,7 @@ def create_app(database_path: str | None = None) -> Flask:
               ON s.id = p.income_source_id AND s.user_id = p.user_id
             {where}
             ORDER BY p.expected_pay_date, p.id
-        """
+        """  # noqa: S608 -- fixed SQL clauses; user values are bound
         with closing(get_connection()) as connection:
             rows = connection.execute(query, values).fetchall()
         return jsonify({"items": [dict(row) for row in rows], "count": len(rows)})

@@ -81,7 +81,10 @@ jobs:
       - name: Post-commit endpoint tests (list budgets and retrieve budget)
         env:
           PYTHONPATH: student-1-budget/backend
-        run: pytest -q student-1-budget/backend/test_post_commit_endpoints.py
+        run: pytest -q student-1-budget/backend/test_post_commit_endpoints.py --junitxml=post-commit-student-1.xml
+
+      - name: Verify budget and category ownership regression
+        run: python -m pytest -q student-1-budget/database/tests
 
       - name: Build frontend image
         run: docker compose build budget-frontend
@@ -89,3 +92,11 @@ jobs:
       - name: Show logs on failure
         if: failure()
         run: docker compose logs finance-database budget-database budget-backend || true
+
+      - name: Upload Student 1 endpoint test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: post-commit-student-1
+          path: "**/post-commit-student-1.xml"
+          if-no-files-found: warn

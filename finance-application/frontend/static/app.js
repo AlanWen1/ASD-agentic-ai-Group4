@@ -52,53 +52,18 @@ function showAuth() {
   $("home-view").hidden = true;
   $("identifier").required = true;
 }
-function updateBillTrackerLink() {
-  const link = $("bill-tracker-link");
+function updateModuleLink(id) {
+  const link = $(id);
   if (!link) return;
-  const currentToken = token();
-  link.href = currentToken
-    ? `http://localhost:3004/?token=${encodeURIComponent(currentToken)}`
-    : "http://localhost:3004/";
+  const url = new URL(link.dataset.baseUrl, window.location.href);
+  if (token()) url.searchParams.set("token", token());
+  link.href = url.toString();
 }
-function updateExpenseTrackerLink() {
-  const link = $("expense-tracker-link");
-  if (!link) return;
-  const currentToken = token();
-  link.href = currentToken
-    ? `http://localhost:3002/?token=${encodeURIComponent(currentToken)}`
-    : "http://localhost:3002/";
-}
-
-function updateIncomeManagerLink() {
-  const link = $("income-manager-link");
-  if (!link) return;
-
-  const currentToken = token();
-
-  link.href = currentToken
-    ? `http://localhost:3003/?token=${encodeURIComponent(currentToken)}`
-    : "http://localhost:3003/";
-}
-
-function updateSavingsGoalLink() {
-  const link = $("savings-goal-link");
-  if (!link) return;
-
-  const currentToken = token();
-
-  link.href = currentToken
-    ? `http://localhost:3005/?token=${encodeURIComponent(currentToken)}`
-    : "http://localhost:3005/";
-}
-
-function updateBudgetManagerLink() {
-  const link = $("budget-manager-link");
-  if (!link) return;
-  const currentToken = token();
-  link.href = currentToken
-    ? `http://localhost:3001/?token=${encodeURIComponent(currentToken)}`
-    : "http://localhost:3001/";
-}
+function updateBillTrackerLink() { updateModuleLink("bill-tracker-link"); }
+function updateExpenseTrackerLink() { updateModuleLink("expense-tracker-link"); }
+function updateIncomeManagerLink() { updateModuleLink("income-manager-link"); }
+function updateSavingsGoalLink() { updateModuleLink("savings-goal-link"); }
+function updateBudgetManagerLink() { updateModuleLink("budget-manager-link"); }
 
 function showHome() {
   updateBillTrackerLink();

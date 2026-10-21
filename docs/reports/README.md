@@ -1,21 +1,9 @@
-# Reports
+# Release 2 report sources
 
-This folder holds the team-level and individual planning/report documents
-required by the project spec's Release 0 "Technical Report" checklist:
+- `student-3-release-2-testing.md`: Student 3 tests, security findings and evidence boundaries.
+- `release2-deployment-report.md`: actual native validation and required container/cloud/human release evidence.
+- `../architecture/release-2.md`: updated application and Azure/CI architecture.
+- `../release-2/bonus-evidence.md`: B1-B6 implementation-to-evidence mapping.
+- `../release-2/evidence/`: actual execution records; GitHub Actions also stores JUnit/container/cloud artifacts.
 
-- Project overview
-- Individual feature allocation
-- Agile team project plan (group)
-- Sprint backlog (group)
-- Overall project plan (group)
-- Functional and non-functional requirements added to the sprint backlog (individual)
-- Feature plan (individual)
-- Risk management plan (individual)
-- Repository structure description
-- Description of student-1.yml to student-5.yml
-
-Nothing has been added here yet — these are group/individual planning
-artefacts that need to come from whoever owns the Agile/project-management
-side of the team, not something that can be generated from the code alone.
-Please add the actual documents (or links to where they live, e.g. a shared
-doc) before the Release 0 technical report is compiled.
+Each teammate must supply their own identifiable contribution and local commit-hook execution. The final group PDF must stay within 3000 words and include the maximum 10-minute group video URL. Supporting repository documents are not a claim that the final submission or human demonstration has happened.

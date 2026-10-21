@@ -66,7 +66,7 @@ jobs:
         working-directory: expense-category-tracker/backend
         env:
           PYTHONPATH: .
-        run: pytest -q tests/test_post_commit_endpoints.py
+        run: pytest -q tests/test_post_commit_endpoints.py --junitxml=post-commit-student-2.xml
 
       - name: Validate Docker Compose configuration
         run: docker compose config --quiet
@@ -76,3 +76,11 @@ jobs:
           docker build -t expense-tracker-database ./expense-category-tracker/database
           docker build -t expense-tracker-backend ./expense-category-tracker/backend
           docker build -t expense-tracker-frontend:test -f expense-category-tracker/frontend/Dockerfile .
+
+      - name: Upload Student 2 endpoint test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: post-commit-student-2
+          path: "**/post-commit-student-2.xml"
+          if-no-files-found: warn

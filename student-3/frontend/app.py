@@ -26,12 +26,9 @@ def create_app(backend_url: str | None = None) -> Flask:
         )
     ).rstrip("/")
 
-    # Where to send people for the shared Finance Application hub/login.
-    finance_url = os.getenv("FINANCE_URL", "http://localhost:3000")
-
     @app.get("/")
     def index():
-        return render_template("index.html", finance_url=finance_url)
+        return render_template("index.html", finance_url=os.getenv("FINANCE_URL", "http://localhost:3000/"))
 
     @app.get("/health")
     def health():
@@ -86,6 +83,16 @@ def create_app(backend_url: str | None = None) -> Flask:
             upstream.status_code,
             response_headers,
         )
+
+    @app.after_request
+    def security_headers(response):
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        response.headers["Content-Security-Policy"] = "frame-ancestors 'none'; base-uri 'self'; object-src 'none'"
+        if os.getenv("APP_ENV") == "cloud":
+            response.headers["Strict-Transport-Security"] = "max-age=31536000"
+        return response
 
     return app
 

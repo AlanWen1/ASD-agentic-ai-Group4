@@ -65,7 +65,7 @@ def run():
 
     today = date.today()
     for amount, desc, merchant, cat_name in EXPENSES:
-        expense_date = (today - timedelta(days=random.randint(0, 30))).isoformat()
+        expense_date = (today - timedelta(days=random.randint(0, 30))).isoformat()  # noqa: S311 -- demo dates, not cryptographic randomness
         cur.execute(
             "INSERT INTO expenses (user_id, amount, description, merchant, category_id, date) "
             "VALUES (?, ?, ?, ?, ?, ?)",

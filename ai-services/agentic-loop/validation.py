@@ -311,13 +311,14 @@ def print_validation(mode, data):
     print('\n' + '=' * 70 + '\n' + mode.upper() + ' VALIDATION\n' + '=' * 70)
     if mode == 'multi_agent':
         health_ok = isinstance(data.get('health'), dict) and data['health'].get('status') == 'ok'
-        print('[{}] Health check'.format('PASS' if health_ok else 'FAIL'))
+        print('[{}] Health check'.format('PASS' if health_ok else ('N/A' if data.get('source') else 'FAIL')))
         run = data.get('run') or {}
-        run_ok = run.get('status') == 'awaiting_human_review'
-        print('[{}] Planner -> Worker -> Reviewer run reached awaiting_human_review'.format('PASS' if run_ok else 'FAIL'))
+        run_ok = run.get('status') in {'awaiting_human_review', 'approved', 'rejected'}
+        print('[{}] Planner -> Worker -> Reviewer status: {}'.format('PASS' if run_ok else 'FAIL', run.get('status')))
         if run.get('run_id'):
             print('  Run ID: ' + run['run_id'])
-        print('  NOTE: this check never submits approve/correct/reject -- a human must still decide.')
+        print('  Human decision: ' + str((run.get('decision') or {}).get('decision', 'pending')))
+        print('  This reviewer never submits a human decision automatically.')
         for error in data.get('errors', []):
             print('[FAIL] ' + error)
         passed = bool(data.get('passed'))

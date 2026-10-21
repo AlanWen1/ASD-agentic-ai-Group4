@@ -6,25 +6,12 @@ from flask import Flask, jsonify, render_template, request
 app = Flask(__name__)
 BACKEND_URL = os.environ.get("BACKEND_URL", "http://backend:5000").rstrip("/")
 
-# Where each sub-app's frontend actually lives. Defaults match local
-# docker-compose; the cloud deployment overrides these via azure-deploy.sh.
-INCOME_URL = os.environ.get("INCOME_URL", "http://localhost:3003")
-BILL_URL = os.environ.get("BILL_URL", "http://localhost:3004")
-BUDGET_URL = os.environ.get("BUDGET_URL", "http://localhost:3001")
-SAVINGS_URL = os.environ.get("SAVINGS_URL", "http://localhost:3005")
-EXPENSE_URL = os.environ.get("EXPENSE_URL", "http://localhost:3002")
-
 
 @app.get("/")
 def index():
-    return render_template(
-        "index.html",
-        income_url=INCOME_URL,
-        bill_url=BILL_URL,
-        budget_url=BUDGET_URL,
-        savings_url=SAVINGS_URL,
-        expense_url=EXPENSE_URL,
-    )
+    modules = {name: os.getenv(name.upper() + "_FRONTEND_URL", os.getenv(name.upper() + "_URL", f"http://localhost:{port}/")).rstrip("/") + "/"
+               for name, port in {"budget": 3001, "expense": 3002, "income": 3003, "bill": 3004, "savings": 3005}.items()}
+    return render_template("index.html", module_urls=modules)
 
 
 @app.route("/api/<path:path>", methods=["GET", "POST", "PUT", "DELETE"])
@@ -48,6 +35,19 @@ def proxy(path):
             return response.text, response.status_code, {"Content-Type": response.headers.get("Content-Type", "text/plain")}
     except requests.RequestException as exc:
         return jsonify({"error": f"Backend unavailable: {exc}"}), 503
+
+
+
+
+@app.after_request
+def security_headers(response):
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["Content-Security-Policy"] = "frame-ancestors 'none'; base-uri 'self'; object-src 'none'"
+    if os.getenv("APP_ENV") == "cloud":
+        response.headers["Strict-Transport-Security"] = "max-age=31536000"
+    return response
 
 
 if __name__ == "__main__":

@@ -97,8 +97,7 @@ def get_pay_schedules_tool(user_id: int):
 
 @mcp.tool(name="get_savings_goals")
 def get_savings_goals_tool(user_id: int | None = None):
-    """List savings goals (Savings Goal Manager). Note: the underlying
-    endpoint does not currently filter by user; see tools.py docstring."""
+    """List only the supplied user's savings goals (Savings Goal Manager)."""
     return json.dumps(get_savings_goals(user_id), default=str)
 
 
@@ -121,4 +120,11 @@ if __name__ == "__main__":
     print("Available tools:")
     for tool in AVAILABLE_TOOLS:
         print(f"- {tool}")
-    mcp.run(transport="streamable-http", host="0.0.0.0", port=port)
+    options = {"stateless_http": os.getenv("MCP_STATELESS", "false").lower() == "true"}
+    if os.getenv("MCP_ALLOWED_HOSTS"):
+        from mcp.server.transport_security import TransportSecuritySettings
+        options["transport_security"] = TransportSecuritySettings(
+            enable_dns_rebinding_protection=True,
+            allowed_hosts=[host.strip() + ":*" for host in os.environ["MCP_ALLOWED_HOSTS"].split(",")],
+        )
+    mcp.run(transport="streamable-http", host="0.0.0.0", port=port, **options)

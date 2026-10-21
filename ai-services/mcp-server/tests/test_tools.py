@@ -58,7 +58,7 @@ def test_get_bills_calls_bill_db(mock_get):
 
     result = tools.get_bills(1)
 
-    assert result == [{"id": 1, "status": "Pending"}]
+    assert result == [{"id": 1, "name": "Unnamed bill", "amount": 0.0, "due_date": None, "frequency": "—", "status": "Pending"}]
     assert mock_get.call_args.args[0] == f"{tools.BILL_DB_URL}/bills"
 
 
@@ -92,26 +92,26 @@ def test_get_pay_schedules_calls_income_db(mock_get):
 
 
 @patch("tools.requests.get")
-def test_get_savings_goals_does_not_filter_by_user(mock_get):
-    mock_get.return_value = _mock_response([{"id": 1, "goal_name": "Trip"}])
+def test_get_savings_goals_filters_legacy_unscoped_database_response(mock_get):
+    mock_get.return_value = _mock_response([{"id": 1, "user_id":42, "goal_name": "Trip"}, {"id":2, "user_id":99, "goal_name":"Private"}])
 
     result = tools.get_savings_goals(user_id=42)
 
-    assert result == [{"id": 1, "goal_name": "Trip"}]
+    assert result == [{"id": 1, "user_id":42, "goal_name": "Trip"}]
     assert mock_get.call_args.args[0] == f"{tools.SAVINGS_DB_URL}/goals"
     # user_id must NOT be sent upstream — the real /goals endpoint has no such param.
     assert mock_get.call_args.kwargs.get("params") is None
 
 
 @patch("tools.requests.get")
-def test_get_budgets_uses_x_user_id_header_not_query_param(mock_get):
+def test_get_budgets_uses_user_scoped_database_query(mock_get):
     mock_get.return_value = _mock_response([{"id": 1, "month": 9}])
 
     result = tools.get_budgets(7)
 
     assert result == [{"id": 1, "month": 9}]
-    assert mock_get.call_args.args[0] == f"{tools.BUDGET_BACKEND_URL}/api/budgets"
-    assert mock_get.call_args.kwargs["headers"] == {"X-User-Id": "7"}
+    assert mock_get.call_args.args[0] == f"{tools.BUDGET_DB_URL}/api/budgets"
+    assert mock_get.call_args.kwargs["params"] == {"user_id": 7}
 
 
 def test_get_budgets_requires_user_id():
@@ -135,3 +135,7 @@ def test_get_returns_structured_error_on_http_error_status(mock_get):
     result = tools.get_bills(1)
 
     assert result == {"error": "user_id is required", "status_code": 400}
+
+
+def test_savings_tool_refuses_missing_owner():
+    assert tools.get_savings_goals() == {"error": "user_id is required"}

@@ -161,7 +161,7 @@ def update_bill(bill_id):
     values = list(changes.values()) + [bill_id, user_id]
 
     with closing(get_db()) as conn:
-        cursor = conn.execute(f"UPDATE bills SET {set_clause} WHERE id = ? AND user_id = ?", values)
+        cursor = conn.execute(f"UPDATE bills SET {set_clause} WHERE id = ? AND user_id = ?", values)  # noqa: S608 -- fixed column whitelist; values are bound
         if cursor.rowcount == 0:
             conn.rollback()
             return jsonify({"error": "Bill not found"}), 404

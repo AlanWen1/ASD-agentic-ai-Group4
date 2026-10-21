@@ -20,7 +20,7 @@ function captureSharedToken() {
 document.addEventListener('DOMContentLoaded', () => {
   captureSharedToken();
   if (!authToken()) {
-    window.location.replace('http://localhost:3000/');
+    window.location.replace(document.body.dataset.financeUrl);
     return;
   }
   const monthPicker = $('#monthPicker');
@@ -68,7 +68,7 @@ async function api(path, options = {}) {
   }
   if (response.status === 401) {
     localStorage.removeItem(TOKEN_KEY);
-    window.location.replace('http://localhost:3000/');
+    window.location.replace(document.body.dataset.financeUrl);
   }
   if (!response.ok) throw new Error(payload?.error || `Request failed (${response.status})`);
   return payload;
@@ -371,9 +371,15 @@ function renderMultiAgentRun(run) {
   const textNode = (parent, tag, value) => { const node=document.createElement(tag); if(value!==undefined) node.textContent=value; parent.appendChild(node); return node; };
   textNode(root,"h3","Status: "+String(run.status).replaceAll("_"," "));
   textNode(root,"p","Run "+run.run_id+" · Corrections: "+(run.correction_count||0)+"/3");
-  [["Planner plan",run.plan],["Worker proposal",run.worker_output],["Reviewer assessment",run.review]].forEach(([title,value])=>{
+  [["Planner plan",run.plan],["Worker proposal",run.worker_output],["Reviewer assessment",run.review],["Coordination audit",run.audit],["Human review history",run.history]].forEach(([title,value])=>{
     const details=textNode(root,"details"); textNode(details,"summary",title);
     textNode(details,"pre",typeof value==="string"?value:JSON.stringify(value||{},null,2));
+  });
+  const download=textNode(root,"button","Download workflow evidence"); download.type="button";
+  download.addEventListener("click",()=>{
+    const url=URL.createObjectURL(new Blob([JSON.stringify(run,null,2)],{type:"application/json"}));
+    const link=document.createElement("a"); link.href=url; link.download="income-workflow-"+run.run_id+".json";
+    link.click(); URL.revokeObjectURL(url);
   });
   if(run.status==="awaiting_human_review"){
     textNode(root,"p","Human review required. Approval does not automatically alter income or payment schedules.");

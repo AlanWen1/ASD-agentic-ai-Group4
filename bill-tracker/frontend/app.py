@@ -6,13 +6,10 @@ from flask import Flask, jsonify, render_template, request
 app = Flask(__name__)
 BACKEND_URL = os.environ.get("BACKEND_URL", "http://backend:5004").rstrip("/")
 
-# Where to send people for the shared Finance Application hub/login.
-FINANCE_URL = os.environ.get("FINANCE_URL", "http://localhost:3000")
-
 
 @app.get("/")
 def index():
-    return render_template("index.html", finance_url=FINANCE_URL)
+    return render_template("index.html", finance_url=os.getenv("FINANCE_URL", "http://localhost:3000/"))
 
 
 @app.route("/api/<path:path>", methods=["GET", "POST", "PUT", "DELETE"])
@@ -36,6 +33,19 @@ def proxy(path):
         return response.text, response.status_code, {"Content-Type": content_type}
     except requests.RequestException as exc:
         return jsonify({"error": f"Backend unavailable: {exc}"}), 503
+
+
+
+
+@app.after_request
+def security_headers(response):
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["Content-Security-Policy"] = "frame-ancestors 'none'; base-uri 'self'; object-src 'none'"
+    if os.getenv("APP_ENV") == "cloud":
+        response.headers["Strict-Transport-Security"] = "max-age=31536000"
+    return response
 
 
 if __name__ == "__main__":

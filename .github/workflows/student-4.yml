@@ -72,4 +72,12 @@ jobs:
 
       - name: Post-commit endpoint tests (bills collection and summary)
         working-directory: bill-tracker/backend
-        run: pytest -q test_post_commit_endpoints.py
+        run: pytest -q test_post_commit_endpoints.py --junitxml=post-commit-student-4.xml
+
+      - name: Upload Student 4 endpoint test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: post-commit-student-4
+          path: "**/post-commit-student-4.xml"
+          if-no-files-found: warn

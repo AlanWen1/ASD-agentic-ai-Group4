@@ -65,6 +65,30 @@ def row_to_dict(row):
     return dict(row) if row else None
 
 
+@app.before_request
+def enforce_record_owner():
+    """Only the internal authenticated backend supplies this owner identity."""
+    if not request.endpoint or request.endpoint == "health":
+        return None
+    body = request.get_json(silent=True) or {}
+    user_id = request.args.get("user_id") or (body.get("user_id") if isinstance(body, dict) else None)
+    if not user_id:
+        return jsonify({"error": "user_id is required"}), 400
+    arguments = request.view_args or {}
+    if "budget_id" in arguments:
+        owned = get_db().execute("SELECT 1 FROM budgets WHERE budget_id=? AND user_id=?",
+                                 (arguments["budget_id"], user_id)).fetchone()
+    elif "category_id" in arguments:
+        owned = get_db().execute("""SELECT 1 FROM budget_categories c JOIN budgets b ON c.budget_id=b.budget_id
+                                   WHERE c.category_id=? AND b.user_id=?""",
+                                 (arguments["category_id"], user_id)).fetchone()
+    else:
+        return None
+    if not owned:
+        return jsonify({"error": "Record not found"}), 404
+    return None
+
+
 @app.route("/api/health", methods=["GET"])
 def health():
     return jsonify({"status": "ok", "service": "budget-database"}), 200

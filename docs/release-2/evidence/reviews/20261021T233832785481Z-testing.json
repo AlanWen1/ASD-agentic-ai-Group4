@@ -1,0 +1,16 @@
+{
+  "mode": "testing",
+  "started_at": "2026-10-21T23:38:32.785481+00:00",
+  "completed_at": "2026-10-21T23:38:32.890923+00:00",
+  "source_commit": "git:817f93eaf983303a316eed3bc57668e77fc57160",
+  "model": "qwen2.5:0.5b",
+  "model_available": false,
+  "method": "deterministic_fallback",
+  "status": "completed",
+  "validation_exit_code": null,
+  "finding_count": 4,
+  "error": null,
+  "output_file": "20261021T233832785481Z-testing.txt",
+  "human_release_decision": "pending",
+  "working_tree_dirty": true
+}

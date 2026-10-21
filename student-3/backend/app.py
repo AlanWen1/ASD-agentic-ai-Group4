@@ -529,7 +529,7 @@ def create_app(
 
     def multi_agent_call(method: str, path: str, **kwargs):
         if not app.config["MULTI_AGENT_ENABLED"]:
-            return jsonify({"error": "Multi-Agent is disabled in this environment"}), 503
+            return jsonify({"error": "Multi-Agent is disabled in this environment", "code": "MULTI_AGENT_DISABLED"}), 503
         try:
             upstream = requests.request(method, f"{app.config['MULTI_AGENT_URL']}{path}",
                 headers={"X-Multi-Agent-Key": app.config["MULTI_AGENT_API_KEY"]}, timeout=2100, **kwargs)
@@ -545,6 +545,8 @@ def create_app(
     def multi_agent_run():
         user, error = current_user()
         if error: return error
+        if not app.config["MULTI_AGENT_ENABLED"]:
+            return multi_agent_call("POST", "/runs")
         body = request.get_json(silent=True) or {}
         task = str(body.get("task") or body.get("message") or "").strip()
         if not task: return jsonify({"error": "task is required"}), 400
@@ -574,6 +576,12 @@ def create_app(
         body = request.get_json(silent=True) or {}
         payload = {"module": "income", "user_id": str(user["id"]), "decision": str(body.get("decision", "")).strip().lower(), "feedback": str(body.get("feedback", "")).strip()}
         return multi_agent_call("POST", f"/runs/{run_id}/decision", json=payload)
+
+    @app.get("/api/multi-agent/runs/<run_id>")
+    def multi_agent_run_details(run_id: str):
+        user, error = current_user()
+        if error: return error
+        return multi_agent_call("GET", f"/runs/{run_id}", params={"module": "income", "user_id": str(user["id"])})
 
 
     return app

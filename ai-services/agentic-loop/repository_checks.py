@@ -194,6 +194,14 @@ def static_evidence(root, mode):
                 + reports_check(root, "pre-commit") + reports_check(root, "post-commit")
             )),
         }
+        out["testing"]["report_contents"] = {
+            p: read(root, p, 5000) for p in out["testing"]["reports"][:10]
+            if Path(p).suffix in {".md", ".txt", ".json"}
+        }
     elif mode == "deployment":
         out["deployment"] = deployment_check(root)
+        out["deployment"]["report_contents"] = {
+            p: read(root, p, 5000) for p in out["deployment"]["deployment_reports"][:10]
+            if Path(p).suffix in {".md", ".txt", ".json"}
+        }
     return out

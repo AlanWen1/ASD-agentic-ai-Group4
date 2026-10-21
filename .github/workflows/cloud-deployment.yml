@@ -2,7 +2,7 @@ name: Release 2 Azure Cloud Deployment
 
 on:
   push:
-    branches: [main, release-2-security-endpoint-testing]
+    branches: [main, feature/student-3-release-2-final, feature/student-3-release-2-bonus]
     paths:
       - "finance-application/**"
       - "student-1-budget/**"
@@ -12,9 +12,12 @@ on:
       - "student-5/**"
       - "docker-compose.yml"
       - "scripts/deploy/**"
+      - "ai-services/**"
+      - ".pre-commit-config.yaml"
+      - "scripts/security/**"
       - ".github/workflows/cloud-deployment.yml"
   pull_request:
-    branches: [main, release-2-security-endpoint-testing]
+    branches: [main, feature/student-3-release-2-final, feature/student-3-release-2-bonus]
     paths:
       - "finance-application/**"
       - "student-1-budget/**"
@@ -24,15 +27,25 @@ on:
       - "student-5/**"
       - "docker-compose.yml"
       - "scripts/deploy/**"
+      - "ai-services/**"
+      - ".pre-commit-config.yaml"
+      - "scripts/security/**"
       - ".github/workflows/cloud-deployment.yml"
   workflow_dispatch:
+    inputs:
+      ai_profile:
+        description: Baseline keeps every AI feature disabled; bonus enables all four
+        type: choice
+        options: [baseline, bonus]
+        default: baseline
 
 permissions:
   contents: read
+  actions: read
   id-token: write
 
 concurrency:
-  group: release2-cloud-deploy-${{ github.ref }}
+  group: azure-release2
   cancel-in-progress: false
 
 env:
@@ -52,6 +65,10 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Install security hooks and audit the whole repository
+        run: |
+          python -m pip install pre-commit
+          pre-commit run --all-files --show-diff-on-failure
       - name: Compile all Python modules
         run: |
           python - <<'PY'
@@ -92,24 +109,69 @@ jobs:
             fi
             python -m pytest -q "$test"
           done
+      - name: Validate Student 3, review modes and Multi-Agent boundaries
+        run: |
+          python -m pytest -q student-3/tests ai-services/agentic-loop/tests
+          python -m pytest -q ai-services/multi-agent-server/tests scripts/deploy/tests
+          python -m pytest -q finance-application/frontend/tests student-1-budget/database/tests
       - name: Validate Compose configuration with AI services disabled
         run: docker compose config --quiet
 
+      - name: Start the integrated baseline Compose stack
+        run: docker compose up --build -d
+      - name: Verify shared login, all five modules and user isolation over HTTP
+        run: |
+          python - <<'PYCODE'
+          import json
+          from pathlib import Path
+          path = Path("/tmp/baseline-deployment.json")
+          path.write_text(json.dumps({"profile":"baseline", "environment":"docker-compose-ci", "frontends": {
+              name: f"http://localhost:{3000+i}" for i, name in enumerate(
+                  ["finance", "budget", "expense", "income", "bill", "savings"])}}))
+          PYCODE
+          python scripts/deploy/cloud_smoke.py --deployment /tmp/baseline-deployment.json --output docs/release-2/evidence/ci/integrated-compose.json
+      - name: Upload integrated container test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integrated-compose-tests
+          path: docs/release-2/evidence/ci/
+          if-no-files-found: warn
+      - name: Show container logs on failure
+        if: failure()
+        run: docker compose logs --no-color --tail 30
+      - name: Clean up runner test containers
+        if: always()
+        run: docker compose down --volumes
+
   deploy:
     name: Build and deploy integrated app to Azure Container Apps
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release-2-security-endpoint-testing'))
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/student-3-release-2-final' || github.ref == 'refs/heads/feature/student-3-release-2-bonus'))
     needs: validate
+    env:
+      CLOUD_AI_PROFILE: ${{ inputs.ai_profile || (endsWith(github.ref, '-bonus') && 'bonus') || 'baseline' }}
+      IMAGE_TAG: ${{ github.sha }}
     runs-on: ubuntu-latest
     environment: azure-release2
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install deployment verification dependency
+        run: python -m pip install requests
       - name: Azure login using OIDC
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Wait for earlier deployments to the shared Azure environment
+        env:
+          GH_ACTIONS_TOKEN: ${{ github.token }}
+        run: python scripts/deploy/wait_for_previous_deployment.py
       - name: Configure deployment environment
         shell: bash
         run: |
@@ -122,6 +184,13 @@ jobs:
         run: az extension add --name containerapp --upgrade
       - name: Deploy
         run: bash scripts/deploy/azure-deploy.sh
+      - name: Upload real cloud validation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cloud-${{ env.CLOUD_AI_PROFILE }}-${{ github.sha }}
+          path: docs/release-2/evidence/cloud/
+          if-no-files-found: warn
       - name: Publish deployment summary
         if: always()
         shell: bash
@@ -132,5 +201,5 @@ jobs:
             echo "- Deployment job: ${{ job.status }}"
             echo "- Resource group: ${{ vars.AZURE_RESOURCE_GROUP }}"
             echo "- Location: ${{ vars.AZURE_LOCATION }}"
-            echo "- AI-Mode, MCP, RAG, Multi-Agent: disabled"
+            echo "- Cloud AI profile: $CLOUD_AI_PROFILE"
           } >> "$GITHUB_STEP_SUMMARY"

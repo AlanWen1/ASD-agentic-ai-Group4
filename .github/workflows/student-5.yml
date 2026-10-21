@@ -93,9 +93,17 @@ jobs:
       - name: Post-commit endpoint tests (goal collection and goal details)
         env:
           PYTHONPATH: student-5/backend
-        run: python -m pytest -q student-5/tests/test_post_commit_endpoints.py
+        run: python -m pytest -q student-5/tests/test_post_commit_endpoints.py --junitxml=post-commit-student-5.xml
 
       - name: Show Docker logs on failure
         if: failure()
         run: |
           docker compose logs
+
+      - name: Upload Student 5 endpoint test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: post-commit-student-5
+          path: "**/post-commit-student-5.xml"
+          if-no-files-found: warn

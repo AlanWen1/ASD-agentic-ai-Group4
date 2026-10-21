@@ -66,3 +66,31 @@ def test_call_model_consumes_stream_and_uses_configured_limits(monkeypatch):
     assert seen["payload"]["options"]["num_predict"] == service.OLLAMA_NUM_PREDICT
     assert seen["timeout"] == (service.OLLAMA_CONNECT_TIMEOUT_SECONDS, service.OLLAMA_TIMEOUT_SECONDS)
     assert seen["stream"] is True
+
+
+def test_income_review_receives_plan_and_records_all_agent_stages(tmp_path, monkeypatch):
+    captured = {}
+    def fake(model, system, prompt, **kwargs):
+        if "You are the Planner" in system:
+            return '{"steps":["Check every income schedule"],"success_criteria":["No source omitted"]}'
+        if "independent Reviewer" in system:
+            captured["review"] = prompt
+            return '{"verdict":"pass"}'
+        assert "income sources" in system and "one line per budget" not in system
+        return "Facts: one income source."
+    monkeypatch.setattr(service, "call_model", fake)
+    app = create_app(RunStore(str(tmp_path / "runs.db")))
+    client = app.test_client()
+    headers = {"X-Multi-Agent-Key": app.config["API_KEY"]}
+    run = client.post("/runs", headers=headers, json={"module":"income", "user_id":"31", "task":"Review income", "evidence":{}}).get_json()
+    assert "Check every income schedule" in captured["review"]
+    assert "No source omitted" in captured["review"]
+    stages = {(e["stage"], e["event"]) for e in run["audit"]}
+    for stage in ("planner", "worker", "reviewer"):
+        assert (stage, "started") in stages and (stage, "completed") in stages
+    assert run["status"] == "awaiting_human_review" and not run["decision"]
+    approved = client.post("/runs/"+run["run_id"]+"/decision", headers=headers,
+                           json={"module":"income", "user_id":"31", "decision":"approve"})
+    assert approved.get_json()["audit"][-1]["event"] == "approve"
+    assert client.post("/runs/"+run["run_id"]+"/decision", headers=headers,
+        json={"module":"income", "user_id":"31", "decision":"reject"}).status_code == 409

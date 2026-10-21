@@ -171,17 +171,17 @@ def get_pay_schedules(user_id):
 # ---------------------------------------------------------------------
 
 def get_savings_goals(user_id=None):
-    """List savings goals.
+    """Scope the legacy database's unfiltered list before returning an MCP result."""
+    error = _require_user_id(user_id)
+    if error:
+        return error
+    records = _get(SAVINGS_DB_URL, "/goals")
+    if isinstance(records, dict) and records.get("error"):
+        return records
+    if not isinstance(records, list):
+        return {"error": "Savings database returned an invalid goal list"}
+    return [record for record in records if str(record.get("user_id")) == str(user_id)]
 
-    Note: the current savings-database implementation's GET /goals does
-    not filter by user (see student-5/database/app.py) — it returns every
-    goal in the database regardless of who asks. `user_id` is accepted
-    here for a consistent tool signature and forward-compatibility, but is
-    NOT sent upstream because the upstream endpoint has no such parameter;
-    this is a known, pre-existing data-isolation gap in that module, not
-    something this tool should silently mask by pretending to filter.
-    """
-    return _get(SAVINGS_DB_URL, "/goals")
 
 
 # ---------------------------------------------------------------------

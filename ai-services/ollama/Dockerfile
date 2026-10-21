@@ -16,7 +16,8 @@ FROM ollama/ollama:latest
 # build; it is only switched to 0.0.0.0 afterwards, for the runtime CMD.
 RUN (ollama serve &) \
     && sleep 5 \
-    && for i in $(seq 1 10); do ollama pull qwen2.5:0.5b && break || sleep 3; done
+    && for i in $(seq 1 10); do ollama pull qwen2.5:0.5b && break || sleep 3; done \
+    && ollama list | grep -q qwen2.5:0.5b
 
 # At runtime, bind on all interfaces so other Container Apps in the same
 # Container Apps Environment can reach this one over the internal network

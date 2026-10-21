@@ -6,6 +6,7 @@ on:
       - "student-3/**"
       - "requirements-dev.txt"
       - "ai-services/agentic-loop/**"
+      - "ai-services/multi-agent-server/**"
       - "docker-compose.yml"
       - "docker-compose.student-3.yml"
       - ".github/workflows/student-3.yml"
@@ -14,6 +15,7 @@ on:
       - "student-3/**"
       - "requirements-dev.txt"
       - "ai-services/agentic-loop/**"
+      - "ai-services/multi-agent-server/**"
       - "docker-compose.yml"
       - "docker-compose.student-3.yml"
       - ".github/workflows/student-3.yml"
@@ -59,7 +61,7 @@ jobs:
       - name: Post-commit endpoint tests (income sources and pay schedules)
         env:
           PYTHONPATH: student-3/backend
-        run: pytest -q student-3/tests/test_post_commit_endpoints.py
+        run: pytest -q student-3/tests/test_post_commit_endpoints.py --junitxml=post-commit-student-3.xml
 
       - name: Test frontend response rendering
         run: node --test student-3/tests/test_frontend_rendering.cjs
@@ -82,3 +84,11 @@ jobs:
       - name: Clean up runner containers and test data
         if: always()
         run: docker compose down --volumes
+
+      - name: Upload Student 3 endpoint test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: post-commit-student-3
+          path: "**/post-commit-student-3.xml"
+          if-no-files-found: warn
