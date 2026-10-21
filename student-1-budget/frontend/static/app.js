@@ -1,4 +1,4 @@
-const API_BASE = "http://localhost:5001/api";
+const API_BASE = "/api";
 
 let currentUserId = document.getElementById("userIdInput").value.trim();
 let activeBudgetId = null;
