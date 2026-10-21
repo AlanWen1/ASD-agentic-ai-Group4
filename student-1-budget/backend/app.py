@@ -1,8 +1,10 @@
 import os
 import requests
+import calendar
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from agent import run_agent_loop
+
 
 app = Flask(__name__)
 CORS(app)
@@ -376,6 +378,35 @@ def _multi_agent_call(method, path, **kwargs):
         payload = {"error": "Multi-Agent Server returned invalid JSON"}
     return jsonify(payload), upstream.status_code
 
+SHARE_FLAG_PCT = 40          # matches the Planner's "over 40%" step
+ESSENTIAL_CATEGORIES = {"rent", "food", "groceries", "utilities"}
+
+def build_budget_evidence(overview):
+    """One clean source of truth: trimmed budgets, a text summary, and flags computed in code."""
+    budgets, lines, flags = [], [], []
+    for b in overview:
+        month = int(b["month"])
+        label = f"{calendar.month_name[month] if 1 <= month <= 12 else month} {b['year']}"
+        total = float(b.get("total_allocated") or 0)
+        cats = [{"category_name": c["category_name"],
+                 "allocated_amount": float(c["allocated_amount"] or 0),
+                 "share_pct": float(c.get("share_pct") or 0)} for c in b.get("categories", [])]
+        budgets.append({"budget_id": b["budget_id"], "month": month, "year": b["year"],
+                        "total_allocated": total, "categories": cats})
+        cat_text = ", ".join(f"{c['category_name']} ${c['allocated_amount']:.2f} ({c['share_pct']}%)" for c in cats) or "no categories"
+        lines.append(f"- {label} (budget {b['budget_id']}): total ${total:.2f} - {cat_text}")
+        if not cats:
+            flags.append(f"{label} (budget {b['budget_id']}): has no categories")
+        for c in cats:
+            if c["share_pct"] > SHARE_FLAG_PCT:
+                flags.append(f"{label} (budget {b['budget_id']}): {c['category_name']} is {c['share_pct']}% of ${total:.2f}")
+            if c["allocated_amount"] == 0 and c["category_name"].strip().lower() in ESSENTIAL_CATEGORIES:
+                flags.append(f"{label} (budget {b['budget_id']}): {c['category_name']} is allocated $0")
+    return {"source": "budget-database", "budgets": budgets,
+            "summary_text": "\n".join(lines) or "(no active budgets)",
+            "precomputed_flags": flags}
+
+
 @app.route("/api/multi-agent/run", methods=["POST"])
 def multi_agent_run():
     user, err = current_user()
@@ -384,16 +415,14 @@ def multi_agent_run():
     task = str(body.get("task") or body.get("message") or "").strip()
     if not task: return jsonify({"error": "task is required"}), 400
     user_id = user["id"]
-    evidence = {"source": "budget-database", "budgets": [], "budget_overview": None}
     try:
-        budgets = db_get("/api/budgets", params={"user_id": user_id})
-        evidence["budgets"] = budgets.json() if budgets.ok else {"error": "Could not retrieve budgets"}
-        overview = db_get("/api/budgets/overview", params={"user_id": user_id})
-        evidence["budget_overview"] = overview.json() if overview.ok else {"note": "Budget overview unavailable"}
-    except (requests.RequestException, ValueError) as exc:
-        evidence["retrieval_note"] = f"Some budget evidence was unavailable: {exc}"
+        resp = db_get("/api/budgets/overview", params={"user_id": user_id, "status": "active"})
+        resp.raise_for_status()
+        evidence = build_budget_evidence(resp.json())
+    except Exception as exc:
+        return jsonify({"error": f"Could not build budget evidence: {exc}"}), 502
     return _multi_agent_call("POST", "/runs", json={"module": "budget", "user_id": str(user_id), "task": task, "evidence": evidence})
-
+        
 @app.route("/api/multi-agent/runs", methods=["GET"])
 def multi_agent_runs():
     user, err = current_user()

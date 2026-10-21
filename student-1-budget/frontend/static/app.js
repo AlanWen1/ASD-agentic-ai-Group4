@@ -447,14 +447,44 @@ document.getElementById("ragForm").addEventListener("submit", async (e) => {
 function maText(parent, tag, text) {
   const el = document.createElement(tag); if (text !== undefined) el.textContent = text; parent.appendChild(el); return el;
 }
+function maList(parent, items, ordered) {
+  const list = maText(parent, ordered ? "ol" : "ul", undefined);
+  items.forEach(i => maText(list, "li", typeof i === "string" ? i : JSON.stringify(i)));
+}
+function maRaw(parent, value) {
+  const d = maText(parent, "details", undefined); maText(d, "summary", "Raw JSON");
+  maText(d, "pre", typeof value === "string" ? value : JSON.stringify(value || {}, null, 2));
+}
+function maSection(root, title, build) {
+  const d = maText(root, "details", undefined); d.open = true;
+  maText(d, "summary", title); build(d);
+}
+
 function renderMultiAgentRun(run) {
   const root = document.getElementById("multiAgentResult"); if (!root) return;
   root.replaceChildren();
   maText(root, "h3", "Status: " + String(run.status).replaceAll("_", " "));
   maText(root, "p", "Run " + run.run_id + " · Corrections: " + (run.correction_count || 0) + "/3");
-  [["Planner plan", run.plan], ["Worker proposal", run.worker_output], ["Reviewer assessment", run.review]].forEach(([title, value]) => {
-    const details = maText(root, "details", undefined); maText(details, "summary", title);
-    maText(details, "pre", typeof value === "string" ? value : JSON.stringify(value || {}, null, 2));
+    maSection(root, "Planner plan", d => {
+    const p = run.plan || {};
+    maText(d, "p", "Objective: " + (p.objective || ""));
+    if (p.fallback) maText(d, "p", "Note: the model returned no plan, so a default plan was used.");
+    if ((p.steps || []).length) maList(d, p.steps, true);
+    ["checks", "risks"].forEach(k => { if ((p[k] || []).length) { maText(d, "strong", k); maList(d, p[k], false); } });
+    maRaw(d, p);
+  });
+  maSection(root, "Worker proposal", d => {
+    maText(d, "div", run.worker_output || "").className = "ma-text";
+  });
+  maSection(root, "Reviewer assessment", d => {
+    const r = run.review || {};
+    maText(d, "p", "Verdict: " + (r.verdict || "unknown"));
+    if (r.review_text) maText(d, "div", r.review_text).className = "ma-text";
+    ["findings", "risks", "evidence_gaps", "recommendations"].forEach(k => {
+      if ((r[k] || []).length) { maText(d, "strong", k.replaceAll("_", " ")); maList(d, r[k], false); }
+    });
+    if (r.plan_coverage) maText(d, "p", "Plan coverage: " + r.plan_coverage);
+    maRaw(d, r);
   });
   if (run.status === "awaiting_human_review") {
     maText(root, "p", "Human review required. Approval does not automatically change your budgets.");

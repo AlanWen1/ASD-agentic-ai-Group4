@@ -348,3 +348,13 @@ input:focus, select:focus, textarea:focus {
   * { transition: none !important; }
   button:hover { transform: none; }
 }
+
+#multiAgentResult { max-width: 100%; min-width: 0; }
+#multiAgentResult pre,
+#multiAgentResult .ma-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+#multiAgentResult pre { overflow-x: auto; }

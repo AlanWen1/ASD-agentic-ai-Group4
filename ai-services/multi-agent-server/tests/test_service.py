@@ -7,7 +7,7 @@ import service
 from service import RunStore, create_app
 
 def test_workflow_requires_human_decision_and_supports_correction(tmp_path, monkeypatch):
-    def fake_call_model(model, system, user, timeout=None):
+    def fake_call_model(model, system, user, timeout=None, **kwargs):
         if "You are the Planner" in system:
             return '{"objective":"test","steps":["inspect evidence"],"required_evidence":["items"],"checks":[],"risks":[],"assumptions":[],"success_criteria":["grounded"]}'
         if "independent Reviewer" in system:
@@ -27,7 +27,7 @@ def test_workflow_requires_human_decision_and_supports_correction(tmp_path, monk
     assert approved.status_code==200; assert approved.get_json()["status"]=="approved"; assert len(approved.get_json()["history"])==2
 
 def test_validation_and_ownership(tmp_path, monkeypatch):
-    monkeypatch.setattr(service,"call_model",lambda model,system,user,timeout=180:'{"ok": true}')
+    monkeypatch.setattr(service,"call_model",lambda model,system,user,timeout=180,**kwargs:'{"ok": true}')    
     app=create_app(RunStore(str(tmp_path/"runs.sqlite3"))); app.config["TESTING"]=True
     client=app.test_client(); headers={"X-Multi-Agent-Key":app.config["API_KEY"]}
     bad=client.post("/runs",headers=headers,json={"module":"finance","user_id":"x","task":"test","evidence":{}})
