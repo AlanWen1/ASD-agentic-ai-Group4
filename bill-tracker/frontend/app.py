@@ -6,10 +6,13 @@ from flask import Flask, jsonify, render_template, request
 app = Flask(__name__)
 BACKEND_URL = os.environ.get("BACKEND_URL", "http://backend:5004").rstrip("/")
 
+# Where to send people for the shared Finance Application hub/login.
+FINANCE_URL = os.environ.get("FINANCE_URL", "http://localhost:3000")
+
 
 @app.get("/")
 def index():
-    return render_template("index.html")
+    return render_template("index.html", finance_url=FINANCE_URL)
 
 
 @app.route("/api/<path:path>", methods=["GET", "POST", "PUT", "DELETE"])

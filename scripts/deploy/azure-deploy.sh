@@ -105,6 +105,16 @@ deploy_app() {
   envs="${envs//http:\/\/savings-backend:5005/http:\/\/savings-backend.$INTERNAL_SUFFIX:5005}"
   envs="${envs//http:\/\/ollama:11434/http:\/\/ollama.$INTERNAL_SUFFIX:11434}"
   envs="${envs//http:\/\/ai-mode:5099/http:\/\/ai-mode.$INTERNAL_SUFFIX:5099}"
+  # Public (external) hostnames for browser-side cross-app navigation links
+  # (Home buttons, "Open X Manager" links) -- these are followed by the
+  # visitor's own browser, so they must be the real public HTTPS URL, not
+  # the internal-only address used for container-to-container calls above.
+  envs="${envs//http:\/\/finance-frontend:3000/https:\/\/finance-frontend.$ENV_DEFAULT_DOMAIN}"
+  envs="${envs//http:\/\/budget-frontend:3001/https:\/\/budget-frontend.$ENV_DEFAULT_DOMAIN}"
+  envs="${envs//http:\/\/expense-frontend:3002/https:\/\/expense-frontend.$ENV_DEFAULT_DOMAIN}"
+  envs="${envs//http:\/\/income-frontend:3003/https:\/\/income-frontend.$ENV_DEFAULT_DOMAIN}"
+  envs="${envs//http:\/\/bill-frontend:3004/https:\/\/bill-frontend.$ENV_DEFAULT_DOMAIN}"
+  envs="${envs//http:\/\/savings-frontend:3005/https:\/\/savings-frontend.$ENV_DEFAULT_DOMAIN}"
   manifest="$(mktemp)"
   {
     printf 'name: %s\nlocation: %s\n' "$app" "$AZURE_LOCATION"
@@ -199,12 +209,12 @@ deploy_app income-backend income-backend 5003 false $'DATABASE_SERVICE_URL=http:
 deploy_app savings-backend savings-backend 5005 false $'DATABASE_API_URL=http://savings-database:6005\nAUTH_DATABASE_URL=http://finance-database:6000\nMULTI_AGENT_ENABLED=false\nAI_ENABLED=false\nMCP_ENABLED=false\nRAG_ENABLED=false'
 
 # Frontends are the public entry points; they communicate with their internal backend apps.
-deploy_app finance-frontend finance-frontend 3000 true $'BACKEND_URL=http://finance-backend:5000'
-deploy_app budget-frontend budget-frontend 3001 true $'BACKEND_URL=http://budget-backend:5001'
-deploy_app expense-frontend expense-frontend 3002 true $'BACKEND_URL=http://expense-backend:5002'
-deploy_app income-frontend income-frontend 3003 true $'BACKEND_SERVICE_URL=http://income-backend:5003'
-deploy_app bill-frontend bill-frontend 3004 true $'BACKEND_URL=http://bill-backend:5004'
-deploy_app savings-frontend savings-frontend 3005 true $'BACKEND_API_URL=http://savings-backend:5005'
+deploy_app finance-frontend finance-frontend 3000 true $'BACKEND_URL=http://finance-backend:5000\nINCOME_URL=http://income-frontend:3003\nBILL_URL=http://bill-frontend:3004\nBUDGET_URL=http://budget-frontend:3001\nSAVINGS_URL=http://savings-frontend:3005\nEXPENSE_URL=http://expense-frontend:3002'
+deploy_app budget-frontend budget-frontend 3001 true $'BACKEND_URL=http://budget-backend:5001\nFINANCE_URL=http://finance-frontend:3000'
+deploy_app expense-frontend expense-frontend 3002 true $'BACKEND_URL=http://expense-backend:5002\nFINANCE_URL=http://finance-frontend:3000'
+deploy_app income-frontend income-frontend 3003 true $'BACKEND_SERVICE_URL=http://income-backend:5003\nFINANCE_URL=http://finance-frontend:3000'
+deploy_app bill-frontend bill-frontend 3004 true $'BACKEND_URL=http://bill-backend:5004\nFINANCE_URL=http://finance-frontend:3000'
+deploy_app savings-frontend savings-frontend 3005 true $'BACKEND_API_URL=http://savings-backend:5005\nFINANCE_URL=http://finance-frontend:3000'
 
 echo
 echo "Checking deployed backend feature flags..."

@@ -10,6 +10,9 @@ BACKEND_API_URL = os.getenv(
     "http://127.0.0.1:5005"
 ).rstrip("/")
 
+# Where to send people for the shared Finance Application hub/login.
+FINANCE_URL = os.getenv("FINANCE_URL", "http://localhost:3000")
+
 
 def auth_headers():
     headers = {}
@@ -24,7 +27,7 @@ def auth_headers():
 
 @app.route("/")
 def index():
-    return render_template("index.html")
+    return render_template("index.html", finance_url=FINANCE_URL)
 
 
 def render_goals():

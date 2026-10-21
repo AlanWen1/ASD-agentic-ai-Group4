@@ -10,6 +10,9 @@ app = Flask(__name__)
 # it to the Container Apps internal hostname.
 BACKEND_URL = os.environ.get("BACKEND_URL", "http://localhost:5001")
 
+# Where to send people for the shared Finance Application hub/login.
+FINANCE_URL = os.environ.get("FINANCE_URL", "http://localhost:3000")
+
 # Headers that must never be copied as-is between hops (RFC 7230 section 6.1),
 # plus Host/Content-Length, which have to be recomputed for the new request.
 _HOP_BY_HOP_HEADERS = {
@@ -21,7 +24,7 @@ _HOP_BY_HOP_HEADERS = {
 
 @app.route("/")
 def index():
-    return render_template("index.html")
+    return render_template("index.html", finance_url=FINANCE_URL)
 
 
 @app.route("/api/<path:path>", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])

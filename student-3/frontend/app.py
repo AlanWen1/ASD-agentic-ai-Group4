@@ -26,9 +26,12 @@ def create_app(backend_url: str | None = None) -> Flask:
         )
     ).rstrip("/")
 
+    # Where to send people for the shared Finance Application hub/login.
+    finance_url = os.getenv("FINANCE_URL", "http://localhost:3000")
+
     @app.get("/")
     def index():
-        return render_template("index.html")
+        return render_template("index.html", finance_url=finance_url)
 
     @app.get("/health")
     def health():

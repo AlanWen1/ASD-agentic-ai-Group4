@@ -6,10 +6,25 @@ from flask import Flask, jsonify, render_template, request
 app = Flask(__name__)
 BACKEND_URL = os.environ.get("BACKEND_URL", "http://backend:5000").rstrip("/")
 
+# Where each sub-app's frontend actually lives. Defaults match local
+# docker-compose; the cloud deployment overrides these via azure-deploy.sh.
+INCOME_URL = os.environ.get("INCOME_URL", "http://localhost:3003")
+BILL_URL = os.environ.get("BILL_URL", "http://localhost:3004")
+BUDGET_URL = os.environ.get("BUDGET_URL", "http://localhost:3001")
+SAVINGS_URL = os.environ.get("SAVINGS_URL", "http://localhost:3005")
+EXPENSE_URL = os.environ.get("EXPENSE_URL", "http://localhost:3002")
+
 
 @app.get("/")
 def index():
-    return render_template("index.html")
+    return render_template(
+        "index.html",
+        income_url=INCOME_URL,
+        bill_url=BILL_URL,
+        budget_url=BUDGET_URL,
+        savings_url=SAVINGS_URL,
+        expense_url=EXPENSE_URL,
+    )
 
 
 @app.route("/api/<path:path>", methods=["GET", "POST", "PUT", "DELETE"])
