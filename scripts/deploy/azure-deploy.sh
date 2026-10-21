@@ -79,9 +79,14 @@ build_image savings-database ./student-5/database Dockerfile
 build_image savings-backend ./student-5/backend Dockerfile
 build_image savings-frontend . student-5/frontend/Dockerfile
 
+# Shared Ollama runtime + AI-Mode proxy, used only for the Release 2 cloud
+# bonus (B1 Cloud AI-Mode and friends). Not part of the required baseline.
+build_image ollama ./ai-services/ollama Dockerfile
+build_image ai-mode ./ai-services/ai-mode Dockerfile
+
 # Create/update an app with a minimal YAML manifest. Database apps mount Azure Files at /data.
 deploy_app() {
-  local app="$1" image="$2" port="$3" ingress="$4" envs="$5" volume_share="${6:-}"
+  local app="$1" image="$2" port="$3" ingress="$4" envs="$5" volume_share="${6:-}" cpu="${7:-}" memory="${8:-}"
   local manifest
   local ENV_DEFAULT_DOMAIN
   ENV_DEFAULT_DOMAIN="$(az containerapp env show --name "$AZURE_CONTAINERAPPS_ENVIRONMENT" --resource-group "$AZURE_RESOURCE_GROUP" --query properties.defaultDomain --output tsv)"
@@ -98,6 +103,8 @@ deploy_app() {
   envs="${envs//http:\/\/expense-backend:5002/http:\/\/expense-backend.$INTERNAL_SUFFIX:5002}"
   envs="${envs//http:\/\/income-backend:5003/http:\/\/income-backend.$INTERNAL_SUFFIX:5003}"
   envs="${envs//http:\/\/savings-backend:5005/http:\/\/savings-backend.$INTERNAL_SUFFIX:5005}"
+  envs="${envs//http:\/\/ollama:11434/http:\/\/ollama.$INTERNAL_SUFFIX:11434}"
+  envs="${envs//http:\/\/ai-mode:5099/http:\/\/ai-mode.$INTERNAL_SUFFIX:5099}"
   manifest="$(mktemp)"
   {
     printf 'name: %s\nlocation: %s\n' "$app" "$AZURE_LOCATION"
@@ -123,12 +130,22 @@ properties:
     containers:
       - name: $app
         image: $ACR_LOGIN_SERVER/$image:release2
-        env:
 YAML
+    env_entries=""
     while IFS='=' read -r key value; do
       [[ -z "$key" ]] && continue
-      printf '          - name: %s\n            value: "%s"\n' "$key" "${value//\"/\\\"}"
+      env_entries+="          - name: ${key}
+            value: \"${value//\"/\\\"}\"
+"
     done <<< "$envs"
+    if [[ -n "$env_entries" ]]; then
+      printf '        env:\n%s' "$env_entries"
+    else
+      printf '        env: []\n'
+    fi
+    if [[ -n "$cpu" ]]; then
+      printf '        resources:\n          cpu: %s\n          memory: %s\n' "$cpu" "$memory"
+    fi
     if [[ -n "$volume_share" ]]; then
       cat <<YAML
         volumeMounts:
@@ -165,10 +182,18 @@ deploy_app expense-database expense-database 6002 false $'DATABASE_PATH=/data/ex
 deploy_app income-database income-database 6003 false $'DATABASE_PATH=/data/student-3-income.db' income-db
 deploy_app savings-database savings-database 6005 false $'DATABASE_PATH=/data/savings.db' savings-db
 
-# Backends. Optional AI-related features are explicitly off, and no AI service is deployed.
+# Shared Ollama runtime + AI-Mode proxy for the Release 2 cloud bonus (B1).
+# Internal-only; not reachable from outside the Container Apps Environment.
+# Extra CPU/memory for ollama: LLM inference is heavier than a typical REST call.
+deploy_app ollama ollama 11434 false '' '' 1.0 2Gi
+deploy_app ai-mode ai-mode 5099 false $'OLLAMA_URL=http://ollama:11434'
+
+# Backends. Optional AI-related features are explicitly off by default. budget-backend
+# is the exception: AI_ENABLED=true demonstrates the Release 2 cloud bonus (B1 Cloud
+# AI-Mode) through its existing /api/agent/chat endpoint.
 deploy_app finance-backend finance-backend 5000 false $'DATABASE_URL=http://finance-database:6000\nBILL_DATABASE_URL=http://bill-database:6004'
 deploy_app bill-backend bill-backend 5004 false $'DATABASE_URL=http://bill-database:6004\nAUTH_DATABASE_URL=http://finance-database:6000\nMULTI_AGENT_ENABLED=false\nAI_ENABLED=false\nMCP_ENABLED=false\nRAG_ENABLED=false'
-deploy_app budget-backend budget-backend 5001 false $'DATABASE_URL=http://budget-database:6001\nAUTH_DATABASE_URL=http://finance-database:6000\nMULTI_AGENT_ENABLED=false\nAI_ENABLED=false\nMCP_ENABLED=false\nRAG_ENABLED=false'
+deploy_app budget-backend budget-backend 5001 false $'DATABASE_URL=http://budget-database:6001\nAUTH_DATABASE_URL=http://finance-database:6000\nMULTI_AGENT_ENABLED=false\nAI_ENABLED=true\nOLLAMA_URL=http://ai-mode:5099\nMCP_ENABLED=false\nRAG_ENABLED=false'
 deploy_app expense-backend expense-backend 5002 false $'DATABASE_URL=http://expense-database:6002\nAUTH_DATABASE_URL=http://finance-database:6000\nMULTI_AGENT_ENABLED=false\nAI_ENABLED=false\nMCP_ENABLED=false\nRAG_ENABLED=false'
 deploy_app income-backend income-backend 5003 false $'DATABASE_SERVICE_URL=http://income-database:6003\nAUTH_DATABASE_URL=http://finance-database:6000\nMULTI_AGENT_ENABLED=false\nAI_ENABLED=false\nMCP_ENABLED=false\nRAG_ENABLED=false'
 deploy_app savings-backend savings-backend 5005 false $'DATABASE_API_URL=http://savings-database:6005\nAUTH_DATABASE_URL=http://finance-database:6000\nMULTI_AGENT_ENABLED=false\nAI_ENABLED=false\nMCP_ENABLED=false\nRAG_ENABLED=false'
@@ -183,11 +208,18 @@ deploy_app savings-frontend savings-frontend 3005 true $'BACKEND_API_URL=http://
 
 echo
 echo "Checking deployed backend feature flags..."
+# budget-backend AI_ENABLED=true is the documented Release 2 cloud bonus (B1 Cloud
+# AI-Mode) demo target. Every other backend/flag combination must still be "false" to
+# satisfy the required baseline (AI-Mode/MCP/RAG/Multi-Agent disabled by default).
 for app in bill-backend budget-backend expense-backend income-backend savings-backend; do
   for flag in AI_ENABLED MCP_ENABLED RAG_ENABLED MULTI_AGENT_ENABLED; do
+    expected=false
+    if [[ "$app" == "budget-backend" && "$flag" == "AI_ENABLED" ]]; then
+      expected=true
+    fi
     value="$(az containerapp show --name "$app" --resource-group "$AZURE_RESOURCE_GROUP" --query "properties.template.containers[0].env[?name=='$flag'].value | [0]" --output tsv)"
-    if [[ "$value" != "false" ]]; then
-      echo "ERROR: $app has $flag=$value (expected false)" >&2
+    if [[ "$value" != "$expected" ]]; then
+      echo "ERROR: $app has $flag=$value (expected $expected)" >&2
       exit 1
     fi
   done
