@@ -35,7 +35,7 @@ async function loadAll() {
     if (/authentication|session|expired|invalid/i.test(error.message)) showGate();
   }
 }
-function showGate() { document.body.innerHTML = '<main style="max-width:680px;margin:12vh auto;padding:32px;font-family:system-ui;text-align:center"><h1>Sign in required</h1><p>Open Bill Tracker from the Finance Application home page.</p><a href="http://localhost:3000/">Return to Finance Application</a></main>'; }
+function showGate() { const financeUrl = window.FINANCE_URL || 'http://localhost:3000/'; document.body.innerHTML = '<main style="max-width:680px;margin:12vh auto;padding:32px;font-family:system-ui;text-align:center"><h1>Sign in required</h1><p>Open Bill Tracker from the Finance Application home page.</p><a id="gate-home-link">Return to Finance Application</a></main>'; document.getElementById('gate-home-link').href = financeUrl; }
 function openCreate() { $("dialog-title").textContent = "Add bill"; $("bill-id").value = ""; $("bill-form").reset(); $("bill-frequency").value = "Monthly"; $("bill-status").value = "Pending"; $("form-error").textContent = ""; $("bill-dialog").showModal(); }
 function openEdit(id) { const bill = bills.find(item => item.id === id); if (!bill) return; $("dialog-title").textContent = "Edit bill"; $("bill-id").value = bill.id; $("bill-name").value = bill.name; $("bill-amount").value = bill.amount; $("bill-due").value = bill.due_date; $("bill-frequency").value = bill.frequency; $("bill-status").value = bill.status; $("form-error").textContent = ""; $("bill-dialog").showModal(); }
 function closeDialog() { $("bill-dialog").close(); }

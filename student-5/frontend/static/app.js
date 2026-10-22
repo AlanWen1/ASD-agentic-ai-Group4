@@ -24,7 +24,7 @@ function captureSharedToken() {
 captureSharedToken();
 
 if (!authToken()) {
-    window.location.replace("http://localhost:3000/");
+    window.location.replace(window.FINANCE_URL || "http://localhost:3000/");
 }
 
 document.body.addEventListener("htmx:configRequest", function (event) {
@@ -38,6 +38,6 @@ document.body.addEventListener("htmx:configRequest", function (event) {
 document.body.addEventListener("htmx:responseError", function (event) {
     if (event.detail.xhr.status === 401) {
         localStorage.removeItem(TOKEN_KEY);
-        window.location.replace("http://localhost:3000/");
+        window.location.replace(window.FINANCE_URL || "http://localhost:3000/");
     }
 });

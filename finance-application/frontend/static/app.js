@@ -52,53 +52,25 @@ function showAuth() {
   $("home-view").hidden = true;
   $("identifier").required = true;
 }
-function updateBillTrackerLink() {
-  const link = $("bill-tracker-link");
+// Each "Open X" link's base URL comes from the server-rendered href
+// (INCOME_URL / BILL_URL / ... env vars in app.py): localhost under
+// docker-compose, the real public HTTPS host in the cloud. Only the session
+// token is appended here; no sub-app address is hardcoded in this file.
+function updateAppLink(id) {
+  const link = $(id);
   if (!link) return;
+  if (!link.dataset.baseUrl) link.dataset.baseUrl = link.getAttribute("href");
+  const url = new URL(link.dataset.baseUrl, window.location.href);
   const currentToken = token();
-  link.href = currentToken
-    ? `http://localhost:3004/?token=${encodeURIComponent(currentToken)}`
-    : "http://localhost:3004/";
+  if (currentToken) url.searchParams.set("token", currentToken);
+  else url.searchParams.delete("token");
+  link.href = url.toString();
 }
-function updateExpenseTrackerLink() {
-  const link = $("expense-tracker-link");
-  if (!link) return;
-  const currentToken = token();
-  link.href = currentToken
-    ? `http://localhost:3002/?token=${encodeURIComponent(currentToken)}`
-    : "http://localhost:3002/";
-}
-
-function updateIncomeManagerLink() {
-  const link = $("income-manager-link");
-  if (!link) return;
-
-  const currentToken = token();
-
-  link.href = currentToken
-    ? `http://localhost:3003/?token=${encodeURIComponent(currentToken)}`
-    : "http://localhost:3003/";
-}
-
-function updateSavingsGoalLink() {
-  const link = $("savings-goal-link");
-  if (!link) return;
-
-  const currentToken = token();
-
-  link.href = currentToken
-    ? `http://localhost:3005/?token=${encodeURIComponent(currentToken)}`
-    : "http://localhost:3005/";
-}
-
-function updateBudgetManagerLink() {
-  const link = $("budget-manager-link");
-  if (!link) return;
-  const currentToken = token();
-  link.href = currentToken
-    ? `http://localhost:3001/?token=${encodeURIComponent(currentToken)}`
-    : "http://localhost:3001/";
-}
+function updateBillTrackerLink() { updateAppLink("bill-tracker-link"); }
+function updateExpenseTrackerLink() { updateAppLink("expense-tracker-link"); }
+function updateIncomeManagerLink() { updateAppLink("income-manager-link"); }
+function updateSavingsGoalLink() { updateAppLink("savings-goal-link"); }
+function updateBudgetManagerLink() { updateAppLink("budget-manager-link"); }
 
 function showHome() {
   updateBillTrackerLink();
