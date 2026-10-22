@@ -227,3 +227,14 @@ ul#category-list li {
     margin: 8px 0 0;
     font-style: italic;
 }
+
+/* Multi-Agent Worker proposal: plain text from the model. Same font as the
+   rest of the page (not monospace), keeping its line breaks and wrapping long
+   lines instead of overflowing the card. */
+#multi-agent-result .ma-text {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font: inherit;
+    line-height: 1.5;
+    margin: 8px 0 12px;
+}

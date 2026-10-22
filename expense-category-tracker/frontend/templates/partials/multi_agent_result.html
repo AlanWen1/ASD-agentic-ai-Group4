@@ -4,9 +4,38 @@
 {% elif run %}
   <h3>Status: {{ run.status|replace('_', ' ')|title }}</h3>
   <p>Run {{ run.run_id }} · Corrections: {{ run.correction_count or 0 }}/3</p>
-  <details><summary>Planner plan</summary><pre>{{ run.plan|tojson(indent=2) }}</pre></details>
-  <details><summary>Worker proposal</summary><pre>{{ run.worker_output or '' }}</pre></details>
-  <details><summary>Reviewer assessment</summary><pre>{{ run.review|tojson(indent=2) }}</pre></details>
+  {#- Render a list of agent items as bullets; object items are shown as "key: value" pairs. -#}
+  {% macro item_list(items, ordered=false) -%}
+    {% if items %}
+      {% if ordered %}<ol>{% else %}<ul>{% endif %}
+      {% for item in items %}<li>{% if item is mapping %}{% for k, v in item.items() %}{{ k|replace('_', ' ') }}: {{ v }}{% if not loop.last %} · {% endif %}{% endfor %}{% else %}{{ item }}{% endif %}</li>{% endfor %}
+      {% if ordered %}</ol>{% else %}</ul>{% endif %}
+    {% endif %}
+  {%- endmacro %}
+  {% set plan = run.plan if run.plan is mapping else {} %}
+  {% set review = run.review if run.review is mapping else {} %}
+
+  <details><summary>Planner plan</summary>
+    {% if plan.objective %}<p><strong>Objective:</strong> {{ plan.objective }}</p>{% endif %}
+    {{ item_list(plan.steps, ordered=true) }}
+    {% for key, label in [("required_evidence", "Required evidence"), ("checks", "Checks"), ("risks", "Risks"), ("assumptions", "Assumptions"), ("success_criteria", "Success criteria")] %}
+      {% if plan[key] %}<p><strong>{{ label }}</strong></p>{{ item_list(plan[key]) }}{% endif %}
+    {% endfor %}
+    {% if plan.fallback %}<p><em>The planner's output was incomplete, so default steps were used.</em></p>{% endif %}
+    <details><summary>Raw JSON</summary><pre>{{ run.plan|tojson(indent=2) }}</pre></details>
+  </details>
+
+  <details><summary>Worker proposal</summary><div class="ma-text">{{ run.worker_output or '' }}</div></details>
+
+  <details><summary>Reviewer assessment</summary>
+    <p><strong>Verdict:</strong> {{ (review.verdict or "unknown")|replace('_', ' ') }}</p>
+    {% if review.review_text %}<p>{{ review.review_text }}</p>{% endif %}
+    {% for key, label in [("findings", "Findings"), ("risks", "Risks"), ("evidence_gaps", "Evidence gaps"), ("recommendations", "Recommendations")] %}
+      {% if review[key] %}<p><strong>{{ label }}</strong></p>{{ item_list(review[key]) }}{% endif %}
+    {% endfor %}
+    {% if review.plan_coverage %}<p><strong>Plan coverage:</strong> {{ review.plan_coverage }}</p>{% endif %}
+    <details><summary>Raw JSON</summary><pre>{{ run.review|tojson(indent=2) }}</pre></details>
+  </details>
   {% if run.status == 'awaiting_human_review' %}
     <p><strong>Human review required.</strong> Approval does not write or delete expense records.</p>
     <form hx-post="/multi-agent/decision" hx-target="#multi-agent-result" hx-swap="outerHTML">
