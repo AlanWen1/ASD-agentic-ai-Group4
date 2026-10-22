@@ -33,11 +33,22 @@ on:
       - ".github/workflows/cloud-deployment.yml"
   workflow_dispatch:
     inputs:
-      ai_profile:
-        description: Baseline keeps every AI feature disabled; bonus enables all four
-        type: choice
-        options: [baseline, bonus]
-        default: baseline
+      enable_ai_mode:
+        description: "Enable AI-Mode in the cloud (bonus demo only; leave unticked for the required AI-disabled baseline)"
+        type: boolean
+        default: false
+      enable_mcp:
+        description: "Enable the MCP server in the cloud (bonus demo only)"
+        type: boolean
+        default: false
+      enable_rag:
+        description: "Enable the RAG server in the cloud (bonus demo only)"
+        type: boolean
+        default: false
+      enable_multi_agent:
+        description: "Enable the Multi-Agent server in the cloud (bonus demo only)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -149,7 +160,7 @@ jobs:
     if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/student-3-release-2-final' || github.ref == 'refs/heads/feature/student-3-release-2-bonus'))
     needs: validate
     env:
-      CLOUD_AI_PROFILE: ${{ inputs.ai_profile || (endsWith(github.ref, '-bonus') && 'bonus') || 'baseline' }}
+      CLOUD_AI_PROFILE: ${{ (github.event_name == 'workflow_dispatch' && (inputs.enable_ai_mode || inputs.enable_mcp || inputs.enable_rag || inputs.enable_multi_agent)) && 'bonus' || 'baseline' }}
       IMAGE_TAG: ${{ github.sha }}
     runs-on: ubuntu-latest
     environment: azure-release2
@@ -183,6 +194,12 @@ jobs:
       - name: Install/update Azure Container Apps CLI support
         run: az extension add --name containerapp --upgrade
       - name: Deploy
+        env:
+          # Off for every push; on only when a manual run ticks enable_ai_mode.
+          AI_ENABLED: ${{ (github.event_name == 'workflow_dispatch' && inputs.enable_ai_mode) && 'true' || 'false' }}
+          MCP_ENABLED: ${{ (github.event_name == 'workflow_dispatch' && inputs.enable_mcp) && 'true' || 'false' }}
+          RAG_ENABLED: ${{ (github.event_name == 'workflow_dispatch' && inputs.enable_rag) && 'true' || 'false' }}
+          MULTI_AGENT_ENABLED: ${{ (github.event_name == 'workflow_dispatch' && inputs.enable_multi_agent) && 'true' || 'false' }}
         run: bash scripts/deploy/azure-deploy.sh
       - name: Upload real cloud validation evidence
         if: always()
@@ -202,4 +219,8 @@ jobs:
             echo "- Resource group: ${{ vars.AZURE_RESOURCE_GROUP }}"
             echo "- Location: ${{ vars.AZURE_LOCATION }}"
             echo "- Cloud AI profile: $CLOUD_AI_PROFILE"
+            echo "- AI-Mode: ${{ (github.event_name == 'workflow_dispatch' && inputs.enable_ai_mode) && 'enabled (manual bonus run)' || 'disabled' }}"
+            echo "- MCP: ${{ (github.event_name == 'workflow_dispatch' && inputs.enable_mcp) && 'enabled (manual bonus run)' || 'disabled' }}"
+            echo "- RAG: ${{ (github.event_name == 'workflow_dispatch' && inputs.enable_rag) && 'enabled (manual bonus run)' || 'disabled' }}"
+            echo "- Multi-Agent: ${{ (github.event_name == 'workflow_dispatch' && inputs.enable_multi_agent) && 'enabled (manual bonus run)' || 'disabled' }}"
           } >> "$GITHUB_STEP_SUMMARY"

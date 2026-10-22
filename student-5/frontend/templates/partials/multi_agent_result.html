@@ -23,7 +23,7 @@
         </details>
 
         {% if run.status == 'awaiting_human_review' %}
-            <p><strong>Human review required.</strong> Approval does not change savings goals automatically.</p>
+            <p class="human-review-message">Human review required. Approval does not change savings goals automatically.</p>
 
             <form
                 hx-post="/multi-agent/decision"
@@ -35,11 +35,12 @@
                     name="run_id"
                     value="{{ run.run_id }}">
 
-                <label>Feedback <textarea
+                <textarea
                     name="feedback"
+                    aria-label="Human review feedback"
                     rows="3"
                     maxlength="2000"
-                    placeholder="Required for a correction; optional reason for rejection"></textarea></label>
+                    placeholder="Optional rejection reason or required correction instructions"></textarea>
 
                 <button
                     type="submit"

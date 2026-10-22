@@ -1,7 +1,7 @@
 {
   "environment": "native",
   "profile": "baseline",
-  "started_at": "2026-10-22T03:24:18.530424+00:00",
+  "started_at": "2026-10-22T06:08:21.706998+00:00",
   "checks": [
     {
       "module": "finance",
@@ -9,731 +9,731 @@
       "path": "/static/app.js",
       "status": 200,
       "sha256": "e7235c0e95e64cc81526f645eed5038452c678b7ca61055b6dfcb6c236d17c6c",
-      "checked_at": "2026-10-22T03:24:18.549173+00:00"
+      "checked_at": "2026-10-22T06:08:21.718094+00:00"
     },
     {
       "module": "finance",
       "method": "POST",
       "path": "/api/auth/register",
       "status": 201,
-      "checked_at": "2026-10-22T03:24:18.787614+00:00"
+      "checked_at": "2026-10-22T06:08:21.859539+00:00"
     },
     {
       "module": "finance",
       "method": "POST",
       "path": "/api/auth/login",
       "status": 200,
-      "checked_at": "2026-10-22T03:24:18.925798+00:00"
+      "checked_at": "2026-10-22T06:08:21.950943+00:00"
     },
     {
       "module": "finance",
       "method": "POST",
       "path": "/api/auth/register",
       "status": 201,
-      "checked_at": "2026-10-22T03:24:19.113599+00:00"
+      "checked_at": "2026-10-22T06:08:22.035403+00:00"
     },
     {
       "module": "finance",
       "method": "POST",
       "path": "/api/auth/login",
       "status": 200,
-      "checked_at": "2026-10-22T03:24:19.234755+00:00"
+      "checked_at": "2026-10-22T06:08:22.129215+00:00"
     },
     {
       "module": "finance",
       "method": "GET",
       "path": "/api/health",
       "status": 200,
-      "checked_at": "2026-10-22T03:24:19.247525+00:00"
+      "checked_at": "2026-10-22T06:08:22.138259+00:00"
     },
     {
       "module": "budget",
       "method": "GET",
       "path": "/api/budgets",
       "status": 401,
-      "checked_at": "2026-10-22T03:24:19.255606+00:00"
+      "checked_at": "2026-10-22T06:08:22.144052+00:00"
     },
     {
       "module": "budget",
       "method": "POST",
       "path": "/api/budgets",
       "status": 201,
-      "checked_at": "2026-10-22T03:24:19.274810+00:00"
+      "checked_at": "2026-10-22T06:08:22.158696+00:00"
     },
     {
       "module": "budget",
       "method": "GET",
       "path": "/api/budgets",
       "status": 200,
-      "checked_at": "2026-10-22T03:24:19.293522+00:00"
+      "checked_at": "2026-10-22T06:08:22.166222+00:00"
     },
     {
       "module": "budget",
       "method": "GET",
       "path": "/api/budgets",
       "status": 200,
-      "checked_at": "2026-10-22T03:24:19.308664+00:00"
+      "checked_at": "2026-10-22T06:08:22.173359+00:00"
     },
     {
       "module": "budget",
       "method": "GET",
       "path": "/api/budgets/13",
       "status": 200,
-      "checked_at": "2026-10-22T03:24:19.319455+00:00"
+      "checked_at": "2026-10-22T06:08:22.180775+00:00"
     },
     {
       "module": "budget",
       "method": "GET",
       "path": "/api/budgets/13",
       "status": 404,
-      "checked_at": "2026-10-22T03:24:19.330894+00:00"
+      "checked_at": "2026-10-22T06:08:22.187456+00:00"
     },
     {
       "module": "budget",
       "method": "PUT",
       "path": "/api/budgets/13",
       "status": 404,
-      "checked_at": "2026-10-22T03:24:19.340864+00:00"
+      "checked_at": "2026-10-22T06:08:22.197785+00:00"
     },
     {
       "module": "budget",
       "method": "DELETE",
       "path": "/api/budgets/13",
       "status": 404,
-      "checked_at": "2026-10-22T03:24:19.352179+00:00"
+      "checked_at": "2026-10-22T06:08:22.203977+00:00"
     },
     {
       "module": "budget",
       "method": "GET",
       "path": "/api/budgets/13",
       "status": 200,
-      "checked_at": "2026-10-22T03:24:19.363966+00:00"
+      "checked_at": "2026-10-22T06:08:22.210233+00:00"
     },
     {
       "module": "budget",
       "method": "PUT",
       "path": "/api/budgets/13",
       "status": 200,
-      "checked_at": "2026-10-22T03:24:19.392057+00:00"
+      "checked_at": "2026-10-22T06:08:22.218447+00:00"
     },
     {
       "module": "budget",
       "method": "GET",
       "path": "/api/budgets/13",
       "status": 200,
-      "checked_at": "2026-10-22T03:24:19.404418+00:00"
+      "checked_at": "2026-10-22T06:08:22.224915+00:00"
     },
     {
       "module": "budget",
       "method": "GET",
       "path": "/api/budgets/13/categories",
       "status": 401,
-      "checked_at": "2026-10-22T03:24:19.411166+00:00"
+      "checked_at": "2026-10-22T06:08:22.228378+00:00"
     },
     {
       "module": "budget",
       "method": "POST",
       "path": "/api/budgets/13/categories",
       "status": 201,
-      "checked_at": "2026-10-22T03:24:19.425773+00:00"
+      "checked_at": "2026-10-22T06:08:22.240355+00:00"
     },
     {
       "module": "budget",
       "method": "GET",
       "path": "/api/budgets/13/categories",
       "status": 200,
-      "checked_at": "2026-10-22T03:24:19.436292+00:00"
+      "checked_at": "2026-10-22T06:08:22.246798+00:00"
     },
     {
       "module": "budget",
       "method": "GET",
       "path": "/api/budgets/13/categories",
       "status": 404,
-      "checked_at": "2026-10-22T03:24:19.444996+00:00"
+      "checked_at": "2026-10-22T06:08:22.253951+00:00"
     },
     {
       "module": "budget",
       "method": "PUT",
       "path": "/api/categories/52",
       "status": 404,
-      "checked_at": "2026-10-22T03:24:19.456377+00:00"
+      "checked_at": "2026-10-22T06:08:22.260277+00:00"
     },
     {
       "module": "budget",
       "method": "DELETE",
       "path": "/api/categories/52",
       "status": 404,
-      "checked_at": "2026-10-22T03:24:19.470615+00:00"
+      "checked_at": "2026-10-22T06:08:22.271714+00:00"
     },
     {
       "module": "budget",
       "method": "GET",
       "path": "/api/budgets/13/categories",
       "status": 200,
-      "checked_at": "2026-10-22T03:24:19.484066+00:00"
+      "checked_at": "2026-10-22T06:08:22.280327+00:00"
     },
     {
       "module": "budget",
       "method": "PUT",
       "path": "/api/categories/52",
       "status": 200,
-      "checked_at": "2026-10-22T03:24:19.509470+00:00"
+      "checked_at": "2026-10-22T06:08:22.292584+00:00"
     },
     {
       "module": "budget",
       "method": "GET",
       "path": "/api/budgets/13/categories",
       "status": 200,
-      "checked_at": "2026-10-22T03:24:19.521226+00:00"
+      "checked_at": "2026-10-22T06:08:22.299570+00:00"
     },
     {
       "module": "expense",
       "method": "GET",
       "path": "/api/categories",
       "status": 401,
-      "checked_at": "2026-10-22T03:24:19.529025+00:00"
+      "checked_at": "2026-10-22T06:08:22.305273+00:00"
     },
     {
       "module": "expense",
       "method": "POST",
       "path": "/api/categories",
       "status": 201,
-      "checked_at": "2026-10-22T03:24:19.545284+00:00"
+      "checked_at": "2026-10-22T06:08:22.319740+00:00"
     },
     {
       "module": "expense",
       "method": "GET",
       "path": "/api/categories",
       "status": 200,
-      "checked_at": "2026-10-22T03:24:19.556960+00:00"
+      "checked_at": "2026-10-22T06:08:22.327319+00:00"
     },
     {
       "module": "expense",
       "method": "GET",
       "path": "/api/categories",
       "status": 200,
-      "checked_at": "2026-10-22T03:24:19.568648+00:00"
+      "checked_at": "2026-10-22T06:08:22.334528+00:00"
     },
     {
       "module": "expense",
       "method": "PUT",
       "path": "/api/categories/1",
       "status": 404,
-      "checked_at": "2026-10-22T03:24:19.584310+00:00"
+      "checked_at": "2026-10-22T06:08:22.343386+00:00"
     },
     {
       "module": "expense",
       "method": "DELETE",
       "path": "/api/categories/1",
       "status": 204,
-      "checked_at": "2026-10-22T03:24:19.594777+00:00"
+      "checked_at": "2026-10-22T06:08:22.351524+00:00"
     },
     {
       "module": "expense",
       "method": "GET",
       "path": "/api/categories",
       "status": 200,
-      "checked_at": "2026-10-22T03:24:19.607236+00:00"
+      "checked_at": "2026-10-22T06:08:22.358808+00:00"
     },
     {
       "module": "expense",
       "method": "PUT",
       "path": "/api/categories/1",
       "status": 200,
-      "checked_at": "2026-10-22T03:24:19.623788+00:00"
+      "checked_at": "2026-10-22T06:08:22.366966+00:00"
     },
     {
       "module": "expense",
       "method": "GET",
       "path": "/api/categories",
       "status": 200,
-      "checked_at": "2026-10-22T03:24:19.638704+00:00"
+      "checked_at": "2026-10-22T06:08:22.373780+00:00"
     },
     {
       "module": "expense",
       "method": "GET",
       "path": "/api/expenses",
       "status": 401,
-      "checked_at": "2026-10-22T03:24:19.642900+00:00"
+      "checked_at": "2026-10-22T06:08:22.377178+00:00"
     },
     {
       "module": "expense",
       "method": "POST",
       "path": "/api/expenses",
       "status": 201,
-      "checked_at": "2026-10-22T03:24:19.653518+00:00"
+      "checked_at": "2026-10-22T06:08:22.387189+00:00"
     },
     {
       "module": "expense",
       "method": "GET",
       "path": "/api/expenses",
       "status": 200,
-      "checked_at": "2026-10-22T03:24:19.663161+00:00"
+      "checked_at": "2026-10-22T06:08:22.393891+00:00"
     },
     {
       "module": "expense",
       "method": "GET",
       "path": "/api/expenses",
       "status": 200,
-      "checked_at": "2026-10-22T03:24:19.676808+00:00"
+      "checked_at": "2026-10-22T06:08:22.400501+00:00"
     },
     {
       "module": "expense",
       "method": "GET",
       "path": "/api/expenses/1",
       "status": 200,
-      "checked_at": "2026-10-22T03:24:19.688361+00:00"
+      "checked_at": "2026-10-22T06:08:22.407184+00:00"
     },
     {
       "module": "expense",
       "method": "GET",
       "path": "/api/expenses/1",
       "status": 404,
-      "checked_at": "2026-10-22T03:24:19.698430+00:00"
+      "checked_at": "2026-10-22T06:08:22.414414+00:00"
     },
     {
       "module": "expense",
       "method": "PUT",
       "path": "/api/expenses/1",
       "status": 404,
-      "checked_at": "2026-10-22T03:24:19.712608+00:00"
+      "checked_at": "2026-10-22T06:08:22.421170+00:00"
     },
     {
       "module": "expense",
       "method": "DELETE",
       "path": "/api/expenses/1",
       "status": 404,
-      "checked_at": "2026-10-22T03:24:19.723040+00:00"
+      "checked_at": "2026-10-22T06:08:22.427574+00:00"
     },
     {
       "module": "expense",
       "method": "GET",
       "path": "/api/expenses/1",
       "status": 200,
-      "checked_at": "2026-10-22T03:24:19.731726+00:00"
+      "checked_at": "2026-10-22T06:08:22.436115+00:00"
     },
     {
       "module": "expense",
       "method": "PUT",
       "path": "/api/expenses/1",
       "status": 200,
-      "checked_at": "2026-10-22T03:24:19.746692+00:00"
+      "checked_at": "2026-10-22T06:08:22.447541+00:00"
     },
     {
       "module": "expense",
       "method": "GET",
       "path": "/api/expenses/1",
       "status": 200,
-      "checked_at": "2026-10-22T03:24:19.754866+00:00"
+      "checked_at": "2026-10-22T06:08:22.454412+00:00"
     },
     {
       "module": "income",
       "method": "GET",
       "path": "/api/income-sources",
       "status": 401,
-      "checked_at": "2026-10-22T03:24:19.761949+00:00"
+      "checked_at": "2026-10-22T06:08:22.459928+00:00"
     },
     {
       "module": "income",
       "method": "POST",
       "path": "/api/income-sources",
       "status": 201,
-      "checked_at": "2026-10-22T03:24:19.777764+00:00"
+      "checked_at": "2026-10-22T06:08:22.472587+00:00"
     },
     {
       "module": "income",
       "method": "GET",
       "path": "/api/income-sources",
       "status": 200,
-      "checked_at": "2026-10-22T03:24:19.791650+00:00"
+      "checked_at": "2026-10-22T06:08:22.480762+00:00"
     },
     {
       "module": "income",
       "method": "GET",
       "path": "/api/income-sources",
       "status": 200,
-      "checked_at": "2026-10-22T03:24:19.806359+00:00"
+      "checked_at": "2026-10-22T06:08:22.487752+00:00"
     },
     {
       "module": "income",
       "method": "GET",
       "path": "/api/income-sources/11",
       "status": 200,
-      "checked_at": "2026-10-22T03:24:19.819580+00:00"
+      "checked_at": "2026-10-22T06:08:22.495589+00:00"
     },
     {
       "module": "income",
       "method": "GET",
       "path": "/api/income-sources/11",
       "status": 404,
-      "checked_at": "2026-10-22T03:24:19.829979+00:00"
+      "checked_at": "2026-10-22T06:08:22.502745+00:00"
     },
     {
       "module": "income",
       "method": "PUT",
       "path": "/api/income-sources/11",
       "status": 404,
-      "checked_at": "2026-10-22T03:24:19.838838+00:00"
+      "checked_at": "2026-10-22T06:08:22.509167+00:00"
     },
     {
       "module": "income",
       "method": "DELETE",
       "path": "/api/income-sources/11",
       "status": 404,
-      "checked_at": "2026-10-22T03:24:19.847228+00:00"
+      "checked_at": "2026-10-22T06:08:22.515772+00:00"
     },
     {
       "module": "income",
       "method": "GET",
       "path": "/api/income-sources/11",
       "status": 200,
-      "checked_at": "2026-10-22T03:24:19.857214+00:00"
+      "checked_at": "2026-10-22T06:08:22.524501+00:00"
     },
     {
       "module": "income",
       "method": "PUT",
       "path": "/api/income-sources/11",
       "status": 200,
-      "checked_at": "2026-10-22T03:24:19.887498+00:00"
+      "checked_at": "2026-10-22T06:08:22.532885+00:00"
     },
     {
       "module": "income",
       "method": "GET",
       "path": "/api/income-sources/11",
       "status": 200,
-      "checked_at": "2026-10-22T03:24:19.896294+00:00"
+      "checked_at": "2026-10-22T06:08:22.540286+00:00"
     },
     {
       "module": "income",
       "method": "GET",
       "path": "/api/pay-schedules",
       "status": 401,
-      "checked_at": "2026-10-22T03:24:19.905672+00:00"
+      "checked_at": "2026-10-22T06:08:22.543072+00:00"
     },
     {
       "module": "income",
       "method": "POST",
       "path": "/api/pay-schedules",
       "status": 201,
-      "checked_at": "2026-10-22T03:24:19.926562+00:00"
+      "checked_at": "2026-10-22T06:08:22.553107+00:00"
     },
     {
       "module": "income",
       "method": "GET",
       "path": "/api/pay-schedules",
       "status": 200,
-      "checked_at": "2026-10-22T03:24:19.939484+00:00"
+      "checked_at": "2026-10-22T06:08:22.559892+00:00"
     },
     {
       "module": "income",
       "method": "GET",
       "path": "/api/pay-schedules",
       "status": 200,
-      "checked_at": "2026-10-22T03:24:19.950293+00:00"
+      "checked_at": "2026-10-22T06:08:22.567423+00:00"
     },
     {
       "module": "income",
       "method": "GET",
       "path": "/api/pay-schedules/17",
       "status": 200,
-      "checked_at": "2026-10-22T03:24:19.966939+00:00"
+      "checked_at": "2026-10-22T06:08:22.573991+00:00"
     },
     {
       "module": "income",
       "method": "GET",
       "path": "/api/pay-schedules/17",
       "status": 404,
-      "checked_at": "2026-10-22T03:24:19.981350+00:00"
+      "checked_at": "2026-10-22T06:08:22.580282+00:00"
     },
     {
       "module": "income",
       "method": "PUT",
       "path": "/api/pay-schedules/17",
       "status": 404,
-      "checked_at": "2026-10-22T03:24:19.992712+00:00"
+      "checked_at": "2026-10-22T06:08:22.587081+00:00"
     },
     {
       "module": "income",
       "method": "DELETE",
       "path": "/api/pay-schedules/17",
       "status": 404,
-      "checked_at": "2026-10-22T03:24:20.005343+00:00"
+      "checked_at": "2026-10-22T06:08:22.593581+00:00"
     },
     {
       "module": "income",
       "method": "GET",
       "path": "/api/pay-schedules/17",
       "status": 200,
-      "checked_at": "2026-10-22T03:24:20.016628+00:00"
+      "checked_at": "2026-10-22T06:08:22.599815+00:00"
     },
     {
       "module": "income",
       "method": "PUT",
       "path": "/api/pay-schedules/17",
       "status": 200,
-      "checked_at": "2026-10-22T03:24:20.029618+00:00"
+      "checked_at": "2026-10-22T06:08:22.609202+00:00"
     },
     {
       "module": "income",
       "method": "GET",
       "path": "/api/pay-schedules/17",
       "status": 200,
-      "checked_at": "2026-10-22T03:24:20.038601+00:00"
+      "checked_at": "2026-10-22T06:08:22.615555+00:00"
     },
     {
       "module": "bill",
       "method": "GET",
       "path": "/api/bills",
       "status": 401,
-      "checked_at": "2026-10-22T03:24:20.045293+00:00"
+      "checked_at": "2026-10-22T06:08:22.621704+00:00"
     },
     {
       "module": "bill",
       "method": "POST",
       "path": "/api/bills",
       "status": 201,
-      "checked_at": "2026-10-22T03:24:20.060885+00:00"
+      "checked_at": "2026-10-22T06:08:22.635883+00:00"
     },
     {
       "module": "bill",
       "method": "GET",
       "path": "/api/bills",
       "status": 200,
-      "checked_at": "2026-10-22T03:24:20.071207+00:00"
+      "checked_at": "2026-10-22T06:08:22.642950+00:00"
     },
     {
       "module": "bill",
       "method": "GET",
       "path": "/api/bills",
       "status": 200,
-      "checked_at": "2026-10-22T03:24:20.089206+00:00"
+      "checked_at": "2026-10-22T06:08:22.649164+00:00"
     },
     {
       "module": "bill",
       "method": "GET",
       "path": "/api/bills/1",
       "status": 200,
-      "checked_at": "2026-10-22T03:24:20.104006+00:00"
+      "checked_at": "2026-10-22T06:08:22.656166+00:00"
     },
     {
       "module": "bill",
       "method": "GET",
       "path": "/api/bills/1",
       "status": 404,
-      "checked_at": "2026-10-22T03:24:20.113777+00:00"
+      "checked_at": "2026-10-22T06:08:22.663010+00:00"
     },
     {
       "module": "bill",
       "method": "PUT",
       "path": "/api/bills/1",
       "status": 404,
-      "checked_at": "2026-10-22T03:24:20.134692+00:00"
+      "checked_at": "2026-10-22T06:08:22.669631+00:00"
     },
     {
       "module": "bill",
       "method": "DELETE",
       "path": "/api/bills/1",
       "status": 404,
-      "checked_at": "2026-10-22T03:24:20.144309+00:00"
+      "checked_at": "2026-10-22T06:08:22.675648+00:00"
     },
     {
       "module": "bill",
       "method": "GET",
       "path": "/api/bills/1",
       "status": 200,
-      "checked_at": "2026-10-22T03:24:20.153453+00:00"
+      "checked_at": "2026-10-22T06:08:22.683240+00:00"
     },
     {
       "module": "bill",
       "method": "PUT",
       "path": "/api/bills/1",
       "status": 200,
-      "checked_at": "2026-10-22T03:24:20.171705+00:00"
+      "checked_at": "2026-10-22T06:08:22.692322+00:00"
     },
     {
       "module": "bill",
       "method": "GET",
       "path": "/api/bills/1",
       "status": 200,
-      "checked_at": "2026-10-22T03:24:20.183480+00:00"
+      "checked_at": "2026-10-22T06:08:22.699296+00:00"
     },
     {
       "module": "savings",
       "method": "GET",
       "path": "/api/goals",
       "status": 401,
-      "checked_at": "2026-10-22T03:24:20.190586+00:00"
+      "checked_at": "2026-10-22T06:08:22.705044+00:00"
     },
     {
       "module": "savings",
       "method": "POST",
       "path": "/api/goals",
       "status": 201,
-      "checked_at": "2026-10-22T03:24:20.215688+00:00"
+      "checked_at": "2026-10-22T06:08:22.715737+00:00"
     },
     {
       "module": "savings",
       "method": "GET",
       "path": "/api/goals",
       "status": 200,
-      "checked_at": "2026-10-22T03:24:20.234977+00:00"
+      "checked_at": "2026-10-22T06:08:22.723319+00:00"
     },
     {
       "module": "savings",
       "method": "GET",
       "path": "/api/goals",
       "status": 200,
-      "checked_at": "2026-10-22T03:24:20.243423+00:00"
+      "checked_at": "2026-10-22T06:08:22.730367+00:00"
     },
     {
       "module": "savings",
       "method": "GET",
       "path": "/api/goals/11",
       "status": 200,
-      "checked_at": "2026-10-22T03:24:20.252615+00:00"
+      "checked_at": "2026-10-22T06:08:22.736985+00:00"
     },
     {
       "module": "savings",
       "method": "GET",
       "path": "/api/goals/11",
       "status": 404,
-      "checked_at": "2026-10-22T03:24:20.263156+00:00"
+      "checked_at": "2026-10-22T06:08:22.743466+00:00"
     },
     {
       "module": "savings",
       "method": "PUT",
       "path": "/api/goals/11",
       "status": 404,
-      "checked_at": "2026-10-22T03:24:20.274563+00:00"
+      "checked_at": "2026-10-22T06:08:22.750678+00:00"
     },
     {
       "module": "savings",
       "method": "DELETE",
       "path": "/api/goals/11",
       "status": 404,
-      "checked_at": "2026-10-22T03:24:20.283442+00:00"
+      "checked_at": "2026-10-22T06:08:22.757315+00:00"
     },
     {
       "module": "savings",
       "method": "GET",
       "path": "/api/goals/11",
       "status": 200,
-      "checked_at": "2026-10-22T03:24:20.290941+00:00"
+      "checked_at": "2026-10-22T06:08:22.764701+00:00"
     },
     {
       "module": "savings",
       "method": "PUT",
       "path": "/api/goals/11",
       "status": 200,
-      "checked_at": "2026-10-22T03:24:20.305664+00:00"
+      "checked_at": "2026-10-22T06:08:22.779268+00:00"
     },
     {
       "module": "savings",
       "method": "GET",
       "path": "/api/goals/11",
       "status": 200,
-      "checked_at": "2026-10-22T03:24:20.314481+00:00"
+      "checked_at": "2026-10-22T06:08:22.785532+00:00"
     },
     {
       "module": "income",
       "method": "POST",
       "path": "/api/ai/analyse",
       "status": 503,
-      "checked_at": "2026-10-22T03:24:20.322482+00:00"
+      "checked_at": "2026-10-22T06:08:22.790800+00:00"
     },
     {
       "module": "income",
       "method": "POST",
       "path": "/api/mcp/query",
       "status": 503,
-      "checked_at": "2026-10-22T03:24:20.332549+00:00"
+      "checked_at": "2026-10-22T06:08:22.795994+00:00"
     },
     {
       "module": "income",
       "method": "POST",
       "path": "/api/rag/ask",
       "status": 503,
-      "checked_at": "2026-10-22T03:24:20.340946+00:00"
+      "checked_at": "2026-10-22T06:08:22.802578+00:00"
     },
     {
       "module": "income",
       "method": "POST",
       "path": "/api/multi-agent/run",
       "status": 503,
-      "checked_at": "2026-10-22T03:24:20.348566+00:00"
+      "checked_at": "2026-10-22T06:08:22.807570+00:00"
     },
     {
       "module": "savings",
       "method": "DELETE",
       "path": "/api/goals/11",
       "status": 200,
-      "checked_at": "2026-10-22T03:24:20.364895+00:00"
+      "checked_at": "2026-10-22T06:08:22.817275+00:00"
     },
     {
       "module": "bill",
       "method": "DELETE",
       "path": "/api/bills/1",
       "status": 200,
-      "checked_at": "2026-10-22T03:24:20.387265+00:00"
+      "checked_at": "2026-10-22T06:08:22.825764+00:00"
     },
     {
       "module": "income",
       "method": "DELETE",
       "path": "/api/pay-schedules/17",
       "status": 204,
-      "checked_at": "2026-10-22T03:24:20.417129+00:00"
+      "checked_at": "2026-10-22T06:08:22.835175+00:00"
     },
     {
       "module": "income",
       "method": "DELETE",
       "path": "/api/income-sources/11",
       "status": 204,
-      "checked_at": "2026-10-22T03:24:20.429102+00:00"
+      "checked_at": "2026-10-22T06:08:22.843835+00:00"
     },
     {
       "module": "expense",
       "method": "DELETE",
       "path": "/api/expenses/1",
       "status": 204,
-      "checked_at": "2026-10-22T03:24:20.449179+00:00"
+      "checked_at": "2026-10-22T06:08:22.854287+00:00"
     },
     {
       "module": "expense",
       "method": "DELETE",
       "path": "/api/categories/1",
       "status": 204,
-      "checked_at": "2026-10-22T03:24:20.461562+00:00"
+      "checked_at": "2026-10-22T06:08:22.863644+00:00"
     },
     {
       "module": "budget",
       "method": "DELETE",
       "path": "/api/categories/52",
       "status": 200,
-      "checked_at": "2026-10-22T03:24:20.482815+00:00"
+      "checked_at": "2026-10-22T06:08:22.873422+00:00"
     },
     {
       "module": "budget",
       "method": "DELETE",
       "path": "/api/budgets/13",
       "status": 200,
-      "checked_at": "2026-10-22T03:24:20.497506+00:00"
+      "checked_at": "2026-10-22T06:08:22.882390+00:00"
     },
     {
       "module": "finance",
       "method": "POST",
       "path": "/api/auth/logout",
       "status": 200,
-      "checked_at": "2026-10-22T03:24:20.508686+00:00"
+      "checked_at": "2026-10-22T06:08:22.894059+00:00"
     },
     {
       "module": "finance",
       "method": "POST",
       "path": "/api/auth/logout",
       "status": 200,
-      "checked_at": "2026-10-22T03:24:20.520861+00:00"
+      "checked_at": "2026-10-22T06:08:22.903447+00:00"
     }
   ],
   "bonus": null,
   "status": "passed",
-  "completed_at": "2026-10-22T03:24:20.520962+00:00"
+  "completed_at": "2026-10-22T06:08:22.903527+00:00"
 }

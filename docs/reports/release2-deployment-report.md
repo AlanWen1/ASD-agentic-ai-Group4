@@ -14,6 +14,8 @@ Independent HTTP tests registered and logged in two random accounts. Income sour
 
 The team subsequently added the same commit-specific image-tag repair in `6800ad2`. This candidate merges that work. Its [deployment run](https://github.com/AlanWen1/ASD-agentic-ai-Group4/actions/runs/39715601926) and the assets actually served must be checked before treating the earlier navigation failure as resolved.
 
+The candidate also merges the team's later `8c06e98` baseline: independent manual AI checkboxes, Savings human-review layout and Budget cloud inference timeout changes. Push deployments still explicitly disable all four features. Verification now checks the exact selected flags rather than assuming every optional service is enabled together. Local Compose and the 104-request native baseline were rechecked after this merge; deployment of the repaired feature branch remains pending.
+
 ## Automated container and Azure deployment
 
 `cloud-deployment.yml` gates deployment on full pre-commit security checks, all students' two endpoint functions, regression checks, Compose validation and a real integrated container smoke test. It saves container evidence before Azure login. GitHub OIDC, ACR managed identity and reusable scripts deploy to the configured existing resource group.

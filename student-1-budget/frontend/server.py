@@ -46,7 +46,10 @@ def api_proxy(path):
             headers=forward_headers,
             params=request.args,
             data=request.get_data(),
-            timeout=2100 if path.startswith("multi-agent/") else 180,
+            # Keep cloud inference below Azure ingress's 240-second limit.
+            # Local Multi-Agent runs retain the longer host-model allowance.
+            timeout=(230 if os.getenv("APP_ENV") == "cloud" else 2100)
+                if path.startswith("multi-agent/") else (230 if path.startswith("agent/") else 60),
         )
     except requests.RequestException as exc:
         return {"error": f"Could not reach budget-backend: {exc}"}, 502

@@ -19,6 +19,9 @@ class Smoke:
     def __init__(self, deployment):
         self.urls = deployment["frontends"]
         self.profile = deployment.get("profile", "baseline")
+        default = "true" if self.profile == "bonus" else "false"
+        self.features = deployment.get("feature_flags", {name: default for name in
+            ("AI_ENABLED", "MCP_ENABLED", "RAG_ENABLED", "MULTI_AGENT_ENABLED")})
         self.records, self.log, self.headers = [], [], {}
 
     def call(self, module, method, path, body=None, expected=(200,), headers=None, timeout=60):
@@ -82,31 +85,40 @@ class Smoke:
         return identifier
 
     def bonus(self):
-        for _ in range(12):
-            try:
-                self.call("income", "GET", "/api/ai/status", timeout=30)
-                break
-            except (requests.RequestException, RuntimeError):
-                time.sleep(5)
-        else:
-            raise RuntimeError("Cloud AI-Mode did not become ready")
-        ai = self.call("income", "POST", "/api/ai/analyse", {"month": "2099-01"}, timeout=220)
-        if not ai.get("answer", "").strip():
-            raise RuntimeError("AI-Mode returned no answer")
-        mcp = self.call("income", "POST", "/api/mcp/query", {"tool": "get_income_sources"}, timeout=120)
-        if mcp.get("error"):
-            raise RuntimeError("MCP tool interaction failed")
-        rag = self.call("income", "POST", "/api/rag/ask", {"query": "What is a pay schedule?"}, timeout=220)
-        if not (rag.get("answer") and rag.get("citations") and rag.get("confidence_category") != "insufficient"):
-            raise RuntimeError("RAG answer did not include grounded citations")
-        run = self.call("income", "POST", "/api/multi-agent/run", {
-            "task": "Review my income sources and expected versus received pay schedules. Identify missing evidence."},
-            expected=(201,), timeout=235)
-        if not (run.get("plan", {}).get("steps") and run.get("worker_output") and run.get("review")
-                and run.get("status") == "awaiting_human_review"):
-            raise RuntimeError("Cloud Multi-Agent workflow did not reach human review")
-        return {"ai_answer": ai["answer"], "mcp": mcp, "rag": rag, "multi_agent": run,
-                "human_review": "pending: use the UI; the smoke test never approves on a person's behalf"}
+        results = {}
+        if self.features.get("AI_ENABLED") == "true":
+            for _ in range(12):
+                try:
+                    self.call("income", "GET", "/api/ai/status", timeout=30)
+                    break
+                except (requests.RequestException, RuntimeError):
+                    time.sleep(5)
+            else:
+                raise RuntimeError("Cloud AI-Mode did not become ready")
+            ai = self.call("income", "POST", "/api/ai/analyse", {"month": "2099-01"}, timeout=220)
+            if not ai.get("answer", "").strip():
+                raise RuntimeError("AI-Mode returned no answer")
+            results["ai_answer"] = ai["answer"]
+        if self.features.get("MCP_ENABLED") == "true":
+            mcp = self.call("income", "POST", "/api/mcp/query", {"tool": "get_income_sources"}, timeout=120)
+            if mcp.get("error"):
+                raise RuntimeError("MCP tool interaction failed")
+            results["mcp"] = mcp
+        if self.features.get("RAG_ENABLED") == "true":
+            rag = self.call("income", "POST", "/api/rag/ask", {"query": "What is a pay schedule?"}, timeout=220)
+            if not (rag.get("answer") and rag.get("citations") and rag.get("confidence_category") != "insufficient"):
+                raise RuntimeError("RAG answer did not include grounded citations")
+            results["rag"] = rag
+        if self.features.get("MULTI_AGENT_ENABLED") == "true":
+            run = self.call("income", "POST", "/api/multi-agent/run", {
+                "task": "Review my income sources and expected versus received pay schedules. Identify missing evidence."},
+                expected=(201,), timeout=235)
+            if not (run.get("plan", {}).get("steps") and run.get("worker_output") and run.get("review")
+                    and run.get("status") == "awaiting_human_review"):
+                raise RuntimeError("Cloud Multi-Agent workflow did not reach human review")
+            results["multi_agent"] = run
+            results["human_review"] = "pending: use the UI; the smoke test never approves on a person's behalf"
+        return results
 
     def run(self):
         for module, url in self.urls.items():
@@ -159,10 +171,11 @@ class Smoke:
             self.crud("savings", "/api/goals", goal, "goal_id", {**goal, "goal_name": "Cloud smoke updated"})
             if self.profile == "bonus":
                 bonus = self.bonus()
-            else:
-                for path, body in [("/api/ai/analyse", {"month": "2099-01"}),
-                    ("/api/mcp/query", {"tool": "get_income_sources"}), ("/api/rag/ask", {"query": "pay schedule"}),
-                    ("/api/multi-agent/run", {"task": "Review income"})]:
+            for flag, path, body in [("AI_ENABLED", "/api/ai/analyse", {"month": "2099-01"}),
+                ("MCP_ENABLED", "/api/mcp/query", {"tool": "get_income_sources"}),
+                ("RAG_ENABLED", "/api/rag/ask", {"query": "pay schedule"}),
+                ("MULTI_AGENT_ENABLED", "/api/multi-agent/run", {"task": "Review income"})]:
+                if self.features.get(flag) != "true":
                     self.call("income", "POST", path, body, expected=(503,))
         finally:
             cleanup_errors = []

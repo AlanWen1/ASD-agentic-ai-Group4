@@ -7,7 +7,17 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 MODULES = ("finance", "budget", "expense", "income", "bill", "savings")
-AI_APPS = ("ollama", "ai-mode", "mcp-server", "rag-server", "multi-agent-server")
+FLAGS = ("AI_ENABLED", "MCP_ENABLED", "RAG_ENABLED", "MULTI_AGENT_ENABLED")
+
+
+def expected_flags(profile):
+    default = "true" if profile == "bonus" else "false"
+    flags = {name: os.getenv(name, default) for name in FLAGS}
+    if any(value not in {"true", "false"} for value in flags.values()):
+        raise RuntimeError("Feature flags must be true or false")
+    if profile == "baseline" and any(value == "true" for value in flags.values()):
+        raise RuntimeError("Baseline must disable every AI feature")
+    return flags
 
 
 def azure(*args):
@@ -20,10 +30,15 @@ def verify(profile):
     group = os.environ["AZURE_RESOURCE_GROUP"]
     report = {"observed_at": datetime.now(timezone.utc).isoformat(), "profile": profile, "environment": "azure",
               "commit": os.getenv("GITHUB_SHA"), "frontends": {}, "apps": {}, "checks": []}
-    expected = "true" if profile == "bonus" else "false"
+    expected = expected_flags(profile)
+    report["feature_flags"] = expected
     names = [m + "-" + role for m in MODULES for role in ("frontend", "backend", "database")]
-    if profile == "bonus":
-        names.extend(AI_APPS)
+    if any(expected[name] == "true" for name in ("AI_ENABLED", "RAG_ENABLED", "MULTI_AGENT_ENABLED")):
+        names.extend(("ollama", "ai-mode"))
+    for flag, name in (("MCP_ENABLED", "mcp-server"), ("RAG_ENABLED", "rag-server"),
+                       ("MULTI_AGENT_ENABLED", "multi-agent-server")):
+        if expected[flag] == "true":
+            names.append(name)
     for name in names:
         data = azure("containerapp", "show", "--name", name, "--resource-group", group)
         properties = data["properties"]
@@ -34,8 +49,8 @@ def verify(profile):
         if bool(ingress.get("external")) != public or ingress.get("allowInsecure", False):
             raise RuntimeError(name + ": unexpected ingress exposure or insecure HTTP")
         if name.endswith("-backend") and name != "finance-backend":
-            for flag in ("AI_ENABLED", "MCP_ENABLED", "RAG_ENABLED", "MULTI_AGENT_ENABLED"):
-                if env.get(flag, {}).get("value") != expected:
+            for flag in FLAGS:
+                if env.get(flag, {}).get("value") != expected[flag]:
                     raise RuntimeError(name + ": incorrect feature flag " + flag)
         for key in ("MULTI_AGENT_API_KEY", "SECRET_KEY"):
             if key in env and not env[key].get("secretRef"):
