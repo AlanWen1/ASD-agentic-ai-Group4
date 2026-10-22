@@ -12,6 +12,8 @@ The team's [main deployment workflow](https://github.com/AlanWen1/ASD-agentic-ai
 
 Independent HTTP tests registered and logged in two random accounts. Income sources, pay schedules, Bills and the legacy Savings forms passed the attempted owner operations and read-isolation checks. Expense's legacy forms passed create/read/isolation checks; their update UI was not exercised. Budget's cross-account detail request returned HTTP 200 instead of refusing access. The candidate's Budget ownership regression prevents that access, but the deployed repair must still pass the cloud checks. All seven generated financial records were deleted and both sessions logged out. The two accounts remain because there is no account-deletion endpoint. Dated JSON under `evidence/cloud/20261022-*` records these partial results; it is not a successful final baseline artifact or an authenticated browser demonstration.
 
+The team subsequently added the same commit-specific image-tag repair in `6800ad2`. This candidate merges that work. Its [deployment run](https://github.com/AlanWen1/ASD-agentic-ai-Group4/actions/runs/39715601926) and the assets actually served must be checked before treating the earlier navigation failure as resolved.
+
 ## Automated container and Azure deployment
 
 `cloud-deployment.yml` gates deployment on full pre-commit security checks, all students' two endpoint functions, regression checks, Compose validation and a real integrated container smoke test. It saves container evidence before Azure login. GitHub OIDC, ACR managed identity and reusable scripts deploy to the configured existing resource group.

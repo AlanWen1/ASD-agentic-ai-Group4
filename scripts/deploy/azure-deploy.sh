@@ -25,7 +25,12 @@ esac
 MCP_ENABLED="$AI_ENABLED"
 RAG_ENABLED="$AI_ENABLED"
 MULTI_AGENT_ENABLED="$AI_ENABLED"
-IMAGE_TAG="${IMAGE_TAG:-$(git rev-parse --short=12 HEAD)}"
+# A fixed :release2 image reference can leave Azure serving an old revision
+# after a code-only change. Keep the team's commit-specific image tags; the
+# workflow supplies its full SHA, and direct local runs derive it from Git.
+# New image references also restart the ephemeral SQLite database containers.
+IMAGE_TAG="${IMAGE_TAG:-release2-$(printf '%s' "${GITHUB_SHA:-$(git rev-parse HEAD)}" | cut -c1-12)}"
+echo "Using image tag: $IMAGE_TAG"
 export AI_ENABLED MCP_ENABLED RAG_ENABLED MULTI_AGENT_ENABLED
 FRONTEND_SECRET="$(python -c 'import secrets; print(secrets.token_hex(32))')"
 MULTI_AGENT_SECRET="$(python -c 'import secrets; print(secrets.token_hex(32))')"
