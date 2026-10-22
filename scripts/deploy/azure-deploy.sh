@@ -91,20 +91,26 @@ deploy_app() {
   local ENV_DEFAULT_DOMAIN
   ENV_DEFAULT_DOMAIN="$(az containerapp env show --name "$AZURE_CONTAINERAPPS_ENVIRONMENT" --resource-group "$AZURE_RESOURCE_GROUP" --query properties.defaultDomain --output tsv)"
   local INTERNAL_SUFFIX="internal.$ENV_DEFAULT_DOMAIN"
-  envs="${envs//http:\/\/finance-database:6000/http:\/\/finance-database.$INTERNAL_SUFFIX:6000}"
-  envs="${envs//http:\/\/bill-database:6004/http:\/\/bill-database.$INTERNAL_SUFFIX:6004}"
-  envs="${envs//http:\/\/budget-database:6001/http:\/\/budget-database.$INTERNAL_SUFFIX:6001}"
-  envs="${envs//http:\/\/expense-database:6002/http:\/\/expense-database.$INTERNAL_SUFFIX:6002}"
-  envs="${envs//http:\/\/income-database:6003/http:\/\/income-database.$INTERNAL_SUFFIX:6003}"
-  envs="${envs//http:\/\/savings-database:6005/http:\/\/savings-database.$INTERNAL_SUFFIX:6005}"
-  envs="${envs//http:\/\/finance-backend:5000/http:\/\/finance-backend.$INTERNAL_SUFFIX:5000}"
-  envs="${envs//http:\/\/bill-backend:5004/http:\/\/bill-backend.$INTERNAL_SUFFIX:5004}"
-  envs="${envs//http:\/\/budget-backend:5001/http:\/\/budget-backend.$INTERNAL_SUFFIX:5001}"
-  envs="${envs//http:\/\/expense-backend:5002/http:\/\/expense-backend.$INTERNAL_SUFFIX:5002}"
-  envs="${envs//http:\/\/income-backend:5003/http:\/\/income-backend.$INTERNAL_SUFFIX:5003}"
-  envs="${envs//http:\/\/savings-backend:5005/http:\/\/savings-backend.$INTERNAL_SUFFIX:5005}"
-  envs="${envs//http:\/\/ollama:11434/http:\/\/ollama.$INTERNAL_SUFFIX:11434}"
-  envs="${envs//http:\/\/ai-mode:5099/http:\/\/ai-mode.$INTERNAL_SUFFIX:5099}"
+  # Container-to-container calls must go through the environment's internal
+  # ingress, which only listens on 443 (HTTPS) / 80 and then forwards to each
+  # app's targetPort. Calling <app>.internal.<domain>:<targetPort> directly hits
+  # a port nothing listens on, so every request silently times out. Use HTTPS
+  # (not HTTP) because allowInsecure is false: plain HTTP gets a redirect, and
+  # requests turns a redirected POST into a GET, which would break login etc.
+  envs="${envs//http:\/\/finance-database:6000/https:\/\/finance-database.$INTERNAL_SUFFIX}"
+  envs="${envs//http:\/\/bill-database:6004/https:\/\/bill-database.$INTERNAL_SUFFIX}"
+  envs="${envs//http:\/\/budget-database:6001/https:\/\/budget-database.$INTERNAL_SUFFIX}"
+  envs="${envs//http:\/\/expense-database:6002/https:\/\/expense-database.$INTERNAL_SUFFIX}"
+  envs="${envs//http:\/\/income-database:6003/https:\/\/income-database.$INTERNAL_SUFFIX}"
+  envs="${envs//http:\/\/savings-database:6005/https:\/\/savings-database.$INTERNAL_SUFFIX}"
+  envs="${envs//http:\/\/finance-backend:5000/https:\/\/finance-backend.$INTERNAL_SUFFIX}"
+  envs="${envs//http:\/\/bill-backend:5004/https:\/\/bill-backend.$INTERNAL_SUFFIX}"
+  envs="${envs//http:\/\/budget-backend:5001/https:\/\/budget-backend.$INTERNAL_SUFFIX}"
+  envs="${envs//http:\/\/expense-backend:5002/https:\/\/expense-backend.$INTERNAL_SUFFIX}"
+  envs="${envs//http:\/\/income-backend:5003/https:\/\/income-backend.$INTERNAL_SUFFIX}"
+  envs="${envs//http:\/\/savings-backend:5005/https:\/\/savings-backend.$INTERNAL_SUFFIX}"
+  envs="${envs//http:\/\/ollama:11434/https:\/\/ollama.$INTERNAL_SUFFIX}"
+  envs="${envs//http:\/\/ai-mode:5099/https:\/\/ai-mode.$INTERNAL_SUFFIX}"
   # Public (external) hostnames for browser-side cross-app navigation links
   # (Home buttons, "Open X Manager" links) -- these are followed by the
   # visitor's own browser, so they must be the real public HTTPS URL, not
@@ -259,6 +265,20 @@ for app in finance-frontend budget-frontend expense-frontend income-frontend bil
   curl --fail --silent --show-error --location --max-time 20 --retry 12 --retry-delay 5 --retry-all-errors "https://$url/" --output /dev/null
   echo "OK"
 done
+
+echo "Checking frontend -> backend -> database chain..."
+# The page checks above only prove the frontends serve HTML. This one goes
+# finance-frontend -> finance-backend -> finance-database, so it fails if
+# container-to-container networking is broken (which the page checks miss).
+finance_url="$(az containerapp show --name finance-frontend --resource-group "$AZURE_RESOURCE_GROUP" --query properties.configuration.ingress.fqdn --output tsv)"
+printf 'Checking https://%s/api/health ... ' "$finance_url"
+health="$(curl --fail --silent --show-error --max-time 40 --retry 6 --retry-delay 10 --retry-all-errors "https://$finance_url/api/health")"
+if ! grep -Eq '"status": ?"ok"' <<< "$health"; then
+  echo "FAILED" >&2
+  echo "$health" >&2
+  exit 1
+fi
+echo "OK"
 
 echo
 echo "Deployment and basic endpoint smoke tests succeeded. Frontend URLs:"
