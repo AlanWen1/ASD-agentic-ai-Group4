@@ -56,8 +56,23 @@ def test_all_four_profile_flags_agree(profile, expected):
     source = SCRIPT.read_text()
     fragment = source[source.index('CLOUD_AI_PROFILE="'):source.index('IMAGE_TAG="')]
     command = fragment + '\nprintf "%s %s %s %s" "$AI_ENABLED" "$MCP_ENABLED" "$RAG_ENABLED" "$MULTI_AGENT_ENABLED"'
-    result = subprocess.run(["bash", "-c", command], env={**os.environ, "CLOUD_AI_PROFILE": profile}, check=True, capture_output=True, text=True)
+    # Test profile defaults independently of the workflow's explicit false flags.
+    flags = {"AI_ENABLED", "MCP_ENABLED", "RAG_ENABLED", "MULTI_AGENT_ENABLED"}
+    environment = {name: value for name, value in os.environ.items() if name not in flags}
+    environment["CLOUD_AI_PROFILE"] = profile
+    result = subprocess.run(["bash", "-c", command], env=environment, check=True, capture_output=True, text=True)
     assert result.stdout.split() == [expected] * 4
+
+
+@pytest.mark.parametrize("profile", ["baseline", "bonus"])
+def test_explicit_disabled_flags_override_profile_defaults(profile):
+    source = SCRIPT.read_text()
+    fragment = source[source.index('CLOUD_AI_PROFILE="'):source.index('IMAGE_TAG="')]
+    command = fragment + '\nprintf "%s %s %s %s" "$AI_ENABLED" "$MCP_ENABLED" "$RAG_ENABLED" "$MULTI_AGENT_ENABLED"'
+    flags = {name: "false" for name in ("AI_ENABLED", "MCP_ENABLED", "RAG_ENABLED", "MULTI_AGENT_ENABLED")}
+    result = subprocess.run(["bash", "-c", command], env={**os.environ, **flags,
+        "CLOUD_AI_PROFILE": profile}, check=True, capture_output=True, text=True)
+    assert result.stdout.split() == ["false"] * 4
 
 
 def test_deployment_requires_security_validation_before_mutation():
