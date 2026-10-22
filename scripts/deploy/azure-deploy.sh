@@ -203,7 +203,16 @@ deploy_app savings-database savings-database 6005 false $'DATABASE_PATH=/data/sa
 # TCP level) even though ollama itself was healthy and fast when used
 # directly inside its own container. Dropping the override to test
 # whether an explicit resources block was the differentiator.
-deploy_app ollama ollama 11434 false ''
+# Explicitly pass OLLAMA_HOST instead of relying on the Dockerfile's own
+# ENV default -- confirmed via /proc/net/tcp inside the running container
+# that ollama was listening on 127.0.0.1 only (loopback), not 0.0.0.0, even
+# though the Dockerfile sets ENV OLLAMA_HOST=0.0.0.0:11434. Azure Container
+# Apps appears to replace an image's baked-in ENV defaults once this
+# script's own (possibly empty) env list is applied, rather than merging on
+# top of them -- ollama was the only app relying solely on an image-default
+# env var instead of one passed explicitly here, which is why it was the
+# only one affected.
+deploy_app ollama ollama 11434 false $'OLLAMA_HOST=0.0.0.0:11434'
 deploy_app ai-mode ai-mode 5099 false $'OLLAMA_URL=http://ollama:11434'
 
 # Backends. Optional AI-related features are explicitly off by default. budget-backend
