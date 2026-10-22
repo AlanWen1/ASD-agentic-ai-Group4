@@ -25,7 +25,16 @@ echo "Using image tag: $IMAGE_TAG"
 command -v az >/dev/null || { echo "Azure CLI (az) is required." >&2; exit 2; }
 command -v docker >/dev/null || { echo "Docker is required (ACR Tasks is not available on this subscription, so images are built and pushed locally)." >&2; exit 2; }
 
-AI_ENABLED=false
+# AI-Mode is OFF by default (rubric: AI-Mode, MCP, RAG and Multi-Agent disabled
+# by default in the cloud). Turn it on only for the cloud AI bonus demo by
+# running the cloud-deployment workflow manually with "enable_ai_mode" ticked,
+# or locally with AI_ENABLED=true. MCP, RAG and Multi-Agent servers are not
+# deployed to the cloud at all, so their flags are always false.
+AI_ENABLED="${AI_ENABLED:-false}"
+if [[ "$AI_ENABLED" != "true" && "$AI_ENABLED" != "false" ]]; then
+  echo "AI_ENABLED must be 'true' or 'false' (got '$AI_ENABLED')." >&2
+  exit 2
+fi
 MCP_ENABLED=false
 RAG_ENABLED=false
 MULTI_AGENT_ENABLED=false
@@ -215,38 +224,38 @@ deploy_app expense-database expense-database 6002 false $'DATABASE_PATH=/tmp/exp
 deploy_app income-database income-database 6003 false $'DATABASE_PATH=/tmp/student-3-income.db'
 deploy_app savings-database savings-database 6005 false $'DATABASE_PATH=/tmp/savings.db'
 
-# Shared Ollama runtime + AI-Mode proxy for the Release 2 cloud bonus (B1).
-# Internal-only; not reachable from outside the Container Apps Environment.
-# Extra CPU/memory for ollama: LLM inference is heavier than a typical REST call.
-# No explicit cpu/memory override here (unlike an earlier version of this
-# line) -- every other internal-only app in this script uses the
-# environment's default sizing, and ollama was the one exception. That
-# turned out to correlate with ollama being unreachable over the internal
-# network from other apps (ai-mode -> ollama connections timed out at the
-# TCP level) even though ollama itself was healthy and fast when used
-# directly inside its own container. Dropping the override to test
-# whether an explicit resources block was the differentiator.
-# Explicitly pass OLLAMA_HOST instead of relying on the Dockerfile's own
-# ENV default -- confirmed via /proc/net/tcp inside the running container
-# that ollama was listening on 127.0.0.1 only (loopback), not 0.0.0.0, even
-# though the Dockerfile sets ENV OLLAMA_HOST=0.0.0.0:11434. Azure Container
-# Apps appears to replace an image's baked-in ENV defaults once this
-# script's own (possibly empty) env list is applied, rather than merging on
-# top of them -- ollama was the only app relying solely on an image-default
-# env var instead of one passed explicitly here, which is why it was the
-# only one affected.
-deploy_app ollama ollama 11434 false $'OLLAMA_HOST=0.0.0.0:11434'
+# Shared Ollama runtime + AI-Mode proxy (cloud AI bonus). Internal-only.
+# Always deployed so the AI toggle is just a flag flip; the backends only get
+# an AI-Mode URL when AI_ENABLED=true (see below).
+# 1 vCPU / 2Gi for ollama: LLM inference is much heavier than a REST call, and
+# five modules share this one runtime. (An earlier test removed this override;
+# it was unrelated to the connectivity bug, which was the port-suffixed
+# internal URLs.)
+# OLLAMA_HOST is passed explicitly: the image's own ENV default was not applied
+# at runtime and ollama listened on 127.0.0.1 only.
+deploy_app ollama ollama 11434 false $'OLLAMA_HOST=0.0.0.0:11434' '' 1.0 2Gi
 deploy_app ai-mode ai-mode 5099 false $'OLLAMA_URL=http://ollama:11434'
 
-# Backends. Optional AI-related features are explicitly off by default. budget-backend
-# is the exception: AI_ENABLED=true demonstrates the Release 2 cloud bonus (B1 Cloud
-# AI-Mode) through its existing /api/agent/chat endpoint.
+# Backends. AI_ENABLED follows the toggle above (default false). When it is on,
+# each backend is also pointed at the shared AI-Mode service, using whichever
+# variable name and path that module already reads locally. When it is off, no
+# AI URL is passed at all, so modules whose code has no AI_ENABLED check of its
+# own (bill, expense, income) cannot reach a model either.
+if [[ "$AI_ENABLED" == "true" ]]; then
+  BILL_AI=$'\nOLLAMA_URL=http://ai-mode:5099'
+  BUDGET_AI=$'\nOLLAMA_URL=http://ai-mode:5099'
+  EXPENSE_AI=$'\nOLLAMA_URL=http://ai-mode:5099'
+  INCOME_AI=$'\nOLLAMA_BASE_URL=http://ai-mode:5099/v1\nOLLAMA_TIMEOUT_SECONDS=150'
+  SAVINGS_AI=$'\nOLLAMA_API_URL=http://ai-mode:5099/api/generate'
+else
+  BILL_AI="" BUDGET_AI="" EXPENSE_AI="" INCOME_AI="" SAVINGS_AI=""
+fi
 deploy_app finance-backend finance-backend 5000 false $'DATABASE_URL=http://finance-database:6000\nBILL_DATABASE_URL=http://bill-database:6004'
-deploy_app bill-backend bill-backend 5004 false $'DATABASE_URL=http://bill-database:6004\nAUTH_DATABASE_URL=http://finance-database:6000\nMULTI_AGENT_ENABLED=false\nAI_ENABLED=false\nMCP_ENABLED=false\nRAG_ENABLED=false'
-deploy_app budget-backend budget-backend 5001 false $'DATABASE_URL=http://budget-database:6001\nAUTH_DATABASE_URL=http://finance-database:6000\nMULTI_AGENT_ENABLED=false\nAI_ENABLED=true\nOLLAMA_URL=http://ai-mode:5099\nMCP_ENABLED=false\nRAG_ENABLED=false'
-deploy_app expense-backend expense-backend 5002 false $'DATABASE_URL=http://expense-database:6002\nAUTH_DATABASE_URL=http://finance-database:6000\nMULTI_AGENT_ENABLED=false\nAI_ENABLED=false\nMCP_ENABLED=false\nRAG_ENABLED=false'
-deploy_app income-backend income-backend 5003 false $'DATABASE_SERVICE_URL=http://income-database:6003\nAUTH_DATABASE_URL=http://finance-database:6000\nMULTI_AGENT_ENABLED=false\nAI_ENABLED=false\nMCP_ENABLED=false\nRAG_ENABLED=false'
-deploy_app savings-backend savings-backend 5005 false $'DATABASE_API_URL=http://savings-database:6005\nAUTH_DATABASE_URL=http://finance-database:6000\nMULTI_AGENT_ENABLED=false\nAI_ENABLED=false\nMCP_ENABLED=false\nRAG_ENABLED=false'
+deploy_app bill-backend bill-backend 5004 false $'DATABASE_URL=http://bill-database:6004\nAUTH_DATABASE_URL=http://finance-database:6000\nMULTI_AGENT_ENABLED=false\nMCP_ENABLED=false\nRAG_ENABLED=false\nAI_ENABLED='"$AI_ENABLED$BILL_AI"
+deploy_app budget-backend budget-backend 5001 false $'DATABASE_URL=http://budget-database:6001\nAUTH_DATABASE_URL=http://finance-database:6000\nMULTI_AGENT_ENABLED=false\nMCP_ENABLED=false\nRAG_ENABLED=false\nAI_ENABLED='"$AI_ENABLED$BUDGET_AI"
+deploy_app expense-backend expense-backend 5002 false $'DATABASE_URL=http://expense-database:6002\nAUTH_DATABASE_URL=http://finance-database:6000\nMULTI_AGENT_ENABLED=false\nMCP_ENABLED=false\nRAG_ENABLED=false\nAI_ENABLED='"$AI_ENABLED$EXPENSE_AI"
+deploy_app income-backend income-backend 5003 false $'DATABASE_SERVICE_URL=http://income-database:6003\nAUTH_DATABASE_URL=http://finance-database:6000\nMULTI_AGENT_ENABLED=false\nMCP_ENABLED=false\nRAG_ENABLED=false\nAI_ENABLED='"$AI_ENABLED$INCOME_AI"
+deploy_app savings-backend savings-backend 5005 false $'DATABASE_API_URL=http://savings-database:6005\nAUTH_DATABASE_URL=http://finance-database:6000\nMULTI_AGENT_ENABLED=false\nMCP_ENABLED=false\nRAG_ENABLED=false\nAI_ENABLED='"$AI_ENABLED$SAVINGS_AI"
 
 # Frontends are the public entry points; they communicate with their internal backend apps.
 deploy_app finance-frontend finance-frontend 3000 true $'BACKEND_URL=http://finance-backend:5000\nINCOME_URL=http://income-frontend:3003\nBILL_URL=http://bill-frontend:3004\nBUDGET_URL=http://budget-frontend:3001\nSAVINGS_URL=http://savings-frontend:3005\nEXPENSE_URL=http://expense-frontend:3002'
@@ -258,14 +267,14 @@ deploy_app savings-frontend savings-frontend 3005 true $'BACKEND_API_URL=http://
 
 echo
 echo "Checking deployed backend feature flags..."
-# budget-backend AI_ENABLED=true is the documented Release 2 cloud bonus (B1 Cloud
-# AI-Mode) demo target. Every other backend/flag combination must still be "false" to
-# satisfy the required baseline (AI-Mode/MCP/RAG/Multi-Agent disabled by default).
+# AI_ENABLED on every backend must match the toggle (false by default);
+# MCP_ENABLED, RAG_ENABLED and MULTI_AGENT_ENABLED must always be false.
+echo "AI-Mode toggle for this deploy: AI_ENABLED=$AI_ENABLED"
 for app in bill-backend budget-backend expense-backend income-backend savings-backend; do
   for flag in AI_ENABLED MCP_ENABLED RAG_ENABLED MULTI_AGENT_ENABLED; do
     expected=false
-    if [[ "$app" == "budget-backend" && "$flag" == "AI_ENABLED" ]]; then
-      expected=true
+    if [[ "$flag" == "AI_ENABLED" ]]; then
+      expected="$AI_ENABLED"
     fi
     value="$(az containerapp show --name "$app" --resource-group "$AZURE_RESOURCE_GROUP" --query "properties.template.containers[0].env[?name=='$flag'].value | [0]" --output tsv)"
     if [[ "$value" != "$expected" ]]; then

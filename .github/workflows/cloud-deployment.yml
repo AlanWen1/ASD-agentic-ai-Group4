@@ -26,6 +26,11 @@ on:
       - "scripts/deploy/**"
       - ".github/workflows/cloud-deployment.yml"
   workflow_dispatch:
+    inputs:
+      enable_ai_mode:
+        description: "Enable AI-Mode in the cloud (bonus demo only; leave unticked for the required AI-disabled baseline)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -121,6 +126,9 @@ jobs:
       - name: Install/update Azure Container Apps CLI support
         run: az extension add --name containerapp --upgrade
       - name: Deploy
+        env:
+          # Off for every push; on only when a manual run ticks enable_ai_mode.
+          AI_ENABLED: ${{ (github.event_name == 'workflow_dispatch' && inputs.enable_ai_mode) && 'true' || 'false' }}
         run: bash scripts/deploy/azure-deploy.sh
       - name: Publish deployment summary
         if: always()
@@ -132,5 +140,6 @@ jobs:
             echo "- Deployment job: ${{ job.status }}"
             echo "- Resource group: ${{ vars.AZURE_RESOURCE_GROUP }}"
             echo "- Location: ${{ vars.AZURE_LOCATION }}"
-            echo "- AI-Mode, MCP, RAG, Multi-Agent: disabled"
+            echo "- AI-Mode: ${{ (github.event_name == 'workflow_dispatch' && inputs.enable_ai_mode) && 'enabled (manual bonus run)' || 'disabled' }}"
+            echo "- MCP, RAG, Multi-Agent: disabled"
           } >> "$GITHUB_STEP_SUMMARY"
