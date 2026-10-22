@@ -14,7 +14,7 @@
 
         <details>
             <summary>Worker proposal</summary>
-            <pre>{{ run.worker_output or '' }}</pre>
+            <pre>{{ (run.worker_output or '') | replace('### ', '') | replace('**', '') }}</pre>
         </details>
 
         <details>

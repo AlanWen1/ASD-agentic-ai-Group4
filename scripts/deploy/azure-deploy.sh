@@ -227,13 +227,14 @@ deploy_app savings-database savings-database 6005 false $'DATABASE_PATH=/data/sa
 ENV_DOMAIN="$(az containerapp env show --name "$AZURE_CONTAINERAPPS_ENVIRONMENT" --resource-group "$AZURE_RESOURCE_GROUP" --query properties.defaultDomain --output tsv)"
 PUBLIC_HOME="https://finance-frontend.$ENV_DOMAIN"
 if [[ "$CLOUD_AI_PROFILE" == "bonus" ]]; then
-  deploy_app ollama ollama 11434 false '' '' 2.0 4Gi
+  # Bind explicitly so the shared runtime accepts requests from other apps.
+  deploy_app ollama ollama 11434 false $'OLLAMA_HOST=0.0.0.0:11434' '' 2.0 4Gi
   deploy_app ai-mode ai-mode 5099 false $'OLLAMA_URL=http://ollama:11434\nAI_MODE_TIMEOUT=180'
   MCP_ENV=$'EXPENSE_DB_URL=http://expense-database:6002\nBILL_DB_URL=http://bill-database:6004\nINCOME_DB_URL=http://income-database:6003\nSAVINGS_DB_URL=http://savings-database:6005\nBUDGET_DB_URL=http://budget-database:6001\nMCP_STATELESS=true'
   MCP_ENV+=$'\nMCP_ALLOWED_HOSTS='"mcp-server.internal.$ENV_DOMAIN"
   deploy_app mcp-server mcp-server 5100 false "$MCP_ENV"
   deploy_app rag-server rag-server 5101 false $'AI_MODE_URL=http://ai-mode:5099\nRAG_GENERATION_TIMEOUT=180'
-  deploy_app multi-agent-server multi-agent-server 5102 false $'OLLAMA_URL=http://ollama:11434\nMULTI_AGENT_API_KEY=secretref:multi-agent-key\nMULTI_AGENT_DB_PATH=/data/runs.sqlite3\nMULTI_AGENT_OLLAMA_NUM_CTX=4096\nMULTI_AGENT_OLLAMA_NUM_PREDICT=512' multi-agent-db
+  deploy_app multi-agent-server multi-agent-server 5102 false $'OLLAMA_URL=http://ollama:11434\nPLANNER_MODEL=qwen2.5:0.5b\nWORKER_MODEL=qwen2.5:0.5b\nREVIEWER_MODEL=qwen2.5:0.5b\nMULTI_AGENT_API_KEY=secretref:multi-agent-key\nMULTI_AGENT_DB_PATH=/data/runs.sqlite3\nMULTI_AGENT_OLLAMA_NUM_CTX=4096\nMULTI_AGENT_OLLAMA_NUM_PREDICT=512' multi-agent-db
 fi
 
 COMMON_AI="AI_ENABLED=$AI_ENABLED"$'\n'"MCP_ENABLED=$MCP_ENABLED"$'\n'"RAG_ENABLED=$RAG_ENABLED"$'\n'"MULTI_AGENT_ENABLED=$MULTI_AGENT_ENABLED"

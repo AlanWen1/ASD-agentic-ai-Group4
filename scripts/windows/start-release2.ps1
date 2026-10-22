@@ -13,7 +13,13 @@ if ($Install) {
 if (-not (Test-Path $Python)) { throw 'Run this script with -Install first' }
 docker info --format '{{.ServerVersion}}'
 if ($LASTEXITCODE -ne 0) { throw 'Start Docker Desktop first' }
-ollama pull qwen2.5:0.5b
+$LocalModel = if ($env:OLLAMA_MODEL) { $env:OLLAMA_MODEL } else { 'qwen2.5:0.5b' }
+foreach ($ModelVariable in @('OLLAMA_MODEL', 'PLANNER_MODEL', 'WORKER_MODEL', 'REVIEWER_MODEL')) {
+    if (-not (Get-Item "Env:$ModelVariable" -ErrorAction SilentlyContinue)) {
+        Set-Item "Env:$ModelVariable" -Value $LocalModel
+    }
+}
+ollama pull $LocalModel
 if ($LASTEXITCODE -ne 0) { throw 'Start Ollama and make the model available first' }
 $env:AI_ENABLED = 'true'
 $env:MCP_ENABLED = 'true'

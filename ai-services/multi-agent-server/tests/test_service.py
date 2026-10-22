@@ -94,3 +94,44 @@ def test_income_review_receives_plan_and_records_all_agent_stages(tmp_path, monk
     assert approved.get_json()["audit"][-1]["event"] == "approve"
     assert client.post("/runs/"+run["run_id"]+"/decision", headers=headers,
         json={"module":"income", "user_id":"31", "decision":"reject"}).status_code == 409
+
+
+def test_savings_specific_review_preserves_plan_correction_and_audit(tmp_path, monkeypatch):
+    calls = []
+
+    def fake(model, system, prompt, **kwargs):
+        calls.append((system, prompt, kwargs))
+        if "You are the Planner" in system:
+            return '{"steps":["Review every real goal"],"success_criteria":["No invented savings goals"]}'
+        if "independent Reviewer" in system:
+            return '{"verdict":"needs_attention","findings":["Deadline needs review"]}'
+        return "Goal: Travel. Target amount: 2000. Current amount: 500."
+
+    monkeypatch.setattr(service, "call_model", fake)
+    app = create_app(RunStore(str(tmp_path / "runs.db")))
+    client = app.test_client()
+    headers = {"X-Multi-Agent-Key": app.config["API_KEY"]}
+    response = client.post("/runs", headers=headers, json={
+        "module": "savings", "user_id": "5", "task": "Review my savings goals",
+        "evidence": {"goals": [{"name": "Travel", "target_amount": 2000, "current_amount": 500}]},
+    })
+    assert response.status_code == 201
+    run = response.get_json()
+    assert "Savings Goal Manager" in calls[0][0]
+    assert "progress percentage, remaining amount" in calls[1][0]
+    assert "Never add placeholder goals" in calls[1][0]
+    assert calls[1][2]["num_predict"] == 1200
+    assert "No invented savings goals" in calls[2][1]
+    assert "invented, duplicate, placeholder" in calls[2][0]
+    assert run["status"] == "awaiting_human_review" and not run["decision"]
+
+    corrected = client.post("/runs/" + run["run_id"] + "/decision", headers=headers, json={
+        "module": "savings", "user_id": "5", "decision": "correct",
+        "feedback": "Explain the missing target date",
+    })
+    assert corrected.status_code == 200
+    for _, prompt, _ in calls[-2:]:
+        assert "Explain the missing target date" in prompt
+        assert "No invented savings goals" in prompt
+    assert any(event["stage"] == "reviewer" and event["event"] == "completed"
+               and event["cycle"] == 1 for event in corrected.get_json()["audit"])
