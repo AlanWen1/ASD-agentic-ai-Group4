@@ -8,9 +8,9 @@ import requests
 from flask import Flask, jsonify, request
 
 VALID_MODULES = {"budget", "expenses", "income", "bills", "savings"}
-PLANNER_MODEL = os.getenv("PLANNER_MODEL", "qwen2.5:0.5b")
-WORKER_MODEL = os.getenv("WORKER_MODEL", "qwen2.5:0.5b")
-REVIEWER_MODEL = os.getenv("REVIEWER_MODEL", "qwen2.5:0.5b")
+PLANNER_MODEL = os.getenv("PLANNER_MODEL", "qwen2.5:7b")
+WORKER_MODEL = os.getenv("WORKER_MODEL", "qwen2.5:7b")
+REVIEWER_MODEL = os.getenv("REVIEWER_MODEL", "qwen2.5:7b")
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434").rstrip("/")
 OLLAMA_TIMEOUT_SECONDS = int(os.getenv("MULTI_AGENT_OLLAMA_TIMEOUT_SECONDS", "600"))
 OLLAMA_CONNECT_TIMEOUT_SECONDS = int(os.getenv("MULTI_AGENT_OLLAMA_CONNECT_TIMEOUT_SECONDS", "10"))
@@ -26,6 +26,23 @@ PLANNER_SYSTEM = (
     '"steps":["List each active budget with month and total","Compare each category to the budget total","Flag categories over 40% or budgets with no categories"],'
     '"required_evidence":["budget list","category amounts"],"checks":["category shares sum to 100%"],'
     '"risks":["budgets with no categories"],"assumptions":[],"success_criteria":["every active budget is covered"]}'
+)
+
+SAVINGS_PLANNER_SYSTEM = (
+    "You are the Planner for the Savings Goal Manager in a personal finance application. "
+    "Return ONLY one valid JSON object with these keys: "
+    "objective, steps, required_evidence, checks, risks, assumptions, success_criteria. "
+    "Each field except objective must be an array of short strings. "
+    "Create a concise plan focused only on the user's savings goals. "
+    "Plan to review every savings goal in the supplied evidence. "
+    "For each goal, check its name, target amount, current amount, "
+    "progress percentage, remaining amount, and target date. "
+    "Ensure the Worker reports all available figures accurately and identifies missing information. "
+    "Identify goals with incomplete progress or past target dates where supported by the evidence. "
+    "Do not invent goals, amounts, dates, or calculations. "
+    "Do not include budget categories, category shares, or unrelated financial modules. "
+    "Do not modify databases or savings goals. "
+    "The final proposal must require human review."
 )
 
 def summarise_evidence(evidence):
@@ -185,22 +202,89 @@ def create_app(store: RunStore | None = None):
         return None
 
     def execute_worker_and_reviewer(run, feedback=""):
+        savings_worker_instructions = (
+            "You are the Worker agent for the Savings Goal Manager. "
+            "Use ONLY the supplied savings-goal database evidence. "
+            "Review EVERY savings goal provided, without skipping any. "
+            "For each goal, report ALL of these fields in plain text: "
+            "goal name, target amount, current amount, progress percentage, "
+            "remaining amount, and target date. "
+            "Use a separate clearly labelled section for each savings goal. "
+            "Use simple text labels and bullet points, not Markdown tables. "
+            "Do not use Markdown formatting such as ### headings, **bold**, or pipe-separated tables. "
+            "Copy every value exactly from the evidence. "
+            "Do not invent goals, amounts, dates, percentages, or calculations. "
+            "Create exactly one clearly labelled plain-text section for each real savings goal in the evidence. "
+            "Never add placeholder goals, example goals, or entries containing only None or null values. "
+            "Do not recalculate progress percentages or remaining amounts. "
+            "Do not claim information is missing when it is present in the evidence. "
+            "After listing all savings goals, include a Missing Information section. "
+            "If all required fields are available, explicitly state that none are missing. "
+            "Include a Suggestions section with at most three short suggestions. "
+            "Suggestions must be supported by the evidence and must not contradict it. "
+            "Do not recommend changing correct figures merely to update them. "
+            "If a target date has passed and the goal is incomplete, you may suggest reviewing the deadline. "
+            "If no useful evidence-based suggestions exist, state that none are necessary. "
+            "Do not modify savings goals or databases. "
+            "Your output is a proposal requiring human review."
+        )
+        
         evidence_text=evidence_for_prompt(run["evidence"]); plan=run.get("plan") or {}
         correction_note=f"\nHUMAN CORRECTION REQUEST:\n{feedback}" if feedback else ""
+        worker_instructions = (
+            savings_worker_instructions
+            if run["module"] == "savings"
+            else "You are the Worker agent for a personal finance application. Use ONLY the supplied evidence. Copy month, year, budget ids, category names and amounts exactly. Never invent numbers, months or names. Treat the FLAGS section as verified and do not recompute percentages. Do not repeat yourself. Write under 200 words in exactly three sections: 'Facts' (one line per budget), 'Flagged items' (from the FLAGS section, or 'none'), 'Suggestions' (at most 3 short bullets). Never write to databases or take actions; this is a proposal for human review."
+        )
         worker_text=call_model(WORKER_MODEL,
-            "You are the Worker agent for a personal finance application. Use ONLY the supplied evidence. Copy month, year, budget ids, category names and amounts exactly. Never invent numbers, months or names. Treat the FLAGS section as verified and do not recompute percentages. Do not repeat yourself. Write under 200 words in exactly three sections: 'Facts' (one line per budget), 'Flagged items' (from the FLAGS section, or 'none'), 'Suggestions' (at most 3 short bullets). Never write to databases or take actions; this is a proposal for human review.",
+            worker_instructions,
             "TASK:\n"+run["task"]+"\nPLAN STEPS:\n"+"\n".join("- "+str(s) for s in plan.get("steps",[]))+"\n\nEVIDENCE:\n"+evidence_text+correction_note,
-            num_predict=500)
+            num_predict=1200 if run["module"] == "savings" else 500)
+        
+        savings_reviewer_instructions = (
+            "You are the independent Reviewer for the Savings Goal Manager. "
+            "Use ONLY the supplied savings-goal database evidence to verify the Worker output. "
+            "Review EVERY savings goal in the evidence without skipping any. "
+            "For each goal, verify its name, target amount, current amount, "
+            "progress percentage, remaining amount, and target date. "
+            "Compare every reported value against the corresponding evidence field. "
+            "Do not invent goal IDs, goal names, amounts, dates, or missing information. "
+            "Do not report a field as missing if it exists in the evidence and Worker output. "
+            "Identify any omitted goals, omitted fields, incorrect values, or unsupported claims. "
+            "Count the real savings goals in the evidence and compare that count with the Worker's clearly labelled goal sections. "
+            "Treat invented, duplicate, placeholder, or unsupported goal sections as errors requiring a needs_attention verdict. "
+            "Never return pass if the Worker includes a goal or section that is not supported by the evidence. "
+            "If all goals and required fields are accurately reported, return a pass verdict. "
+            "If any required information is missing or incorrect, return needs_attention. "
+            "Return ONLY one valid JSON object with exactly these keys: "
+            "verdict, findings, risks, evidence_gaps, recommendations, plan_coverage. "
+            "The verdict must be either 'pass' or 'needs_attention'. "
+            "findings, risks, evidence_gaps, and recommendations must each be arrays of short strings. "
+            "Use an empty array when there are no issues in a category. "
+            "plan_coverage must be one short string describing whether the plan was covered. "
+            "Do not include Markdown formatting or text outside the JSON object. "
+            "Do not modify savings goals or databases. "
+            "The final proposal requires human review."
+        )
+
+        reviewer_instructions = (
+            savings_reviewer_instructions
+            if run["module"] == "savings"
+            else (
+                "You are the independent Reviewer. Check the Worker output against the evidence: every figure and flag must appear in the evidence, and every verified flag should be mentioned. Do NOT repeat the Worker output. Return ONLY JSON with keys verdict ('pass' or 'needs_attention'), findings, risks, evidence_gaps, recommendations (each an array of at most 3 short distinct strings) and plan_coverage (one sentence). Example: "
+                '{"verdict":"pass","findings":["All figures match the evidence"],"risks":[],"evidence_gaps":[],"recommendations":["Review the flagged category"],"plan_coverage":"All plan steps were covered."}'
+            )
+        )
+
         review_text=call_model(REVIEWER_MODEL,
-            "You are the independent Reviewer. Check the Worker output against the evidence: every figure and flag must appear in the evidence, and every verified flag should be mentioned. Do NOT repeat the Worker output. Return ONLY JSON with keys verdict ('pass' or 'needs_attention'), findings, risks, evidence_gaps, recommendations (each an array of at most 3 short distinct strings) and plan_coverage (one sentence). Example: "
-            '{"verdict":"pass","findings":["All figures match the evidence"],"risks":[],"evidence_gaps":[],"recommendations":["Review the flagged category"],"plan_coverage":"All plan steps were covered."}',
+            reviewer_instructions,
             "TASK:\n"+run["task"]+"\n\nEVIDENCE:\n"+evidence_text+"\n\nWORKER OUTPUT:\n"+worker_text,
             json_mode=True, num_predict=400)
         review=parse_json_response(review_text,"review_text")
         for key,fallback in {"verdict":"needs_attention","findings":[],"risks":[],"evidence_gaps":[],"recommendations":[],"plan_coverage":"Inspect the raw review; it could not be fully structured."}.items(): review.setdefault(key,fallback)
         review["reviewer_model"]=REVIEWER_MODEL
         return run_store.update(run["run_id"],worker_output=worker_text,review_json=review,status="awaiting_human_review",decision_json=None)
-
+    
     @app.get("/health")
     def health():
         return jsonify({"status":"ok","service":"multi-agent-server","containerised":False,"models":{"planner":PLANNER_MODEL,"worker":WORKER_MODEL,"reviewer":REVIEWER_MODEL},"ollama_url":OLLAMA_URL})
@@ -216,16 +300,50 @@ def create_app(store: RunStore | None = None):
         if len(compact_json(evidence,MAX_EVIDENCE_CHARS+1))>MAX_EVIDENCE_CHARS: return jsonify({"error":f"evidence must be at most {MAX_EVIDENCE_CHARS} characters"}),413
         run=run_store.create(module,user_id,task,evidence)
         try:
-            planner_text=call_model(PLANNER_MODEL, PLANNER_SYSTEM,
+            planner_text=call_model(
+                PLANNER_MODEL,
+                SAVINGS_PLANNER_SYSTEM if module == "savings" else PLANNER_SYSTEM,
                 "MODULE: "+module+"\nUSER TASK:\n"+task+"\nEVIDENCE AVAILABLE (summary only):\n"+json.dumps(summarise_evidence(evidence)),
                 json_mode=True)
             plan=parse_json_response(planner_text,"plan_text")
+            if module == "savings":
+                fields = (
+                    "steps",
+                    "required_evidence",
+                    "checks",
+                    "risks",
+                    "assumptions",
+                    "success_criteria",
+                )
+
+                if not isinstance(plan.get("objective"), str):
+                    plan["objective"] = task
+
+                for field in fields:
+                    value = plan.get(field)
+                    if not isinstance(value, list) or not all(
+                        isinstance(item, str) for item in value
+                    ):
+                        plan[field] = []
             allowed={"objective","steps","required_evidence","checks","risks","assumptions","success_criteria"}
             plan={k:v for k,v in plan.items() if k in allowed}
             for key,fallback in {"objective":task,"steps":[],"required_evidence":[],"checks":[],"risks":[],"assumptions":[],"success_criteria":[]}.items(): plan.setdefault(key,fallback)
             if not plan["steps"]:
-                plan["steps"]=["Retrieve the supplied budget evidence","Compute totals and category shares from the evidence","Flag allocations that look unusual","Return a proposal for human review"]
-                plan["fallback"]=True  # visible in the audit trail
+                if module == "savings":
+                    plan["steps"] = [
+                        "Retrieve all supplied savings goals",
+                        "Review each goal's name, target amount, current amount, progress percentage, remaining amount, and target date",
+                        "Identify missing information and evidence-supported concerns",
+                        "Prepare an accurate proposal for human review"
+                    ]
+                else:
+                    plan["steps"] = [
+                        "Retrieve the supplied budget evidence",
+                        "Compute totals and category shares from the evidence",
+                        "Flag allocations that look unusual",
+                        "Return a proposal for human review"
+                    ]
+                plan["fallback"] = True  # visible in the audit trail
             plan["planner_model"]=PLANNER_MODEL
             run=run_store.update(run["run_id"],plan_json=plan,status="working")
             run=execute_worker_and_reviewer(run)
