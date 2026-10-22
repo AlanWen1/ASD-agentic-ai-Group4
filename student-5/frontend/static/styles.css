@@ -209,3 +209,83 @@ button.danger {
     margin: 0;
 }
 
+#multi-agent-panel form.chat-form {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+}
+
+#multi-agent-panel form.chat-form label {
+    flex: 0 0 85px;
+    margin: 0;
+}
+
+#multi-agent-panel #multi-agent-task {
+    display: block;
+    flex: 1 1 0;
+    width: auto;
+    min-width: 0;
+    height: 70px;
+    min-height: 70px;
+    padding: 10px 12px;
+    border: 1px solid #c8d0dc;
+    border-radius: 9px;
+    resize: vertical;
+    font: inherit;
+}
+
+#multi-agent-panel form.chat-form button {
+    flex: 0 0 auto;
+    width: auto;
+    margin: 0;
+    font-weight: 400;
+}
+
+#multi-agent-panel #multi-agent-result {
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    padding: 0;
+    min-height: 0;
+}
+
+
+#multi-agent-panel {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+#multi-agent-panel #multi-agent-result {
+    max-width: 100%;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+
+#multi-agent-panel pre {
+    max-width: 100%;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+
+#multi-agent-panel details {
+    max-width: 100%;
+    min-width: 0;
+}
+
+#multi-agent-loading {
+    display: none;
+}
+
+#multi-agent-loading.htmx-request {
+    display: block;
+}
+
+#multi-agent-panel:has(#multi-agent-loading.htmx-request) #multi-agent-result {
+    display: none;
+}
