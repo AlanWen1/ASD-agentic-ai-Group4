@@ -25,10 +25,16 @@ $env:AI_ENABLED = 'true'
 $env:MCP_ENABLED = 'true'
 $env:RAG_ENABLED = 'true'
 $env:MULTI_AGENT_ENABLED = 'true'
-foreach ($Service in @('ai-services/ai-mode/service.py', 'ai-services/mcp-server/server.py',
-                       'ai-services/rag-server/rag_server.py', 'ai-services/multi-agent-server/service.py')) {
-    $ServicePath = Join-Path $RepoRoot $Service
-    $Command = "& '" + $Python.Replace("'", "''") + "' '" + $ServicePath.Replace("'", "''") + "'"
+$Services = [ordered]@{
+    'ai-services/ai-mode/service.py' = 5099
+    'ai-services/mcp-server/server.py' = 5100
+    'ai-services/rag-server/rag_server.py' = 5101
+    'ai-services/multi-agent-server/service.py' = 5102
+}
+foreach ($Service in $Services.GetEnumerator()) {
+    $ServicePath = Join-Path $RepoRoot $Service.Key
+    # Configure each child process independently of an old terminal's PORT.
+    $Command = '$env:PORT = ' + $Service.Value + '; $env:MULTI_AGENT_PORT = ' + $Service.Value + "; & '" + $Python.Replace("'", "''") + "' '" + $ServicePath.Replace("'", "''") + "'"
     Start-Process powershell -WorkingDirectory $RepoRoot -ArgumentList @('-NoExit', '-Command', $Command)
 }
 docker compose up --build -d

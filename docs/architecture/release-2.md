@@ -43,7 +43,7 @@ flowchart TD
   A --> F[Public HTTPS frontend apps]
   F --> B[Internal backend apps]
   B --> D[Internal database APIs]
-  D --> V[Azure Files encrypted storage]
+  D --> V[SQLite on container disk]
   B -->|Explicit bonus profile| X[Internal shared AI services]
   W --> Q[Deployment and security verification]
   Q --> R[Agentic-loop report review]
@@ -52,6 +52,8 @@ flowchart TD
 
 Azure Container Apps hosts the application. Only the six frontends have external ingress. Backends, database APIs and optional AI services use internal HTTPS ingress. Ingress uses 443; container target ports (3000/5000/6000 etc.) are configuration inside Container Apps and are not appended to ingress URLs. Frontend module/home URLs are deployed public FQDNs.
 
-ACR images are tagged with the source commit, preventing an unchanged `release2` tag from silently serving old code. GitHub authenticates to Azure through OIDC. A user-assigned managed identity pulls ACR images. Runtime keys are generated for the deployment and supplied with Container Apps secret references. SQLite files have persistent Azure Files mounts; the Multi-Agent audit store has a separate share. Storage requires HTTPS/TLS 1.2, disallows anonymous blob access and is checked for Files encryption.
+ACR images are tagged with the source commit, preventing an unchanged `release2` tag from silently serving old code. GitHub authenticates to Azure through OIDC. A user-assigned managed identity pulls ACR images. Runtime keys are generated for the deployment and supplied with Container Apps secret references.
+
+The current team deployment uses SQLite files under `/tmp` in each database container, following the team's fix for SQLite file-locking failures on the Azure Files SMB mounts. Core data can reset when a database container restarts or is redeployed. Azure Files shares and their encryption/TLS configuration still exist, but that configuration does not demonstrate persistence or encryption of the active `/tmp` database files. Local Compose continues to mount its database volumes. The optional Multi-Agent cloud audit store uses its own share and must be verified separately before claiming durable workflow history.
 
 The baseline deployment leaves all four AI feature flags false. The explicit bonus profile deploys Ollama plus AI-Mode, MCP, RAG and Multi-Agent. Local Compose remains unchanged in this respect. These are coursework services; the report should state the tested concurrency and persistence limitations rather than imply production-scale validation.

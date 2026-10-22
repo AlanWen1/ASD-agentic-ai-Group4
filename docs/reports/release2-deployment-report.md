@@ -12,6 +12,8 @@ The Azure manifest builder passed tests for HTTPS internal addresses without Doc
 
 `verify_azure.py` reads actual deployed app/storage configuration without exporting secret values. `cloud_smoke.py` then registers its own random test users, logs in and exercises the public frontend proxies through the internal backends/database APIs. A static HTML 200 response alone cannot pass. It verifies frontend security headers and profile behavior. Random test credentials are never logged; financial records are cleaned up. Two random smoke accounts remain because the public application has no account-deletion endpoint.
 
+The team's current cloud database configuration uses container-local `/tmp` SQLite files to avoid the observed SMB file-locking startup failure. Cloud data may reset on restart/redeployment; the report must not describe those active files as persistent Azure Files data. Storage-account encryption results establish the configured account's controls, not the location or protection of each active application's database. Local Compose database volumes are unaffected.
+
 The baseline artifact must show all AI features disabled. A separate explicitly selected bonus run must show working AI-Mode, an MCP tool interaction, a RAG response with citations, and a three-agent run awaiting a real human decision. The deployment log/JSON status and source commit, not the existence of scripts or images, determine completion. Azure artifact links and live UI screenshots should be added to the final group report after the workflow runs.
 
 ## Human release decision

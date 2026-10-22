@@ -28,7 +28,7 @@ For terminal interaction use `ai-services/multi-agent-server/cli.py --module inc
 
 ## Cloud profiles
 
-`cloud-deployment.yml` defaults to **baseline**: every backend has AI, MCP, RAG and Multi-Agent disabled. The explicit **bonus** option enables all four. Run baseline first and retain its artifact; then select bonus and retain its separate artifact. Both use the existing Azure resource group and OIDC identity. No Azure credentials belong in the repository.
+`cloud-deployment.yml` defaults to **baseline**: every backend has AI, MCP, RAG and Multi-Agent disabled. The current priority is a working baseline. Retain its successful deployment/application artifact and verify registration, login, cloud navigation and all five modules with local services stopped. The explicit **bonus** option remains available for later work; do not enable it until the core cloud application is accepted. Both use the existing Azure resource group and OIDC identity. No Azure credentials belong in the repository.
 
 The deployment must pass whole-repository security checks, endpoint tests, regression tests and integrated container CRUD tests before Azure changes begin. It then verifies deployed ingress, feature flags, secret references and storage encryption/TLS settings, followed by actual login, CRUD and isolation requests through the public frontends. The bonus check also makes real AI/MCP/RAG/Multi-Agent requests. A green build alone is not deployment evidence.
 
