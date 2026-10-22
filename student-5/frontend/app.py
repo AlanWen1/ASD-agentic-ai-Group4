@@ -5,6 +5,21 @@ import os
 
 app = Flask(__name__)
 
+
+@app.after_request
+def add_security_headers(response):
+    """Cloud endpoint security: standard browser hardening headers on every
+    response (no MIME sniffing, no framing/clickjacking, no Referer leaking the
+    ?token= handoff URL, HTTPS-only for a year). Browsers ignore HSTS on plain
+    http://localhost, so local docker-compose runs are unaffected."""
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "no-referrer")
+    response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+    response.headers.setdefault("Strict-Transport-Security", "max-age=31536000")
+    return response
+
+
 BACKEND_API_URL = os.getenv(
     "BACKEND_API_URL",
     "http://127.0.0.1:5005"

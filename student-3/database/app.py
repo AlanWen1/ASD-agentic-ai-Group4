@@ -294,10 +294,12 @@ def create_app(database_path: str | None = None) -> Flask:
         if request.args.get("search"):
             clauses.append("LOWER(source_name) LIKE LOWER(?)")
             values.append(f"%{request.args['search'].strip()}%")
+        # SQL-injection safety: `clauses` only ever holds the fixed literal
+        # conditions above; user input goes into `values` as bound parameters.
         where = f" WHERE {' AND '.join(clauses)}" if clauses else ""
         with closing(get_connection()) as connection:
             rows = connection.execute(
-                f"SELECT * FROM income_sources{where} ORDER BY active DESC, source_name", values
+                f"SELECT * FROM income_sources{where} ORDER BY active DESC, source_name", values  # noqa: S608
             ).fetchall()
         return jsonify({"items": [dict(row) for row in rows], "count": len(rows)})
 
@@ -388,6 +390,8 @@ def create_app(database_path: str | None = None) -> Flask:
         if request.args.get("income_source_id"):
             clauses.append("p.income_source_id = ?")
             values.append(request.args["income_source_id"])
+        # SQL-injection safety: `clauses` only ever holds the fixed literal
+        # conditions above; user input goes into `values` as bound parameters.
         where = f" WHERE {' AND '.join(clauses)}" if clauses else ""
         query = f"""
             SELECT p.*, s.source_name, s.income_type, s.payment_frequency
@@ -396,7 +400,7 @@ def create_app(database_path: str | None = None) -> Flask:
               ON s.id = p.income_source_id AND s.user_id = p.user_id
             {where}
             ORDER BY p.expected_pay_date, p.id
-        """
+        """  # noqa: S608
         with closing(get_connection()) as connection:
             rows = connection.execute(query, values).fetchall()
         return jsonify({"items": [dict(row) for row in rows], "count": len(rows)})

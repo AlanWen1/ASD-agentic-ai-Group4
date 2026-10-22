@@ -157,11 +157,15 @@ def update_bill(bill_id):
     if "amount" in changes:
         changes["amount"] = float(changes["amount"])
     changes["updated_at"] = datetime.utcnow().isoformat(timespec="seconds") + "Z"
+    # SQL-injection safety: only fixed column names from the allowlist above are
+    # ever placed in the SQL text, and every value is a bound "?" parameter.
+    if set(changes) - {*allowed, "updated_at"}:
+        return jsonify({"error": "Unsupported field"}), 400
     set_clause = ", ".join(f"{key} = ?" for key in changes)
     values = list(changes.values()) + [bill_id, user_id]
 
     with closing(get_db()) as conn:
-        cursor = conn.execute(f"UPDATE bills SET {set_clause} WHERE id = ? AND user_id = ?", values)
+        cursor = conn.execute(f"UPDATE bills SET {set_clause} WHERE id = ? AND user_id = ?", values)  # noqa: S608
         if cursor.rowcount == 0:
             conn.rollback()
             return jsonify({"error": "Bill not found"}), 404

@@ -4,7 +4,32 @@ import requests
 from flask import Flask, render_template, request, redirect, session, url_for
 
 app = Flask(__name__)
+# Signs the session cookie that holds the user's token. The cloud deploy passes
+# a random per-deploy key as a Container Apps secret; the fallback is only for
+# local development.
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-change-me")
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,   # not readable from JavaScript
+    SESSION_COOKIE_SAMESITE="Lax",  # not sent on cross-site POSTs
+    # HTTPS-only cookie in the cloud; left off locally because docker-compose
+    # serves plain http://localhost.
+    SESSION_COOKIE_SECURE=os.environ.get("SESSION_COOKIE_SECURE", "false").lower() == "true",
+)
+
+
+@app.after_request
+def add_security_headers(response):
+    """Cloud endpoint security: standard browser hardening headers on every
+    response (no MIME sniffing, no framing/clickjacking, no Referer leaking the
+    ?token= handoff URL, HTTPS-only for a year). Browsers ignore HSTS on plain
+    http://localhost, so local docker-compose runs are unaffected."""
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "no-referrer")
+    response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+    response.headers.setdefault("Strict-Transport-Security", "max-age=31536000")
+    return response
+
 BACKEND_URL = os.environ.get("BACKEND_URL", "http://expense-backend:5002")
 # Where to send people to sign in — the shared Finance Application login.
 FINANCE_URL = os.environ.get("FINANCE_URL", "http://localhost:3000")

@@ -202,12 +202,17 @@ def update_user(user_id):
         changes["password_hash"] = generate_password_hash(str(changes.pop("password")))
 
     changes["updated_at"] = iso(now_utc())
+    # SQL-injection safety: only fixed column names (the allowlist above plus
+    # password_hash/updated_at) are placed in the SQL text; every value is a
+    # bound "?" parameter.
+    if set(changes) - {"username", "email", "password_hash", "updated_at"}:
+        return jsonify({"error": "unsupported field"}), 400
     set_clause = ", ".join(f"{key} = ?" for key in changes)
     values = list(changes.values()) + [user_id]
 
     try:
         with closing(get_db()) as conn:
-            cursor = conn.execute(f"UPDATE users SET {set_clause} WHERE id = ?", values)
+            cursor = conn.execute(f"UPDATE users SET {set_clause} WHERE id = ?", values)  # noqa: S608
             if cursor.rowcount == 0:
                 conn.rollback()
                 return jsonify({"error": "User not found"}), 404

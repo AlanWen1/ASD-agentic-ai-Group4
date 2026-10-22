@@ -48,6 +48,10 @@ echo "Cloud AI toggles: AI_ENABLED=$AI_ENABLED MCP_ENABLED=$MCP_ENABLED RAG_ENAB
 # random key is generated on every deploy unless one is supplied, so no key is
 # stored in the repository.
 MULTI_AGENT_API_KEY="${MULTI_AGENT_API_KEY:-$(python3 -c 'import secrets; print(secrets.token_hex(24))')}"
+# Signing key for the Expense frontend's session cookie (it holds the user's
+# token), generated per deploy for the same reason. Both are passed to Azure as
+# Container Apps secrets (see "@secret:" in deploy_app), never as plain env vars.
+EXPENSE_SECRET_KEY="${EXPENSE_SECRET_KEY:-$(python3 -c 'import secrets; print(secrets.token_hex(32))')}"
 export AI_ENABLED MCP_ENABLED RAG_ENABLED MULTI_AGENT_ENABLED
 
 echo "Checking Azure login and subscription..."
@@ -159,6 +163,30 @@ deploy_app() {
   envs="${envs//http:\/\/income-frontend:3003/https:\/\/income-frontend.$ENV_DEFAULT_DOMAIN}"
   envs="${envs//http:\/\/bill-frontend:3004/https:\/\/bill-frontend.$ENV_DEFAULT_DOMAIN}"
   envs="${envs//http:\/\/savings-frontend:3005/https:\/\/savings-frontend.$ENV_DEFAULT_DOMAIN}"
+  # Env values written as "@secret:<value>" become Container Apps secrets
+  # (stored encrypted, masked in the Portal/CLI) that the container reads via
+  # secretRef, instead of plain-text environment variables.
+  local env_entries="" secrets_block="" key value secret_name
+  while IFS='=' read -r key value; do
+    [[ -z "$key" ]] && continue
+    if [[ "$value" == @secret:* ]]; then
+      secret_name="$(printf '%s' "$key" | tr '[:upper:]_' '[:lower:]-')"
+      secrets_block+="      - name: ${secret_name}
+        value: \"${value#@secret:}\"
+"
+      env_entries+="          - name: ${key}
+            secretRef: ${secret_name}
+"
+    else
+      env_entries+="          - name: ${key}
+            value: \"${value//\"/\\\"}\"
+"
+    fi
+  done <<< "$envs"
+  if [[ -n "$secrets_block" ]]; then
+    secrets_block="    secrets:
+${secrets_block}"
+  fi
   manifest="$(mktemp)"
   {
     printf 'name: %s\nlocation: %s\n' "$app" "$AZURE_LOCATION"
@@ -175,7 +203,7 @@ properties:
     registries:
       - server: $ACR_LOGIN_SERVER
         identity: $IDENTITY_ID
-    ingress:
+${secrets_block}    ingress:
       external: $ingress
       targetPort: $port
       transport: auto
@@ -185,13 +213,6 @@ properties:
       - name: $app
         image: $ACR_LOGIN_SERVER/$image:$IMAGE_TAG
 YAML
-    env_entries=""
-    while IFS='=' read -r key value; do
-      [[ -z "$key" ]] && continue
-      env_entries+="          - name: ${key}
-            value: \"${value//\"/\\\"}\"
-"
-    done <<< "$envs"
     if [[ -n "$env_entries" ]]; then
       printf '        env:\n%s' "$env_entries"
     else
@@ -273,7 +294,7 @@ deploy_or_remove() {
 }
 deploy_or_remove "$MCP_ENABLED" mcp-server mcp-server 5100 false $'PORT=5100\nEXPENSE_DB_URL=http://expense-database:6002\nBILL_DB_URL=http://bill-database:6004\nINCOME_DB_URL=http://income-database:6003\nSAVINGS_DB_URL=http://savings-database:6005\nBUDGET_DB_URL=http://budget-database:6001'
 deploy_or_remove "$RAG_ENABLED" rag-server rag-server 5101 false $'PORT=5101\nAI_MODE_URL=http://ai-mode:5099\nRAG_GENERATION_TIMEOUT=150'
-deploy_or_remove "$MULTI_AGENT_ENABLED" multi-agent-server multi-agent-server 5102 false $'MULTI_AGENT_HOST=0.0.0.0\nMULTI_AGENT_PORT=5102\nOLLAMA_URL=http://ollama:11434\nPLANNER_MODEL=qwen2.5:0.5b\nWORKER_MODEL=qwen2.5:0.5b\nREVIEWER_MODEL=qwen2.5:0.5b\nMULTI_AGENT_NUM_PREDICT=512\nMULTI_AGENT_DB_PATH=/tmp/multi-agent-runs.sqlite3\nMULTI_AGENT_API_KEY='"$MULTI_AGENT_API_KEY"
+deploy_or_remove "$MULTI_AGENT_ENABLED" multi-agent-server multi-agent-server 5102 false $'MULTI_AGENT_HOST=0.0.0.0\nMULTI_AGENT_PORT=5102\nOLLAMA_URL=http://ollama:11434\nPLANNER_MODEL=qwen2.5:0.5b\nWORKER_MODEL=qwen2.5:0.5b\nREVIEWER_MODEL=qwen2.5:0.5b\nMULTI_AGENT_NUM_PREDICT=512\nMULTI_AGENT_DB_PATH=/tmp/multi-agent-runs.sqlite3\nMULTI_AGENT_API_KEY=@secret:'"$MULTI_AGENT_API_KEY"
 
 # Backends. AI_ENABLED follows the toggle above (default false). When it is on,
 # each backend is also pointed at the shared AI-Mode service, using whichever
@@ -296,7 +317,7 @@ FLAGS=$'\nAI_ENABLED='"$AI_ENABLED"$'\nMCP_ENABLED='"$MCP_ENABLED"$'\nRAG_ENABLE
 BONUS_URLS=""
 if [[ "$MCP_ENABLED" == "true" ]]; then BONUS_URLS+=$'\nMCP_SERVER_URL=http://mcp-server:5100/mcp'; fi
 if [[ "$RAG_ENABLED" == "true" ]]; then BONUS_URLS+=$'\nRAG_SERVER_URL=http://rag-server:5101'; fi
-if [[ "$MULTI_AGENT_ENABLED" == "true" ]]; then BONUS_URLS+=$'\nMULTI_AGENT_URL=http://multi-agent-server:5102\nMULTI_AGENT_API_KEY='"$MULTI_AGENT_API_KEY"; fi
+if [[ "$MULTI_AGENT_ENABLED" == "true" ]]; then BONUS_URLS+=$'\nMULTI_AGENT_URL=http://multi-agent-server:5102\nMULTI_AGENT_API_KEY=@secret:'"$MULTI_AGENT_API_KEY"; fi
 deploy_app finance-backend finance-backend 5000 false $'DATABASE_URL=http://finance-database:6000\nBILL_DATABASE_URL=http://bill-database:6004'
 deploy_app bill-backend bill-backend 5004 false $'DATABASE_URL=http://bill-database:6004\nAUTH_DATABASE_URL=http://finance-database:6000'"$FLAGS$BILL_AI$BONUS_URLS"
 deploy_app budget-backend budget-backend 5001 false $'DATABASE_URL=http://budget-database:6001\nAUTH_DATABASE_URL=http://finance-database:6000'"$FLAGS$BUDGET_AI$BONUS_URLS"
@@ -307,7 +328,7 @@ deploy_app savings-backend savings-backend 5005 false $'DATABASE_API_URL=http://
 # Frontends are the public entry points; they communicate with their internal backend apps.
 deploy_app finance-frontend finance-frontend 3000 true $'BACKEND_URL=http://finance-backend:5000\nINCOME_URL=http://income-frontend:3003\nBILL_URL=http://bill-frontend:3004\nBUDGET_URL=http://budget-frontend:3001\nSAVINGS_URL=http://savings-frontend:3005\nEXPENSE_URL=http://expense-frontend:3002'
 deploy_app budget-frontend budget-frontend 3001 true $'BACKEND_URL=http://budget-backend:5001\nFINANCE_URL=http://finance-frontend:3000'
-deploy_app expense-frontend expense-frontend 3002 true $'BACKEND_URL=http://expense-backend:5002\nFINANCE_URL=http://finance-frontend:3000'
+deploy_app expense-frontend expense-frontend 3002 true $'BACKEND_URL=http://expense-backend:5002\nFINANCE_URL=http://finance-frontend:3000\nSESSION_COOKIE_SECURE=true\nSECRET_KEY=@secret:'"$EXPENSE_SECRET_KEY"
 deploy_app income-frontend income-frontend 3003 true $'BACKEND_SERVICE_URL=http://income-backend:5003\nFINANCE_URL=http://finance-frontend:3000'
 deploy_app bill-frontend bill-frontend 3004 true $'BACKEND_URL=http://bill-backend:5004\nFINANCE_URL=http://finance-frontend:3000'
 deploy_app savings-frontend savings-frontend 3005 true $'BACKEND_API_URL=http://savings-backend:5005\nFINANCE_URL=http://finance-frontend:3000'
@@ -348,6 +369,43 @@ if ! grep -Eq '"status": ?"ok"' <<< "$health"; then
   exit 1
 fi
 echo "OK"
+
+echo "Checking cloud endpoint security..."
+# a) Only the six frontends may be reachable from the internet; backends,
+#    databases and AI services must be internal to the Container Apps environment.
+exposed="$(az containerapp list --resource-group "$AZURE_RESOURCE_GROUP" --query "[?properties.configuration.ingress.external].name" --output tsv)"
+echo "  Apps with public ingress: $(echo $exposed)"
+for app in $exposed; do
+  if [[ "$app" != *-frontend ]]; then
+    echo "ERROR: $app has public ingress; only *-frontend apps may be exposed" >&2
+    exit 1
+  fi
+done
+echo "  Only frontends are public: OK"
+# b) Plain HTTP is redirected to HTTPS (allowInsecure: false).
+code="$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 20 "http://$finance_url/")"
+if [[ ! "$code" =~ ^30[1278]$ ]]; then
+  echo "ERROR: http://$finance_url/ returned $code, expected a redirect to HTTPS" >&2
+  exit 1
+fi
+echo "  http:// -> HTTPS redirect ($code): OK"
+# c) API calls without a session token are rejected.
+budget_url="$(az containerapp show --name budget-frontend --resource-group "$AZURE_RESOURCE_GROUP" --query properties.configuration.ingress.fqdn --output tsv)"
+code="$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 30 "https://$budget_url/api/budgets")"
+if [[ "$code" != "401" ]]; then
+  echo "ERROR: unauthenticated GET /api/budgets returned $code, expected 401" >&2
+  exit 1
+fi
+echo "  Unauthenticated API request rejected (401): OK"
+# d) Security headers are sent by the frontends.
+headers="$(curl --silent --head --max-time 20 "https://$finance_url/")"
+for header in Strict-Transport-Security X-Content-Type-Options X-Frame-Options Referrer-Policy; do
+  if ! grep -qi "^$header:" <<< "$headers"; then
+    echo "ERROR: https://$finance_url/ is missing the $header header" >&2
+    exit 1
+  fi
+done
+echo "  Security headers present: OK"
 
 echo
 echo "Deployment and basic endpoint smoke tests succeeded. Frontend URLs:"

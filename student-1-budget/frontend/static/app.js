@@ -7,6 +7,10 @@ let activeBudgetId = null;
 const urlToken = new URLSearchParams(window.location.search).get("token");
 if (urlToken) {
     localStorage.setItem("finance_token", urlToken);
+    // Remove the token from the address bar/history so it isn't bookmarked or shared.
+    const cleanUrl = new URL(window.location.href);
+    cleanUrl.searchParams.delete("token");
+    window.history.replaceState({}, document.title, cleanUrl.pathname + cleanUrl.search + cleanUrl.hash);
 }
 const token = localStorage.getItem("finance_token") || "";
 

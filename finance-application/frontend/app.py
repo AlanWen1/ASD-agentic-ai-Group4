@@ -4,6 +4,21 @@ import requests
 from flask import Flask, jsonify, render_template, request
 
 app = Flask(__name__)
+
+
+@app.after_request
+def add_security_headers(response):
+    """Cloud endpoint security: standard browser hardening headers on every
+    response (no MIME sniffing, no framing/clickjacking, no Referer leaking the
+    ?token= handoff URL, HTTPS-only for a year). Browsers ignore HSTS on plain
+    http://localhost, so local docker-compose runs are unaffected."""
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "no-referrer")
+    response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+    response.headers.setdefault("Strict-Transport-Security", "max-age=31536000")
+    return response
+
 BACKEND_URL = os.environ.get("BACKEND_URL", "http://backend:5000").rstrip("/")
 
 # Where each sub-app's frontend actually lives. Defaults match local
