@@ -242,6 +242,7 @@
 
 </main>
 
+  <script>window.FINANCE_URL = {{ finance_url|tojson }};</script>
   <script src="{{ url_for('static', filename='app.js') }}" defer></script>
 </body>
 </html>

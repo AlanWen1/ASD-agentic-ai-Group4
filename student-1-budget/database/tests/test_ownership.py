@@ -5,12 +5,20 @@ from pathlib import Path
 import pytest
 
 SPEC = importlib.util.spec_from_file_location("budget_database_ownership", Path(__file__).parents[1] / "app.py")
-database = importlib.util.module_from_spec(SPEC)
-SPEC.loader.exec_module(database)
+
+
+@pytest.fixture(scope="module")
+def database(tmp_path_factory):
+    module = importlib.util.module_from_spec(SPEC)
+    bootstrap_path = tmp_path_factory.mktemp("budget-import") / "bootstrap.db"
+    with pytest.MonkeyPatch.context() as environment:
+        environment.setenv("DATABASE_PATH", str(bootstrap_path))
+        SPEC.loader.exec_module(module)
+    return module
 
 
 @pytest.fixture
-def records(tmp_path, monkeypatch):
+def records(tmp_path, monkeypatch, database):
     monkeypatch.setattr(database, "DB_PATH", str(tmp_path / "budget.db"))
     database.init_db()
     client = database.app.test_client()

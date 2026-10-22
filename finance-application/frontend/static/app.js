@@ -52,18 +52,25 @@ function showAuth() {
   $("home-view").hidden = true;
   $("identifier").required = true;
 }
-function updateModuleLink(id) {
+// Each "Open X" link's base URL comes from the server-rendered href
+// (INCOME_URL / BILL_URL / ... env vars in app.py): localhost under
+// docker-compose, the real public HTTPS host in the cloud. Only the session
+// token is appended here; no sub-app address is hardcoded in this file.
+function updateAppLink(id) {
   const link = $(id);
   if (!link) return;
+  if (!link.dataset.baseUrl) link.dataset.baseUrl = link.getAttribute("href");
   const url = new URL(link.dataset.baseUrl, window.location.href);
-  if (token()) url.searchParams.set("token", token());
+  const currentToken = token();
+  if (currentToken) url.searchParams.set("token", currentToken);
+  else url.searchParams.delete("token");
   link.href = url.toString();
 }
-function updateBillTrackerLink() { updateModuleLink("bill-tracker-link"); }
-function updateExpenseTrackerLink() { updateModuleLink("expense-tracker-link"); }
-function updateIncomeManagerLink() { updateModuleLink("income-manager-link"); }
-function updateSavingsGoalLink() { updateModuleLink("savings-goal-link"); }
-function updateBudgetManagerLink() { updateModuleLink("budget-manager-link"); }
+function updateBillTrackerLink() { updateAppLink("bill-tracker-link"); }
+function updateExpenseTrackerLink() { updateAppLink("expense-tracker-link"); }
+function updateIncomeManagerLink() { updateAppLink("income-manager-link"); }
+function updateSavingsGoalLink() { updateAppLink("savings-goal-link"); }
+function updateBudgetManagerLink() { updateAppLink("budget-manager-link"); }
 
 function showHome() {
   updateBillTrackerLink();

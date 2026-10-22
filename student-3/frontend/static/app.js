@@ -20,7 +20,7 @@ function captureSharedToken() {
 document.addEventListener('DOMContentLoaded', () => {
   captureSharedToken();
   if (!authToken()) {
-    window.location.replace(document.body.dataset.financeUrl);
+    window.location.replace((window.FINANCE_URL || document.body.dataset.financeUrl));
     return;
   }
   const monthPicker = $('#monthPicker');
@@ -68,7 +68,7 @@ async function api(path, options = {}) {
   }
   if (response.status === 401) {
     localStorage.removeItem(TOKEN_KEY);
-    window.location.replace(document.body.dataset.financeUrl);
+    window.location.replace((window.FINANCE_URL || document.body.dataset.financeUrl));
   }
   if (!response.ok) throw new Error(payload?.error || `Request failed (${response.status})`);
   return payload;

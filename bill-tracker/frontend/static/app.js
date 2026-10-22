@@ -36,7 +36,7 @@ async function loadAll() {
   }
 }
 function showGate() {
-  const homeUrl = document.body.dataset.financeUrl;
+  const homeUrl = (window.FINANCE_URL || document.body.dataset.financeUrl);
   const main = document.createElement("main");
   const title = document.createElement("h1"); title.textContent = "Sign in required";
   const text = document.createElement("p"); text.textContent = "Open Bill Tracker from the Finance Application home page.";
