@@ -50,7 +50,8 @@ IDENTITY_ID="$(az identity create --name finance-release2-acr-pull --resource-gr
 IDENTITY_PRINCIPAL="$(az identity show --name finance-release2-acr-pull --resource-group "$AZURE_RESOURCE_GROUP" --query principalId --output tsv)"
 az role assignment create --assignee-object-id "$IDENTITY_PRINCIPAL" --assignee-principal-type ServicePrincipal --role AcrPull --scope "$ACR_ID" --output none 2>/dev/null || true
 
-# SQLite databases use Azure Files shares mounted at /data to survive container restarts.
+# Prepare storage shares and controls. Core SQLite currently uses container /tmp
+# (see database deployment below); these shares do not make that data persistent.
 az storage account create --name "$AZURE_STORAGE_ACCOUNT" --resource-group "$AZURE_RESOURCE_GROUP" --location "$AZURE_LOCATION" --sku Standard_LRS --kind StorageV2 --https-only true --min-tls-version TLS1_2 --allow-blob-public-access false --output none 2>/dev/null || true
 az storage account update --name "$AZURE_STORAGE_ACCOUNT" --resource-group "$AZURE_RESOURCE_GROUP" --https-only true --min-tls-version TLS1_2 --allow-blob-public-access false --output none
 STORAGE_KEY="$(az storage account keys list --account-name "$AZURE_STORAGE_ACCOUNT" --resource-group "$AZURE_RESOURCE_GROUP" --query '[0].value' --output tsv)"
@@ -101,7 +102,7 @@ if [[ "$CLOUD_AI_PROFILE" == "bonus" ]]; then
   build_image multi-agent-server ./ai-services/multi-agent-server Dockerfile
 fi
 
-# Create/update an app with a minimal YAML manifest. Database apps mount Azure Files at /data.
+# Create/update an app. Mount /data only when an explicit volume_share is given.
 deploy_app() {
   local app="$1" image="$2" port="$3" ingress="$4" envs="$5" volume_share="${6:-}" cpu="${7:-}" memory="${8:-}"
   local manifest

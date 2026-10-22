@@ -1,0 +1,337 @@
+{
+  "environment": "Azure public HTTPS; existing team deployment",
+  "started_at": "2026-10-22T03:15:10.663136+00:00",
+  "checks": [
+    {
+      "module": "finance",
+      "method": "POST",
+      "path": "/api/auth/register",
+      "status": 201,
+      "checked_at": "2026-10-22T03:15:19.579161+00:00"
+    },
+    {
+      "module": "finance",
+      "method": "POST",
+      "path": "/api/auth/login",
+      "status": 200,
+      "checked_at": "2026-10-22T03:15:26.386303+00:00"
+    },
+    {
+      "module": "finance",
+      "method": "POST",
+      "path": "/api/auth/register",
+      "status": 201,
+      "checked_at": "2026-10-22T03:15:33.634728+00:00"
+    },
+    {
+      "module": "finance",
+      "method": "POST",
+      "path": "/api/auth/login",
+      "status": 200,
+      "checked_at": "2026-10-22T03:15:40.581740+00:00"
+    },
+    {
+      "module": "budget",
+      "method": "GET",
+      "path": "/api/budgets",
+      "status": 401,
+      "checked_at": "2026-10-22T03:15:48.947211+00:00"
+    },
+    {
+      "module": "budget",
+      "method": "POST",
+      "path": "/api/budgets",
+      "status": 201,
+      "checked_at": "2026-10-22T03:15:56.066607+00:00"
+    },
+    {
+      "module": "budget",
+      "method": "GET",
+      "path": "/api/budgets",
+      "status": 200,
+      "checked_at": "2026-10-22T03:16:03.020147+00:00"
+    },
+    {
+      "module": "budget",
+      "method": "GET",
+      "path": "/api/budgets",
+      "status": 200,
+      "checked_at": "2026-10-22T03:16:09.624859+00:00"
+    },
+    {
+      "module": "budget",
+      "method": "GET",
+      "path": "/api/budgets/13",
+      "status": 200,
+      "checked_at": "2026-10-22T03:16:12.869157+00:00"
+    },
+    {
+      "module": "income",
+      "method": "GET",
+      "path": "/api/income-sources",
+      "status": 401,
+      "checked_at": "2026-10-22T03:16:20.910419+00:00"
+    },
+    {
+      "module": "income",
+      "method": "POST",
+      "path": "/api/income-sources",
+      "status": 201,
+      "checked_at": "2026-10-22T03:16:24.281085+00:00"
+    },
+    {
+      "module": "income",
+      "method": "GET",
+      "path": "/api/income-sources",
+      "status": 200,
+      "checked_at": "2026-10-22T03:16:31.233779+00:00"
+    },
+    {
+      "module": "income",
+      "method": "GET",
+      "path": "/api/income-sources",
+      "status": 200,
+      "checked_at": "2026-10-22T03:16:37.791628+00:00"
+    },
+    {
+      "module": "income",
+      "method": "GET",
+      "path": "/api/income-sources/11",
+      "status": 200,
+      "checked_at": "2026-10-22T03:16:44.384606+00:00"
+    },
+    {
+      "module": "income",
+      "method": "GET",
+      "path": "/api/income-sources/11",
+      "status": 404,
+      "checked_at": "2026-10-22T03:16:51.013999+00:00"
+    },
+    {
+      "module": "income",
+      "method": "PUT",
+      "path": "/api/income-sources/11",
+      "status": 200,
+      "checked_at": "2026-10-22T03:16:57.653644+00:00"
+    },
+    {
+      "module": "income",
+      "method": "GET",
+      "path": "/api/pay-schedules",
+      "status": 401,
+      "checked_at": "2026-10-22T03:17:04.170634+00:00"
+    },
+    {
+      "module": "income",
+      "method": "POST",
+      "path": "/api/pay-schedules",
+      "status": 201,
+      "checked_at": "2026-10-22T03:17:10.861802+00:00"
+    },
+    {
+      "module": "income",
+      "method": "GET",
+      "path": "/api/pay-schedules",
+      "status": 200,
+      "checked_at": "2026-10-22T03:17:17.467528+00:00"
+    },
+    {
+      "module": "income",
+      "method": "GET",
+      "path": "/api/pay-schedules",
+      "status": 200,
+      "checked_at": "2026-10-22T03:17:24.031241+00:00"
+    },
+    {
+      "module": "income",
+      "method": "GET",
+      "path": "/api/pay-schedules/17",
+      "status": 200,
+      "checked_at": "2026-10-22T03:17:30.617038+00:00"
+    },
+    {
+      "module": "income",
+      "method": "GET",
+      "path": "/api/pay-schedules/17",
+      "status": 404,
+      "checked_at": "2026-10-22T03:17:37.146056+00:00"
+    },
+    {
+      "module": "income",
+      "method": "PUT",
+      "path": "/api/pay-schedules/17",
+      "status": 200,
+      "checked_at": "2026-10-22T03:17:42.331462+00:00"
+    },
+    {
+      "module": "bill",
+      "method": "GET",
+      "path": "/api/bills",
+      "status": 401,
+      "checked_at": "2026-10-22T03:17:49.274139+00:00"
+    },
+    {
+      "module": "bill",
+      "method": "POST",
+      "path": "/api/bills",
+      "status": 201,
+      "checked_at": "2026-10-22T03:17:55.928418+00:00"
+    },
+    {
+      "module": "bill",
+      "method": "GET",
+      "path": "/api/bills",
+      "status": 200,
+      "checked_at": "2026-10-22T03:18:02.693827+00:00"
+    },
+    {
+      "module": "bill",
+      "method": "GET",
+      "path": "/api/bills",
+      "status": 200,
+      "checked_at": "2026-10-22T03:18:09.283086+00:00"
+    },
+    {
+      "module": "bill",
+      "method": "GET",
+      "path": "/api/bills/1",
+      "status": 200,
+      "checked_at": "2026-10-22T03:18:15.847894+00:00"
+    },
+    {
+      "module": "bill",
+      "method": "GET",
+      "path": "/api/bills/1",
+      "status": 404,
+      "checked_at": "2026-10-22T03:18:22.658060+00:00"
+    },
+    {
+      "module": "bill",
+      "method": "PUT",
+      "path": "/api/bills/1",
+      "status": 200,
+      "checked_at": "2026-10-22T03:18:29.280228+00:00"
+    },
+    {
+      "module": "bill",
+      "method": "DELETE",
+      "path": "/api/bills/1",
+      "status": 200,
+      "checked_at": "2026-10-22T03:19:20.418741+00:00"
+    },
+    {
+      "module": "income",
+      "method": "DELETE",
+      "path": "/api/pay-schedules/17",
+      "status": 204,
+      "checked_at": "2026-10-22T03:19:27.033116+00:00"
+    },
+    {
+      "module": "income",
+      "method": "DELETE",
+      "path": "/api/income-sources/11",
+      "status": 204,
+      "checked_at": "2026-10-22T03:19:33.625507+00:00"
+    },
+    {
+      "module": "budget",
+      "method": "DELETE",
+      "path": "/api/budgets/13",
+      "status": 200,
+      "checked_at": "2026-10-22T03:19:40.662949+00:00"
+    },
+    {
+      "module": "finance",
+      "method": "POST",
+      "path": "/api/auth/logout",
+      "status": 200,
+      "checked_at": "2026-10-22T03:19:47.809823+00:00"
+    },
+    {
+      "module": "finance",
+      "method": "POST",
+      "path": "/api/auth/logout",
+      "status": 200,
+      "checked_at": "2026-10-22T03:19:54.759272+00:00"
+    }
+  ],
+  "outcomes": [
+    {
+      "name": "Budget own CRUD and cross-account isolation",
+      "status": "failed",
+      "error_type": "RuntimeError",
+      "error": "budget GET /api/budgets/13: expected (403, 404), got 200"
+    },
+    {
+      "name": "Income source own CRUD and cross-account isolation",
+      "status": "passed"
+    },
+    {
+      "name": "Pay schedule own CRUD and cross-account isolation",
+      "status": "passed"
+    },
+    {
+      "name": "Bill own CRUD and cross-account isolation",
+      "status": "passed"
+    },
+    {
+      "name": "Savings legacy forms create/read/update/isolation",
+      "status": "passed"
+    },
+    {
+      "name": "Expense legacy forms create/read/isolation",
+      "status": "passed"
+    }
+  ],
+  "limitations": [
+    "Independent HTTP diagnostics; browser UI not authenticated.",
+    "Expense/Savings legacy form checks are separate from the new JSON smoke routes.",
+    "This does not prove a newer feature commit has been deployed."
+  ],
+  "cleanup": [
+    {
+      "module": "expense",
+      "path": "/expenses/1",
+      "status": "deleted"
+    },
+    {
+      "module": "expense",
+      "path": "/categories/1",
+      "status": "deleted"
+    },
+    {
+      "module": "savings",
+      "path": "/goals/11",
+      "status": "deleted"
+    },
+    {
+      "module": "bill",
+      "path": "/api/bills/1",
+      "status": "deleted"
+    },
+    {
+      "module": "income",
+      "path": "/api/pay-schedules/17",
+      "status": "deleted"
+    },
+    {
+      "module": "income",
+      "path": "/api/income-sources/11",
+      "status": "deleted"
+    },
+    {
+      "module": "budget",
+      "path": "/api/budgets/13",
+      "status": "deleted"
+    }
+  ],
+  "completed_at": "2026-10-22T03:19:54.760104+00:00",
+  "status": "partial_failure",
+  "observed_team_workflow": "https://github.com/AlanWen1/ASD-agentic-ai-Group4/actions/runs/39712391466",
+  "candidate_core_repair": "ea0dfed4ad46730219a7e215b98769a6563f9fb6 (not yet deployed by this connection)",
+  "notes": [
+    "Budget cross-account detail returned HTTP 200 where 403/404 was required.",
+    "All seven generated financial records were deleted; both generated sessions were logged out.",
+    "Two randomly generated test accounts remain because there is no public account-deletion endpoint."
+  ]
+}

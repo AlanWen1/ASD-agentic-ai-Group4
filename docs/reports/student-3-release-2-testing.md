@@ -8,6 +8,8 @@ The repository installs real local Git hooks with `python -m pre_commit install`
 
 The initial full scan identified 13 static warnings. Fixed SQL conditions and whitelisted editable column names continue to use bound parameters; narrowly scoped S608 annotations explain these reviewed false positives. Demo-only random dates and synthetic test credentials have specific annotations. HTTP calls in retained Budget MCP/RAG tests now have timeouts. No blanket addition to the existing ignored-rule list was needed. Secret references and generated credentials are distinguished from hardcoded secrets; real cloud mode refuses short development keys. The dependency audit covered 22 manifests with no known vulnerabilities at the audit time. The final commit-hook log is the source of truth for pass/fail.
 
+The dated navigation diagnostics contain two public JavaScript SHA256 fingerprints. Their exact values were verified against the script bytes and narrowly recorded as false positives in the secrets baseline. No test password or session token is retained in those artifacts.
+
 ## Post-commit endpoint functions
 
 `student-3.yml` runs `test_post_commit_endpoints.py` after a push. It tests authenticated `GET /api/income-sources` and `GET /api/pay-schedules`, confirms the backend forwards the authenticated owner ID, and saves a JUnit artifact. Those are backend route tests with mocked downstream replies. Real HTTP/database behavior is verified separately by the integrated Compose job and application smoke runner.
@@ -18,7 +20,7 @@ The Student 3 plus agentic-loop suite passed 90 tests locally. Added boundaries 
 
 Shared tests verify that Income receives appropriate Worker instructions, Reviewer receives the plan and success criteria, all three agent stages appear in the audit log, and a second final decision is refused. Azure manifest tests exercise the actual shell function and verify HTTPS ingress URLs, immutable image tags, runtime secret references and all four flags in both profiles. Separate Budget database regressions prevent cross-user reads and modifications of budgets and categories.
 
-The real temporary native stack completed 71 HTTP checks across shared login and all five feature modules, including CRUD, user isolation and disabled-mode responses. Its JSON is under `evidence/native/`; it is native validation, not a claim that Docker or Ollama ran here. GitHub's integrated Compose artifact must be used for container evidence. The actual local host AI servers, human review and screenshots must be demonstrated by the team.
+The real temporary native stack completed 104 HTTP checks across shared login and all five feature modules, including CRUD, user isolation and disabled-mode responses. Its JSON is under `evidence/native/`; it is native validation, not a claim that Docker or Ollama ran here. GitHub's integrated Compose artifact must be used for container evidence. The actual local host AI servers, human review and screenshots must be demonstrated by the team.
 
 ## Review and release evidence
 

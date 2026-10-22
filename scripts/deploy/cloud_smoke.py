@@ -5,6 +5,7 @@ records are removed in reverse dependency order. Credentials are never logged.
 The two test accounts remain (there is no public account-deletion API).
 """
 import argparse
+import hashlib
 import json
 import secrets
 import time
@@ -51,14 +52,33 @@ class Smoke:
         identifier = created[key]
         resource = (resource_path or path + "/{id}").format(id=identifier)
         self.records.append((module, resource))
-        assert any(item[key] == identifier for item in self.items(self.call(module, "GET", path)))
+        owned = next((item for item in self.items(self.call(module, "GET", path))
+                      if item[key] == identifier), None)
+        assert owned is not None
         assert all(item[key] != identifier for item in self.items(self.call(module, "GET", path, headers=self.other, expected=(200, 403, 404))))
+        def read_own():
+            if detail:
+                return self.call(module, "GET", resource)
+            return next((item for item in self.items(self.call(module, "GET", path))
+                         if item[key] == identifier), {})
+
+        before = owned
         if detail:
-            self.call(module, "GET", resource)
+            before = read_own()
             self.call(module, "GET", resource, headers=self.other, expected=(403, 404))
+        self.call(module, "PUT", resource, update or payload, headers=self.other, expected=(403, 404))
+        # Some APIs deliberately use idempotent 204 for an unowned DELETE.
+        # Its response alone is insufficient: the owner's record must survive.
+        self.call(module, "DELETE", resource, headers=self.other, expected=(200, 204, 403, 404))
+        if read_own() != before:
+            raise RuntimeError(module + ": another account changed or deleted the owner's record")
         changed = self.call(module, "PUT", resource, update or payload)
         if isinstance(changed, dict) and "error" in changed:
             raise RuntimeError("Update returned an application error")
+        persisted = read_own()
+        for field, value in (update or payload).items():
+            if persisted.get(field) != value:
+                raise RuntimeError(f"{module}: update did not persist field {field}")
         return identifier
 
     def bonus(self):
@@ -105,8 +125,17 @@ class Smoke:
             assert response.headers.get("Referrer-Policy") == "no-referrer"
             if url.startswith("https:"):
                 assert response.headers.get("Strict-Transport-Security")
-            if module == "finance" and url.startswith("https:"):
-                assert "http://localhost:" not in response.text
+            if module == "finance":
+                script = requests.get(url + "/static/app.js", timeout=60)
+                script.raise_for_status()
+                self.log.append({"module": module, "method": "GET", "path": "/static/app.js",
+                    "status": script.status_code, "sha256": hashlib.sha256(script.content).hexdigest(),
+                    "checked_at": datetime.now(timezone.utc).isoformat()})
+                if url.startswith("https:"):
+                    for content in (response.text, script.text):
+                        for host in ("localhost", "127.0.0.1", "host.docker.internal"):
+                            if any(f"{scheme}://{host}" in content.lower() for scheme in ("http", "https")):
+                                raise RuntimeError("Cloud Finance navigation still contains a local host destination")
         self.accounts()
         bonus = None
         try:

@@ -2,9 +2,15 @@
 
 ## Verified locally in this change
 
-The temporary native stack runs the same frontend/backend/database Python sources with isolated SQLite files. The integrated smoke test passed 71 HTTP checks: shared registration/login, owner-scoped CRUD across all five features, unauthenticated refusal, cross-user refusal and disabled AI/MCP/RAG/Multi-Agent endpoints. Financial test records are removed and sessions logged out. Test databases/server logs are temporary. The output identifies the execution environment explicitly.
+The temporary native stack runs the same frontend/backend/database Python sources with isolated SQLite files. The integrated smoke test passed 104 HTTP checks: shared registration/login, owner-scoped CRUD across all five features, unauthenticated refusal, cross-user refusal and disabled AI/MCP/RAG/Multi-Agent endpoints. It rereads records after updates and verifies that another account's mutation attempts leave the owner's data unchanged. Financial test records are removed and sessions logged out. Test databases/server logs are temporary. The output identifies the execution environment explicitly.
 
 The Azure manifest builder passed tests for HTTPS internal addresses without Docker target ports, external-ingress restrictions, secret references and immutable image tags. Baseline/bonus profile tests verify all four flags agree. These tests validate source behavior; they do not constitute cloud execution evidence.
+
+## Existing Azure baseline diagnostic — 22 October 2026
+
+The team's [main deployment workflow](https://github.com/AlanWen1/ASD-agentic-ai-Group4/actions/runs/39712391466) completed successfully, but requests to the live site exposed two remaining acceptance failures. The served Finance JavaScript matched the earlier `1c1922a` file and retained five localhost module destinations despite the navigation fix in `d0f1fa9`. The deployment source still reused the mutable `:release2` image reference; an unchanged reference is consistent with Azure continuing to serve an older image. The candidate uses commit-specific image tags. Its smoke test also checks the JavaScript actually served, with regression tests for local destinations hidden in an otherwise valid HTTPS page.
+
+Independent HTTP tests registered and logged in two random accounts. Income sources, pay schedules, Bills and the legacy Savings forms passed the attempted owner operations and read-isolation checks. Expense's legacy forms passed create/read/isolation checks; their update UI was not exercised. Budget's cross-account detail request returned HTTP 200 instead of refusing access. The candidate's Budget ownership regression prevents that access, but the deployed repair must still pass the cloud checks. All seven generated financial records were deleted and both sessions logged out. The two accounts remain because there is no account-deletion endpoint. Dated JSON under `evidence/cloud/20261022-*` records these partial results; it is not a successful final baseline artifact or an authenticated browser demonstration.
 
 ## Automated container and Azure deployment
 

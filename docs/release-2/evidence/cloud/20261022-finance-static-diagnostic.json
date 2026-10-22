@@ -1,0 +1,29 @@
+{
+  "url": "https://finance-frontend.nicemeadow-cba5ddac.australiasoutheast.azurecontainerapps.io/static/app.js",
+  "status": "failed",
+  "sha256": "054c2caae57402d8db7db9a1670dceb8423416a76c8e96b892d9915cab29ac6e",
+  "matches_reviewed_main_d0f1fa9": false,
+  "localhost_lines": [
+    "? `http://localhost:3004/?token=${encodeURIComponent(currentToken)}`",
+    ": \"http://localhost:3004/\";",
+    "? `http://localhost:3002/?token=${encodeURIComponent(currentToken)}`",
+    ": \"http://localhost:3002/\";",
+    "? `http://localhost:3003/?token=${encodeURIComponent(currentToken)}`",
+    ": \"http://localhost:3003/\";",
+    "? `http://localhost:3005/?token=${encodeURIComponent(currentToken)}`",
+    ": \"http://localhost:3005/\";",
+    "? `http://localhost:3001/?token=${encodeURIComponent(currentToken)}`",
+    ": \"http://localhost:3001/\";"
+  ],
+  "security_headers": {
+    "X-Content-Type-Options": null,
+    "Referrer-Policy": null,
+    "Strict-Transport-Security": null
+  },
+  "environment": "Azure public HTTPS; existing team deployment",
+  "observed_at": "2026-10-22T03:21:48.521092+00:00",
+  "finding": "Served Finance script matches the pre-d0f1fa9 source (1c1922a/e2f9fa4), including hardcoded localhost module URLs.",
+  "source_evidence": "Reviewed main deployment still builds, pushes and references a mutable :release2 image tag.",
+  "inference": "Reusing the unchanged image reference is consistent with the Azure app continuing to serve the old image after a successful workflow.",
+  "candidate_fix": "Commit-specific image tags, configured public navigation and post-deployment script-content validation."
+}
