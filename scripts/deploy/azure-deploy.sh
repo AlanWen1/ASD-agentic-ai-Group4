@@ -195,7 +195,15 @@ deploy_app savings-database savings-database 6005 false $'DATABASE_PATH=/data/sa
 # Shared Ollama runtime + AI-Mode proxy for the Release 2 cloud bonus (B1).
 # Internal-only; not reachable from outside the Container Apps Environment.
 # Extra CPU/memory for ollama: LLM inference is heavier than a typical REST call.
-deploy_app ollama ollama 11434 false '' '' 1.0 2Gi
+# No explicit cpu/memory override here (unlike an earlier version of this
+# line) -- every other internal-only app in this script uses the
+# environment's default sizing, and ollama was the one exception. That
+# turned out to correlate with ollama being unreachable over the internal
+# network from other apps (ai-mode -> ollama connections timed out at the
+# TCP level) even though ollama itself was healthy and fast when used
+# directly inside its own container. Dropping the override to test
+# whether an explicit resources block was the differentiator.
+deploy_app ollama ollama 11434 false ''
 deploy_app ai-mode ai-mode 5099 false $'OLLAMA_URL=http://ollama:11434'
 
 # Backends. Optional AI-related features are explicitly off by default. budget-backend
