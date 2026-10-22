@@ -190,13 +190,20 @@ YAML
   rm -f "$manifest"
 }
 
-# Database APIs: internal-only, persistent SQLite files.
-deploy_app finance-database finance-database 6000 false $'DATABASE_PATH=/data/finance.db' finance-db
-deploy_app bill-database bill-database 6004 false $'DATABASE_PATH=/data/bills.db' bill-db
-deploy_app budget-database budget-database 6001 false $'DATABASE_PATH=/data/budget_manager.db' budget-db
-deploy_app expense-database expense-database 6002 false $'DATABASE_PATH=/data/expenses.db' expense-db
-deploy_app income-database income-database 6003 false $'DATABASE_PATH=/data/student-3-income.db' income-db
-deploy_app savings-database savings-database 6005 false $'DATABASE_PATH=/data/savings.db' savings-db
+# Database APIs: internal-only SQLite files on the container's own local disk.
+# They used to live on an Azure Files (SMB) share, but SQLite's file locking
+# does not work reliably over SMB: finance-database crashed on startup with
+# "sqlite3.OperationalError: database is locked" and restarted in a loop, so
+# every login/register request timed out. Trade-off: data is ephemeral and is
+# reset whenever a database container is redeployed or restarted (register a
+# fresh account before each demo). /tmp is used because it exists and is
+# writable in every image, including ones that run as a non-root user.
+deploy_app finance-database finance-database 6000 false $'DATABASE_PATH=/tmp/finance.db'
+deploy_app bill-database bill-database 6004 false $'DATABASE_PATH=/tmp/bills.db'
+deploy_app budget-database budget-database 6001 false $'DATABASE_PATH=/tmp/budget_manager.db'
+deploy_app expense-database expense-database 6002 false $'DATABASE_PATH=/tmp/expenses.db'
+deploy_app income-database income-database 6003 false $'DATABASE_PATH=/tmp/student-3-income.db'
+deploy_app savings-database savings-database 6005 false $'DATABASE_PATH=/tmp/savings.db'
 
 # Shared Ollama runtime + AI-Mode proxy for the Release 2 cloud bonus (B1).
 # Internal-only; not reachable from outside the Container Apps Environment.
