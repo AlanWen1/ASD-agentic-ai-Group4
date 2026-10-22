@@ -81,6 +81,27 @@ form input:focus, form select:focus {
     border-color: #246bfd;
 }
 
+/* Multi-Agent task box and human-review feedback box: same look as the other
+   form fields, full width, with a readable height. */
+form textarea {
+    display: block;
+    width: 100%;
+    min-height: 65px;
+    padding: 11px 12px;
+    margin-top: 4px;
+    border: 1px solid #d8e0ea;
+    border-radius: 10px;
+    font-size: 14px;
+    font-family: inherit;
+    background: white;
+    resize: vertical;
+}
+
+form textarea:focus {
+    outline: 2px solid #bfd2ff;
+    border-color: #246bfd;
+}
+
 button {
     cursor: pointer;
     border: 0;

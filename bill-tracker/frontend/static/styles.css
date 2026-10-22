@@ -172,3 +172,20 @@ label { display: grid; gap: 7px; margin: 14px 0; font-size: 13px; font-weight: 6
     grid-template-columns: 1fr;
   }
 }
+
+/* Multi-Agent human-review feedback box (created by app.js): full width and a
+   readable height, matching the Savings Goal module's review form. */
+#multi-agent-result textarea {
+  display: block;
+  width: 100%;
+  min-height: 65px;
+  padding: 10px 12px;
+  margin: 12px 0;
+  border: 1px solid #d8e0ea;
+  border-radius: 10px;
+  background: white;
+  color: inherit;
+  font: inherit;
+  resize: vertical;
+}
+#multi-agent-result textarea:focus { outline: 2px solid #bfd2ff; border-color: #246bfd; }
