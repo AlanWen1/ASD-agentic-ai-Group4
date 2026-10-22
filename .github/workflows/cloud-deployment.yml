@@ -28,19 +28,19 @@ on:
   workflow_dispatch:
     inputs:
       enable_ai_mode:
-        description: "Enable AI-Mode in the cloud (bonus demo only; leave unticked for the required AI-disabled baseline)"
+        description: "Enable AI-Mode in the cloud"
         type: boolean
         default: false
       enable_mcp:
-        description: "Enable the MCP server in the cloud (bonus demo only)"
+        description: "Enable the MCP server in the cloud"
         type: boolean
         default: false
       enable_rag:
-        description: "Enable the RAG server in the cloud (bonus demo only)"
+        description: "Enable the RAG server in the cloud"
         type: boolean
         default: false
       enable_multi_agent:
-        description: "Enable the Multi-Agent server in the cloud (bonus demo only)"
+        description: "Enable the Multi-Agent server in the cloud"
         type: boolean
         default: false
 
