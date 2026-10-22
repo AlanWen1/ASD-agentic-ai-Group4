@@ -12,6 +12,16 @@ cd "$ROOT_DIR"
 : "${AZURE_CONTAINERAPPS_ENVIRONMENT:=finance-release2-env}"
 : "${AZURE_STORAGE_ACCOUNT:?Set AZURE_STORAGE_ACCOUNT to a globally unique storage account name}"
 
+# Unique image tag per deploy. With a fixed tag (release2) a code-only change
+# leaves every Container App spec byte-for-byte identical, so Azure creates no
+# new revision and keeps running the OLD image even though the new one was
+# pushed. Tagging with the commit SHA (GitHub Actions sets GITHUB_SHA) changes
+# the spec on every new commit and forces a fresh revision that pulls the new
+# image. Note this also restarts the SQLite database containers, which resets
+# their (ephemeral) data on every deploy.
+IMAGE_TAG="${IMAGE_TAG:-release2-$(printf '%s' "${GITHUB_SHA:-$(date +%Y%m%d%H%M%S)}" | cut -c1-12)}"
+echo "Using image tag: $IMAGE_TAG"
+
 command -v az >/dev/null || { echo "Azure CLI (az) is required." >&2; exit 2; }
 command -v docker >/dev/null || { echo "Docker is required (ACR Tasks is not available on this subscription, so images are built and pushed locally)." >&2; exit 2; }
 
@@ -55,8 +65,8 @@ build_image() {
     full_dockerfile="$context/$dockerfile"
   fi
   echo "Building $image using Dockerfile $full_dockerfile (context: $context)"
-  docker build --tag "$ACR_LOGIN_SERVER/$image:release2" --file "$full_dockerfile" "$context"
-  docker push "$ACR_LOGIN_SERVER/$image:release2"
+  docker build --tag "$ACR_LOGIN_SERVER/$image:$IMAGE_TAG" --file "$full_dockerfile" "$context"
+  docker push "$ACR_LOGIN_SERVER/$image:$IMAGE_TAG"
 }
 
 # Build application services only. AI-Mode, MCP, RAG and Multi-Agent are deliberately excluded.
@@ -145,7 +155,7 @@ properties:
   template:
     containers:
       - name: $app
-        image: $ACR_LOGIN_SERVER/$image:release2
+        image: $ACR_LOGIN_SERVER/$image:$IMAGE_TAG
 YAML
     env_entries=""
     while IFS='=' read -r key value; do
