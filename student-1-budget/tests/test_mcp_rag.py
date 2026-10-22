@@ -48,18 +48,20 @@ def _login(user):
     resp = requests.post(
         f"{AUTH_URL}/auth/login",
         json={"identifier": user["username"], "password": user["password"]},
+        timeout=10,
     )
     if resp.status_code != 200:
-        reg = requests.post(f"{AUTH_URL}/users", json=user)
+        reg = requests.post(f"{AUTH_URL}/users", json=user, timeout=10)
         assert reg.status_code in (201, 409), f"Could not create user: {reg.text}"
         resp = requests.post(
             f"{AUTH_URL}/auth/login",
             json={"identifier": user["username"], "password": user["password"]},
+            timeout=10,
         )
     assert resp.status_code == 200, f"Login failed: {resp.text}"
     token = resp.json()["token"]
 
-    session = requests.get(f"{AUTH_URL}/sessions/{token}")
+    session = requests.get(f"{AUTH_URL}/sessions/{token}", timeout=10)
     assert session.status_code == 200, f"Session lookup failed: {session.text}"
     user_id = session.json()["user"]["id"]
     return {"Authorization": f"Bearer {token}"}, user_id
@@ -86,6 +88,7 @@ def seeded(user):
             f"{BASE_URL}/budgets",
             json={"month": month, "year": 2030, "status": "active"},
             headers=headers,
+            timeout=10,
         )
         assert resp.status_code == 201, resp.text
         created.append(resp.json()["budget_id"])
@@ -96,13 +99,14 @@ def seeded(user):
             f"{BASE_URL}/budgets/{main_id}/categories",
             json={"category_name": name, "allocated_amount": amount},
             headers=headers,
+            timeout=10,
         )
         assert resp.status_code == 201, resp.text
 
     yield {"budget_ids": created, "main_id": main_id}
 
     for budget_id in created:
-        requests.delete(f"{BASE_URL}/budgets/{budget_id}", headers=headers)
+        requests.delete(f"{BASE_URL}/budgets/{budget_id}", headers=headers, timeout=10)
 
 
 def _overview_budgets(result):

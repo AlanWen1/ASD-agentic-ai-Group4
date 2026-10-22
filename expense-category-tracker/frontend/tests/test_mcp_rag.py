@@ -21,9 +21,9 @@ def client():
         yield client
 
 
-def _signed_in(client, token="abc123"):
+def _signed_in(client, token=None):
     with client.session_transaction() as sess:
-        sess["finance_token"] = token
+        sess["finance_token"] = token if token is not None else "abc123"
 
 
 # ---------------------------------------------------------------------

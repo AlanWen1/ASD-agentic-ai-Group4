@@ -10,7 +10,7 @@ Run with:  python seed_data.py
 """
 from database import get_db, init_db
 from datetime import date, timedelta
-import random
+import secrets
 
 init_db()
 
@@ -65,7 +65,7 @@ def run():
 
     today = date.today()
     for amount, desc, merchant, cat_name in EXPENSES:
-        expense_date = (today - timedelta(days=random.randint(0, 30))).isoformat()
+        expense_date = (today - timedelta(days=secrets.randbelow(31))).isoformat()
         cur.execute(
             "INSERT INTO expenses (user_id, amount, description, merchant, category_id, date) "
             "VALUES (?, ?, ?, ?, ?, ?)",
