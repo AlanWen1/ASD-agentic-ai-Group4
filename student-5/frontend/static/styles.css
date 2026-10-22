@@ -289,3 +289,25 @@ button.danger {
 #multi-agent-panel:has(#multi-agent-loading.htmx-request) #multi-agent-result {
     display: none;
 }
+
+#multi-agent-result .human-review-message {
+    color: #182230;
+    margin-top: 12px;
+    margin-bottom: 14px;
+}
+
+#multi-agent-panel #multi-agent-result form textarea {
+    display: block;
+    width: 100%;
+    height: 65px;
+    min-height: 65px;
+    padding: 10px 12px;
+    margin: 12px 0;
+    border: 1px solid #c8d0dc;
+    border-radius: 9px;
+    background: white;
+    color: #182230;
+    font: inherit;
+    resize: vertical;
+}
+
