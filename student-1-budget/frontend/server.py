@@ -49,7 +49,9 @@ def api_proxy(path):
             headers=forward_headers,
             params=request.args,
             data=request.get_data(),
-            timeout=60,
+            # AI chat and Multi-Agent runs wait on the shared LLM, which can
+            # take minutes on CPU; keep just under the Azure ingress 240s limit.
+            timeout=230 if path.startswith(("agent/", "multi-agent/")) else 60,
         )
     except requests.RequestException as exc:
         return {"error": f"Could not reach budget-backend: {exc}"}, 502

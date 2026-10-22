@@ -25,19 +25,29 @@ echo "Using image tag: $IMAGE_TAG"
 command -v az >/dev/null || { echo "Azure CLI (az) is required." >&2; exit 2; }
 command -v docker >/dev/null || { echo "Docker is required (ACR Tasks is not available on this subscription, so images are built and pushed locally)." >&2; exit 2; }
 
-# AI-Mode is OFF by default (rubric: AI-Mode, MCP, RAG and Multi-Agent disabled
-# by default in the cloud). Turn it on only for the cloud AI bonus demo by
-# running the cloud-deployment workflow manually with "enable_ai_mode" ticked,
-# or locally with AI_ENABLED=true. MCP, RAG and Multi-Agent servers are not
-# deployed to the cloud at all, so their flags are always false.
+# AI-Mode, MCP, RAG and Multi-Agent are all OFF by default (rubric: they must be
+# disabled by default in the cloud). Each one is switched on only for the cloud
+# AI bonus demo, by running the cloud-deployment workflow manually and ticking
+# enable_ai_mode / enable_mcp / enable_rag / enable_multi_agent (or locally by
+# exporting the matching *_ENABLED=true before running this script).
 AI_ENABLED="${AI_ENABLED:-false}"
-if [[ "$AI_ENABLED" != "true" && "$AI_ENABLED" != "false" ]]; then
-  echo "AI_ENABLED must be 'true' or 'false' (got '$AI_ENABLED')." >&2
-  exit 2
+MCP_ENABLED="${MCP_ENABLED:-false}"
+RAG_ENABLED="${RAG_ENABLED:-false}"
+MULTI_AGENT_ENABLED="${MULTI_AGENT_ENABLED:-false}"
+for flag in AI_ENABLED MCP_ENABLED RAG_ENABLED MULTI_AGENT_ENABLED; do
+  if [[ "${!flag}" != "true" && "${!flag}" != "false" ]]; then
+    echo "$flag must be 'true' or 'false' (got '${!flag}')." >&2
+    exit 2
+  fi
+done
+if [[ "$AI_ENABLED" != "true" ]] && [[ "$MCP_ENABLED" == "true" || "$RAG_ENABLED" == "true" || "$MULTI_AGENT_ENABLED" == "true" ]]; then
+  echo "WARNING: MCP/RAG/Multi-Agent enabled without AI-Mode; the rubric's bonus tiers build on AI-Mode." >&2
 fi
-MCP_ENABLED=false
-RAG_ENABLED=false
-MULTI_AGENT_ENABLED=false
+echo "Cloud AI toggles: AI_ENABLED=$AI_ENABLED MCP_ENABLED=$MCP_ENABLED RAG_ENABLED=$RAG_ENABLED MULTI_AGENT_ENABLED=$MULTI_AGENT_ENABLED"
+# Shared secret between the five backends and the Multi-Agent server. A fresh
+# random key is generated on every deploy unless one is supplied, so no key is
+# stored in the repository.
+MULTI_AGENT_API_KEY="${MULTI_AGENT_API_KEY:-$(python3 -c 'import secrets; print(secrets.token_hex(24))')}"
 export AI_ENABLED MCP_ENABLED RAG_ENABLED MULTI_AGENT_ENABLED
 
 echo "Checking Azure login and subscription..."
@@ -103,6 +113,12 @@ build_image savings-frontend . student-5/frontend/Dockerfile
 build_image ollama ./ai-services/ollama Dockerfile
 build_image ai-mode ./ai-services/ai-mode Dockerfile
 
+# MCP / RAG / Multi-Agent servers: cloud-only images, built only for a deploy
+# that switches them on (locally they stay non-containerised host processes).
+if [[ "$MCP_ENABLED" == "true" ]]; then build_image mcp-server ./ai-services/mcp-server Dockerfile; fi
+if [[ "$RAG_ENABLED" == "true" ]]; then build_image rag-server ./ai-services/rag-server Dockerfile; fi
+if [[ "$MULTI_AGENT_ENABLED" == "true" ]]; then build_image multi-agent-server ./ai-services/multi-agent-server Dockerfile; fi
+
 # Create/update an app with a minimal YAML manifest. Database apps mount Azure Files at /data.
 deploy_app() {
   local app="$1" image="$2" port="$3" ingress="$4" envs="$5" volume_share="${6:-}" cpu="${7:-}" memory="${8:-}"
@@ -130,6 +146,9 @@ deploy_app() {
   envs="${envs//http:\/\/savings-backend:5005/https:\/\/savings-backend.$INTERNAL_SUFFIX}"
   envs="${envs//http:\/\/ollama:11434/https:\/\/ollama.$INTERNAL_SUFFIX}"
   envs="${envs//http:\/\/ai-mode:5099/https:\/\/ai-mode.$INTERNAL_SUFFIX}"
+  envs="${envs//http:\/\/mcp-server:5100/https:\/\/mcp-server.$INTERNAL_SUFFIX}"
+  envs="${envs//http:\/\/rag-server:5101/https:\/\/rag-server.$INTERNAL_SUFFIX}"
+  envs="${envs//http:\/\/multi-agent-server:5102/https:\/\/multi-agent-server.$INTERNAL_SUFFIX}"
   # Public (external) hostnames for browser-side cross-app navigation links
   # (Home buttons, "Open X Manager" links) -- these are followed by the
   # visitor's own browser, so they must be the real public HTTPS URL, not
@@ -193,7 +212,10 @@ YAML
 YAML
     fi
     local local_max_replicas=2
-    if [[ "$app" == *-database ]]; then local_max_replicas=1; fi
+    # One replica for apps that keep state in memory or local disk: the SQLite
+    # databases, the MCP server (Streamable HTTP sessions live in memory) and
+    # the Multi-Agent server (run history in local SQLite).
+    if [[ "$app" == *-database || "$app" == mcp-server || "$app" == multi-agent-server ]]; then local_max_replicas=1; fi
     cat <<YAML
     scale:
       minReplicas: 1
@@ -227,14 +249,31 @@ deploy_app savings-database savings-database 6005 false $'DATABASE_PATH=/tmp/sav
 # Shared Ollama runtime + AI-Mode proxy (cloud AI bonus). Internal-only.
 # Always deployed so the AI toggle is just a flag flip; the backends only get
 # an AI-Mode URL when AI_ENABLED=true (see below).
-# 1 vCPU / 2Gi for ollama: LLM inference is much heavier than a REST call, and
-# five modules share this one runtime. (An earlier test removed this override;
-# it was unrelated to the connectivity bug, which was the port-suffixed
-# internal URLs.)
+# 2 vCPU / 4Gi for ollama: LLM inference is much heavier than a REST call, and
+# five modules (plus the Multi-Agent server's three agents) share this one
+# runtime. (An earlier test removed this override; it was unrelated to the
+# connectivity bug, which was the port-suffixed internal URLs.)
 # OLLAMA_HOST is passed explicitly: the image's own ENV default was not applied
 # at runtime and ollama listened on 127.0.0.1 only.
-deploy_app ollama ollama 11434 false $'OLLAMA_HOST=0.0.0.0:11434' '' 1.0 2Gi
+deploy_app ollama ollama 11434 false $'OLLAMA_HOST=0.0.0.0:11434' '' 2.0 4Gi
 deploy_app ai-mode ai-mode 5099 false $'OLLAMA_URL=http://ollama:11434'
+
+# MCP / RAG / Multi-Agent servers (cloud AI bonus). Internal-only. Deployed only
+# when switched on; when switched off, any copy left over from an earlier bonus
+# deploy is removed so the cloud matches the required baseline exactly.
+deploy_or_remove() {
+  local enabled="$1"; shift
+  local app="$1"
+  if [[ "$enabled" == "true" ]]; then
+    deploy_app "$@"
+  elif az containerapp show --name "$app" --resource-group "$AZURE_RESOURCE_GROUP" --output none 2>/dev/null; then
+    echo "Removing $app (disabled for this deploy)"
+    az containerapp delete --name "$app" --resource-group "$AZURE_RESOURCE_GROUP" --yes --output none
+  fi
+}
+deploy_or_remove "$MCP_ENABLED" mcp-server mcp-server 5100 false $'PORT=5100\nEXPENSE_DB_URL=http://expense-database:6002\nBILL_DB_URL=http://bill-database:6004\nINCOME_DB_URL=http://income-database:6003\nSAVINGS_DB_URL=http://savings-database:6005\nBUDGET_DB_URL=http://budget-database:6001'
+deploy_or_remove "$RAG_ENABLED" rag-server rag-server 5101 false $'PORT=5101\nAI_MODE_URL=http://ai-mode:5099\nRAG_GENERATION_TIMEOUT=150'
+deploy_or_remove "$MULTI_AGENT_ENABLED" multi-agent-server multi-agent-server 5102 false $'MULTI_AGENT_HOST=0.0.0.0\nMULTI_AGENT_PORT=5102\nOLLAMA_URL=http://ollama:11434\nPLANNER_MODEL=qwen2.5:0.5b\nWORKER_MODEL=qwen2.5:0.5b\nREVIEWER_MODEL=qwen2.5:0.5b\nMULTI_AGENT_NUM_PREDICT=512\nMULTI_AGENT_DB_PATH=/tmp/multi-agent-runs.sqlite3\nMULTI_AGENT_API_KEY='"$MULTI_AGENT_API_KEY"
 
 # Backends. AI_ENABLED follows the toggle above (default false). When it is on,
 # each backend is also pointed at the shared AI-Mode service, using whichever
@@ -250,12 +289,20 @@ if [[ "$AI_ENABLED" == "true" ]]; then
 else
   BILL_AI="" BUDGET_AI="" EXPENSE_AI="" INCOME_AI="" SAVINGS_AI=""
 fi
+# Same idea for MCP / RAG / Multi-Agent: the flag is always set explicitly, and
+# the service URL is only passed when that service is switched on. Every
+# backend reads the same variable names for these three.
+FLAGS=$'\nAI_ENABLED='"$AI_ENABLED"$'\nMCP_ENABLED='"$MCP_ENABLED"$'\nRAG_ENABLED='"$RAG_ENABLED"$'\nMULTI_AGENT_ENABLED='"$MULTI_AGENT_ENABLED"
+BONUS_URLS=""
+if [[ "$MCP_ENABLED" == "true" ]]; then BONUS_URLS+=$'\nMCP_SERVER_URL=http://mcp-server:5100/mcp'; fi
+if [[ "$RAG_ENABLED" == "true" ]]; then BONUS_URLS+=$'\nRAG_SERVER_URL=http://rag-server:5101'; fi
+if [[ "$MULTI_AGENT_ENABLED" == "true" ]]; then BONUS_URLS+=$'\nMULTI_AGENT_URL=http://multi-agent-server:5102\nMULTI_AGENT_API_KEY='"$MULTI_AGENT_API_KEY"; fi
 deploy_app finance-backend finance-backend 5000 false $'DATABASE_URL=http://finance-database:6000\nBILL_DATABASE_URL=http://bill-database:6004'
-deploy_app bill-backend bill-backend 5004 false $'DATABASE_URL=http://bill-database:6004\nAUTH_DATABASE_URL=http://finance-database:6000\nMULTI_AGENT_ENABLED=false\nMCP_ENABLED=false\nRAG_ENABLED=false\nAI_ENABLED='"$AI_ENABLED$BILL_AI"
-deploy_app budget-backend budget-backend 5001 false $'DATABASE_URL=http://budget-database:6001\nAUTH_DATABASE_URL=http://finance-database:6000\nMULTI_AGENT_ENABLED=false\nMCP_ENABLED=false\nRAG_ENABLED=false\nAI_ENABLED='"$AI_ENABLED$BUDGET_AI"
-deploy_app expense-backend expense-backend 5002 false $'DATABASE_URL=http://expense-database:6002\nAUTH_DATABASE_URL=http://finance-database:6000\nMULTI_AGENT_ENABLED=false\nMCP_ENABLED=false\nRAG_ENABLED=false\nAI_ENABLED='"$AI_ENABLED$EXPENSE_AI"
-deploy_app income-backend income-backend 5003 false $'DATABASE_SERVICE_URL=http://income-database:6003\nAUTH_DATABASE_URL=http://finance-database:6000\nMULTI_AGENT_ENABLED=false\nMCP_ENABLED=false\nRAG_ENABLED=false\nAI_ENABLED='"$AI_ENABLED$INCOME_AI"
-deploy_app savings-backend savings-backend 5005 false $'DATABASE_API_URL=http://savings-database:6005\nAUTH_DATABASE_URL=http://finance-database:6000\nMULTI_AGENT_ENABLED=false\nMCP_ENABLED=false\nRAG_ENABLED=false\nAI_ENABLED='"$AI_ENABLED$SAVINGS_AI"
+deploy_app bill-backend bill-backend 5004 false $'DATABASE_URL=http://bill-database:6004\nAUTH_DATABASE_URL=http://finance-database:6000'"$FLAGS$BILL_AI$BONUS_URLS"
+deploy_app budget-backend budget-backend 5001 false $'DATABASE_URL=http://budget-database:6001\nAUTH_DATABASE_URL=http://finance-database:6000'"$FLAGS$BUDGET_AI$BONUS_URLS"
+deploy_app expense-backend expense-backend 5002 false $'DATABASE_URL=http://expense-database:6002\nAUTH_DATABASE_URL=http://finance-database:6000'"$FLAGS$EXPENSE_AI$BONUS_URLS"
+deploy_app income-backend income-backend 5003 false $'DATABASE_SERVICE_URL=http://income-database:6003\nAUTH_DATABASE_URL=http://finance-database:6000'"$FLAGS$INCOME_AI$BONUS_URLS"
+deploy_app savings-backend savings-backend 5005 false $'DATABASE_API_URL=http://savings-database:6005\nAUTH_DATABASE_URL=http://finance-database:6000'"$FLAGS$SAVINGS_AI$BONUS_URLS"
 
 # Frontends are the public entry points; they communicate with their internal backend apps.
 deploy_app finance-frontend finance-frontend 3000 true $'BACKEND_URL=http://finance-backend:5000\nINCOME_URL=http://income-frontend:3003\nBILL_URL=http://bill-frontend:3004\nBUDGET_URL=http://budget-frontend:3001\nSAVINGS_URL=http://savings-frontend:3005\nEXPENSE_URL=http://expense-frontend:3002'
@@ -267,15 +314,11 @@ deploy_app savings-frontend savings-frontend 3005 true $'BACKEND_API_URL=http://
 
 echo
 echo "Checking deployed backend feature flags..."
-# AI_ENABLED on every backend must match the toggle (false by default);
-# MCP_ENABLED, RAG_ENABLED and MULTI_AGENT_ENABLED must always be false.
-echo "AI-Mode toggle for this deploy: AI_ENABLED=$AI_ENABLED"
+# Every backend's four flags must match this deploy's toggles (all false by
+# default, i.e. the required AI-disabled baseline).
 for app in bill-backend budget-backend expense-backend income-backend savings-backend; do
   for flag in AI_ENABLED MCP_ENABLED RAG_ENABLED MULTI_AGENT_ENABLED; do
-    expected=false
-    if [[ "$flag" == "AI_ENABLED" ]]; then
-      expected="$AI_ENABLED"
-    fi
+    expected="${!flag}"
     value="$(az containerapp show --name "$app" --resource-group "$AZURE_RESOURCE_GROUP" --query "properties.template.containers[0].env[?name=='$flag'].value | [0]" --output tsv)"
     if [[ "$value" != "$expected" ]]; then
       echo "ERROR: $app has $flag=$value (expected $expected)" >&2
