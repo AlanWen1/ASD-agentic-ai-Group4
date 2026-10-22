@@ -19,7 +19,7 @@ def init_db():
     conn = sqlite3.connect(DB_PATH)
     conn.execute("PRAGMA foreign_keys = ON;")
 
-    with open(SCHEMA_PATH, "r") as f:
+    with open(SCHEMA_PATH, "r", encoding="utf-8") as f:
         conn.executescript(f.read())
     print("Schema applied: budgets, budget_categories")
 
@@ -28,7 +28,7 @@ def init_db():
     existing_rows = cur.fetchone()[0]
 
     if existing_rows == 0 or RESET_ON_BOOT:
-        with open(SEED_PATH, "r") as f:
+        with open(SEED_PATH, "r", encoding="utf-8") as f:
             conn.executescript(f.read())
         print("Seed data inserted")
     else:
