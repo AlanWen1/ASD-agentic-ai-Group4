@@ -6,12 +6,12 @@ Application remains the shared login/home page and receives no Release 2 UI.
 
 ## Agents and flow
 
-1. Planner (qwen2.5:0.5b) converts the request into a structured plan and
+1. Planner (qwen2.5:7b) converts the request into a structured plan and
    identifies evidence, assumptions, checks, risks and success criteria.
-2. Worker (qwen2.5:0.5b) performs the requested analysis using that plan and
+2. Worker (qwen2.5:7b) performs the requested analysis using that plan and
    the supplied application evidence. It proposes results; it cannot write to
    finance databases or execute transactions.
-3. Reviewer (qwen2.5:0.5b by default) checks the Worker output against the plan/evidence
+3. Reviewer (qwen2.5:7b by default) checks the Worker output against the plan/evidence
    and records findings, risks, evidence gaps and recommendations.
 4. Human review is mandatory. A person must approve, request a correction or
    reject the result. Corrections re-run Worker and Reviewer using the feedback
