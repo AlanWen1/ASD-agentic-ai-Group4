@@ -5,7 +5,7 @@ WORKDIR /app
 COPY student-5/frontend/. .
 COPY shared/theme.css ./static/theme.css
 
-RUN pip install --no-cache-dir flask requests
+RUN pip install --no-cache-dir -r requirements.txt
 
 EXPOSE 3005
 
