@@ -28,7 +28,7 @@ calls (fixed argument lists in the agentic loop and audit script, no shell).
 |---|---|---|
 | Ruff S rules | 75 tracked Python files | **Passed** – 0 findings |
 | detect-secrets | all tracked files | **Passed** – no new secrets; 5 audited test-fixture values in the baseline |
-| pip-audit | 22 dependency manifests | **Passed** – no known vulnerabilities in any manifest |
+| pip-audit | 25 dependency manifests | **Passed** – no known vulnerabilities in any manifest |
 
 ## 3. Findings and resolution
 
@@ -47,8 +47,5 @@ calls (fixed argument lists in the agentic loop and audit script, no shell).
 | Student 2 | Expense & Category Manager (`expense-category-tracker/`) | Passed (no suppressions) | Passed | backend, database, frontend |
 | Student 3 | Income Manager (`student-3/`) | Passed (2 reviewed S608) | Passed | backend, database, frontend |
 | Student 4 | Bills Manager (`bill-tracker/`) | Passed (1 reviewed S608) | Passed | backend, database, frontend |
-| Student 5 | Savings Goal Manager (`student-5/`) | Passed | Passed (1 baselined fixture) | no `requirements.txt` – dependencies installed directly in `student-5.yml` |
+| Student 5 | Savings Goal Manager (`student-5/`) | Passed | Passed (1 baselined fixture) | backend, database, frontend (3 requirements.txt manifests; all passed) |
 | Shared | `ai-services/`, `finance-application/` | Passed (1 reviewed S608) | Passed | 5 AI-service manifests, 3 finance-application manifests, root `requirements-dev.txt` |
-
-**Known limitation:** Student 5's module has no `requirements*.txt`, so its dependencies (`flask`,
-`requests`, `mcp`) are not covered by pip-audit. Adding a manifest would bring it into the scan.

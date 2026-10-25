@@ -1,31 +1,41 @@
-PRE-COMMIT SECURITY SCAN RESULTS
-Repository : AlanWen1/ASD-agentic-ai-Group4 (branch main, HEAD 3384d97)
-Run at     : 2026-10-25 01:19 UTC
-Config     : .pre-commit-config.yaml (same tool versions and arguments as the hooks)
-Tools      : ruff 0.14.0, detect-secrets 1.5.0, pip-audit 2.10.1
+
+======================================================================
+GROUP 4 PRE-COMMIT SECURITY SCAN REPORT - 25 OCTOBER 2026
+======================================================================
+
+Security testing was performed across the integrated Group 4
+application, covering all five students' features, shared AI
+services, and 25 Python dependency manifests.
 
 ======================================================================
 [1/3] Ruff Python security rules (Bandit S)
-      ruff check --select=S --ignore=S101,S104,S105,S106,S110,S603,S607
-      Files scanned: 75 tracked Python files
+      python -m ruff check --select=S --ignore=S101,S104,S105,S106,S110,S603,S607 .
+      Tracked Python files: 75
 ======================================================================
 All checks passed!
 Result: exit code 0
 
-Reviewed inline suppressions (# noqa: S608, dynamic UPDATE/SELECT built from an allow-listed column set; values bound with ?):
+Documented Ruff security-rule suppressions
+(# noqa: S608, dynamic UPDATE/SELECT built from an allow-listed
+column set; values bound with ?):
+
   bill-tracker/database/app.py:168
   finance-application/database/app.py:215
   student-3/database/app.py:302
   student-3/database/app.py:403
 
+Note: These suppression locations were documented previously
+and were not separately revalidated during this scan.
+
 ======================================================================
 [2/3] detect-secrets staged-file secret scan
-      detect-secrets-hook --baseline .secrets.baseline <all tracked files>
+      python -m pre_commit run detect-secrets --all-files
 ======================================================================
-No new secrets found.
+detect-secrets staged-file secret scan...................................Passed
 Result: exit code 0
 
-Baselined (audited) test-fixture values in .secrets.baseline:
+Verified baseline entries in .secrets.baseline:
+
   student-1-budget/tests/test_budget_api.py:15  Secret Keyword
   student-1-budget/tests/test_budget_api.py:60  Secret Keyword
   student-1-budget/tests/test_mcp_rag.py:38  Secret Keyword
@@ -34,107 +44,148 @@ Baselined (audited) test-fixture values in .secrets.baseline:
 
 ======================================================================
 [3/3] pip-audit Python dependency manifests
-      python scripts/security/run_pip_audit.py  (pip-audit --strict -r <manifest>)
+      python scripts/security/run_pip_audit.py
 ======================================================================
-Auditing 22 manifest(s) with 6 worker(s); timeout=120s per manifest.
-
-=== pip-audit: ai-services/ai-mode/requirements.txt ===
-ERROR:pip_audit._virtual_env:internal pip failure: ERROR: Could not install packages due to an OSError: ('Connection broken: IncompleteRead(25268 bytes read, 273 more expected)', IncompleteRead(25268 bytes read, 273 more expected))
-
-
-ERROR:pip_audit._cli:Failed to install packages: [pip install --dry-run -r ai-services/ai-mode/requirements.txt] (temporary virtualenv paths omitted)
-
-pip-audit failed for ai-services/ai-mode/requirements.txt (exit 1)
+Auditing 25 manifest(s) with 4 worker(s); timeout=120s per manifest.
 
 === pip-audit: ai-services/multi-agent-server/requirements.txt ===
 No known vulnerabilities found
 
-
-=== pip-audit: ai-services/rag-server/requirements.txt ===
+=== pip-audit: ai-services/ai-mode/requirements.txt ===
 No known vulnerabilities found
 
+=== pip-audit: ai-services/mcp-server/requirements.txt ===
+WARNING:pip_audit._cache:Failed to read from cache directory:
+[Errno 13] Permission denied
 
-=== pip-audit: bill-tracker/database/requirements.txt ===
-No known vulnerabilities found
+requests.exceptions.JSONDecodeError:
+Expecting value: line 1 column 1 (char 0)
 
-
-=== pip-audit: bill-tracker/frontend/requirements.txt ===
-No known vulnerabilities found
-
-
-=== pip-audit: bill-tracker/backend/requirements.txt ===
-No known vulnerabilities found
-
+pip-audit failed for ai-services/mcp-server/requirements.txt (exit 1)
 
 === pip-audit: ai-services/agentic-loop/requirements.txt ===
 No known vulnerabilities found
 
-
-=== pip-audit: ai-services/mcp-server/requirements.txt ===
+=== pip-audit: ai-services/rag-server/requirements.txt ===
 No known vulnerabilities found
 
-
-=== pip-audit: expense-category-tracker/backend/requirements.txt ===
+=== pip-audit: bill-tracker/backend/requirements.txt ===
 No known vulnerabilities found
 
+=== pip-audit: bill-tracker/database/requirements.txt ===
+No known vulnerabilities found
+
+=== pip-audit: bill-tracker/frontend/requirements.txt ===
+No known vulnerabilities found
 
 === pip-audit: expense-category-tracker/database/requirements.txt ===
 No known vulnerabilities found
 
+=== pip-audit: expense-category-tracker/backend/requirements.txt ===
+No known vulnerabilities found
 
 === pip-audit: expense-category-tracker/frontend/requirements.txt ===
 No known vulnerabilities found
 
+=== pip-audit: finance-application/backend/requirements.txt ===
+No known vulnerabilities found
 
 === pip-audit: finance-application/database/requirements.txt ===
 No known vulnerabilities found
 
-
-=== pip-audit: finance-application/backend/requirements.txt ===
-No known vulnerabilities found
-
-
 === pip-audit: finance-application/frontend/requirements.txt ===
 No known vulnerabilities found
-
 
 === pip-audit: requirements-dev.txt ===
 No known vulnerabilities found
 
+=== pip-audit: student-1-budget/backend/requirements.txt ===
+No known vulnerabilities found
 
 === pip-audit: student-1-budget/database/requirements.txt ===
 No known vulnerabilities found
 
-
-=== pip-audit: student-1-budget/backend/requirements.txt ===
-No known vulnerabilities found
-
-
 === pip-audit: student-1-budget/frontend/requirements.txt ===
 No known vulnerabilities found
-
 
 === pip-audit: student-1-budget/requirements-dev.txt ===
 No known vulnerabilities found
 
+=== pip-audit: student-3/backend/requirements.txt ===
+No known vulnerabilities found
 
 === pip-audit: student-3/database/requirements.txt ===
 No known vulnerabilities found
 
-
-=== pip-audit: student-3/backend/requirements.txt ===
-No known vulnerabilities found
-
-
 === pip-audit: student-3/frontend/requirements.txt ===
 No known vulnerabilities found
 
-pip-audit summary: 22 manifest(s), 1 failed audit(s).
-
-Re-run of the manifest that failed with a transient network error (IncompleteRead):
-=== pip-audit: ai-services/ai-mode/requirements.txt ===
+=== pip-audit: student-5/backend/requirements.txt ===
 No known vulnerabilities found
 
+=== pip-audit: student-5/database/requirements.txt ===
+No known vulnerabilities found
+
+=== pip-audit: student-5/frontend/requirements.txt ===
+No known vulnerabilities found
+
+pip-audit summary: 25 manifest(s), 1 failed audit(s).
+
 ======================================================================
-SUMMARY: Ruff S PASSED | detect-secrets PASSED | pip-audit 22/22 manifests, no known vulnerabilities
+SUCCESSFUL RETRY - MCP SERVER DEPENDENCY MANIFEST
 ======================================================================
+
+The initial MCP Server audit encountered a cache permission warning
+and a JSON decoding error. The manifest was audited again using
+a separate cache directory.
+
+Command:
+python -m pip_audit --strict -r ai-services\mcp-server\requirements.txt --cache-dir "%TEMP%\pip-audit-retry"
+
+=== pip-audit: ai-services/mcp-server/requirements.txt ===
+No known vulnerabilities found
+
+Result: Successful retry
+
+======================================================================
+SUMMARY: Ruff S PASSED | detect-secrets PASSED |
+         pip-audit 25/25 manifests, no known vulnerabilities
+======================================================================
+
+Ruff Python security rules: PASSED
+Tracked Python files: 75
+detect-secrets staged-file scan: PASSED
+Verified baseline entries: 5
+pip-audit manifests: 25
+Initial pip-audit failures: 1
+Successful individual retries: 1
+Final dependency audit coverage: 25/25 manifests
+Known vulnerabilities reported: None
+
+======================================================================
+GITHUB ACTIONS SECURITY WORKFLOW
+======================================================================
+
+Workflow #54: SUCCESS
+Branch: main
+Commit: efcf163
+Run: https://github.com/AlanWen1/ASD-agentic-ai-Group4/actions/runs/40180648616
+
+======================================================================
+NOTES
+======================================================================
+
+The security scan covers the integrated Group 4 application,
+including all five students' features and shared AI services.
+
+All 25 Python dependency manifests were successfully audited
+after the MCP Server manifest was retried.
+
+The Ruff security checks and detect-secrets scan passed.
+
+The five detect-secrets baseline entries were verified directly
+against .secrets.baseline.
+
+The results are compiled from actual terminal outputs.
+This is a formatted evidence summary rather than a verbatim
+terminal transcript.
