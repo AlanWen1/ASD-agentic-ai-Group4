@@ -1,0 +1,65 @@
+[PASS] Ollama model listed: qwen2.5:3b at http://localhost:11434
+
+======================================================================
+CLOUD DEPLOYMENT REPORT REVIEW
+======================================================================
+MODEL: qwen2.5:3b
+STATIC CHECKS
+  [PASS] Python syntax: 75 file(s) checked, 0 failure(s)
+PLAN SOURCE: LLM-selected paths
+
+ITERATION 1/3
+PLAN
+  1. .github/workflows/cloud-deployment.yml
+  2. scripts/deploy/azure-deploy.sh
+  3. scripts/deploy/azure-destroy.sh
+[WARN] LLM review unavailable: LLM returned no usable JSON.
+[INFO] Using deterministic review output.
+OBSERVE / REVIEW
+  Summary:
+    Cloud deployment report review completed using deterministic repository checks because the
+    configured LLM could not produce a usable response.
+  Confidence: MEDIUM
+  Findings this iteration: 4
+
+----------------------------------------------------------------------
+FINAL RESULT
+----------------------------------------------------------------------
+Summary:
+  Cloud deployment report review completed using deterministic repository checks because the
+  configured LLM could not produce a usable response.
+Confidence: MEDIUM
+
+FINDINGS
+
+  1. [INFO] Python syntax checks passed
+     File: repository-wide
+     Evidence:
+       75 Python file(s) were parsed successfully.
+     Recommendation:
+       Keep repository-wide syntax validation in the review pipeline.
+
+  2. [INFO] cloud-deployment.yml workflow found
+     File: cloud-deployment.yml
+     Evidence:
+       The required cloud deployment CI/CD workflow file exists.
+     Recommendation:
+       Confirm it deploys with AI-Mode, MCP, RAG and Multi-Agent disabled by default.
+
+  3. [INFO] Cloud deployment scripts
+     File: azure-deploy.sh, azure-destroy.sh
+     Evidence:
+       2 script(s) found in scripts/deploy/.
+     Recommendation:
+       Add the Azure/AWS deployment script chain (env setup, build, deploy, deployment test,
+       cleanup).
+
+  4. [INFO] Written deployment evidence in docs/reports
+     File: docs/reports/cloud-deployment-report.md, docs/reports/review-cloud-deployment.log
+     Evidence:
+       2 matching report file(s) found.
+     Recommendation:
+       Add the cloud deployment report (deployed URL, CRUD verification, AI services disabled-by-
+       default confirmation).
+
+SESSION COMPLETE: 1 review mode(s), 0 validation mode(s), 4 finding(s), 0 failure(s)

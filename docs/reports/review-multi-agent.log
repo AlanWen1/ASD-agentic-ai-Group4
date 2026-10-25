@@ -1,0 +1,16 @@
+[PASS] Ollama model listed: qwen2.5:0.5b at http://localhost:11434
+
+======================================================================
+MULTI-AGENT WORKFLOW VALIDATION
+======================================================================
+
+======================================================================
+MULTI_AGENT VALIDATION
+======================================================================
+[PASS] Health check
+[PASS] Planner -> Worker -> Reviewer run reached awaiting_human_review
+  Run ID: 0b3527b5-a1a0-4183-9a16-970f11ed6700
+  NOTE: this check never submits approve/correct/reject -- a human must still decide.
+[PASS] MULTI_AGENT overall
+
+SESSION COMPLETE: 1 review mode(s), 0 validation mode(s), 0 finding(s), 0 failure(s)

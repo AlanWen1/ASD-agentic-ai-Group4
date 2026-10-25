@@ -1,21 +1,12 @@
-# Reports
+# Release 2 Reports and Evidence
 
-This folder holds the team-level and individual planning/report documents
-required by the project spec's Release 0 "Technical Report" checklist:
-
-- Project overview
-- Individual feature allocation
-- Agile team project plan (group)
-- Sprint backlog (group)
-- Overall project plan (group)
-- Functional and non-functional requirements added to the sprint backlog (individual)
-- Feature plan (individual)
-- Risk management plan (individual)
-- Repository structure description
-- Description of student-1.yml to student-5.yml
-
-Nothing has been added here yet — these are group/individual planning
-artefacts that need to come from whoever owns the Agile/project-management
-side of the team, not something that can be generated from the code alone.
-Please add the actual documents (or links to where they live, e.g. a shared
-doc) before the Release 0 technical report is compiled.
+| File | What it is | Report section |
+|---|---|---|
+| `pre-commit-security-report.md` | Pre-commit security testing report (Ruff S, detect-secrets, pip-audit) | Pre-Commit Security Testing |
+| `pre-commit-security-scan.log` | Raw output of the three security scans | Pre-Commit Security Testing |
+| `post-commit-testing-report.md` | Each student's post-commit CI/CD endpoint testing report | Post-Commit CI/CD Testing |
+| `post-commit-endpoint-tests.log` | Raw pytest output of the 10 endpoint tests | Post-Commit CI/CD Testing |
+| `cloud-deployment-report.md` | Cloud deployment report and final human release decision | Cloud Deployment Report and Review |
+| `review-testing.log` | Agentic-loop Testing Review (`agent_review.py --mode testing`) | Testing Review |
+| `review-cloud-deployment.log` | Agentic-loop Cloud Deployment Review (`--mode deployment`) | Cloud Deployment Report and Review |
+| `review-multi-agent.log` | Agentic-loop Multi-Agent Workflow Review (`--mode multi_agent`) | Multi-Agent Workflow Evidence |

@@ -1,0 +1,67 @@
+POST-COMMIT CI/CD ENDPOINT TESTS (local re-run of the student-x.yml test steps)
+Repository : AlanWen1/ASD-agentic-ai-Group4 (branch main, HEAD 3384d97)
+Run at     : 2026-10-25 01:19 UTC
+Python 3.10.12, pytest 9.1.1
+
+===== student-1-budget/backend/test_post_commit_endpoints.py
+============================= test session starts ==============================
+platform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0 -- /usr/bin/python3
+rootdir: ASD-agentic-ai
+plugins: platformdirs-4.12.4, anyio-4.15.1
+collecting ... collected 2 items
+
+student-1-budget/backend/test_post_commit_endpoints.py::test_list_budgets_for_authenticated_user PASSED [ 50%]
+student-1-budget/backend/test_post_commit_endpoints.py::test_get_budget_for_authenticated_user PASSED [100%]
+
+============================== 2 passed in 0.30s ===============================
+exit=0
+===== expense-category-tracker/backend/tests/test_post_commit_endpoints.py
+============================= test session starts ==============================
+platform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0 -- /usr/bin/python3
+rootdir: ASD-agentic-ai
+plugins: platformdirs-4.12.4, anyio-4.15.1
+collecting ... collected 2 items
+
+expense-category-tracker/backend/tests/test_post_commit_endpoints.py::test_categories_endpoint_forwards_user PASSED [ 50%]
+expense-category-tracker/backend/tests/test_post_commit_endpoints.py::test_expenses_endpoint_forwards_category_filter PASSED [100%]
+
+============================== 2 passed in 0.08s ===============================
+exit=0
+===== student-3/tests/test_post_commit_endpoints.py
+============================= test session starts ==============================
+platform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0 -- /usr/bin/python3
+rootdir: ASD-agentic-ai
+plugins: platformdirs-4.12.4, anyio-4.15.1
+collecting ... collected 2 items
+
+student-3/tests/test_post_commit_endpoints.py::test_income_sources_endpoint_is_user_scoped PASSED [ 50%]
+student-3/tests/test_post_commit_endpoints.py::test_pay_schedules_endpoint_is_user_scoped PASSED [100%]
+
+============================== 2 passed in 0.08s ===============================
+exit=0
+===== bill-tracker/backend/test_post_commit_endpoints.py
+============================= test session starts ==============================
+platform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0 -- /usr/bin/python3
+rootdir: ASD-agentic-ai
+plugins: platformdirs-4.12.4, anyio-4.15.1
+collecting ... collected 2 items
+
+bill-tracker/backend/test_post_commit_endpoints.py::test_bills_collection_endpoint_is_user_scoped PASSED [ 50%]
+bill-tracker/backend/test_post_commit_endpoints.py::test_summary_endpoint_returns_backend_summary PASSED [100%]
+
+============================== 2 passed in 0.07s ===============================
+exit=0
+===== student-5/tests/test_post_commit_endpoints.py
+============================= test session starts ==============================
+platform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0 -- /usr/bin/python3
+rootdir: ASD-agentic-ai
+plugins: platformdirs-4.12.4, anyio-4.15.1
+collecting ... collected 2 items
+
+student-5/tests/test_post_commit_endpoints.py::test_get_goals_filters_out_other_users PASSED [ 50%]
+student-5/tests/test_post_commit_endpoints.py::test_get_goal_details_calculates_remaining_balance PASSED [100%]
+
+============================== 2 passed in 0.08s ===============================
+exit=0
+
+SUMMARY: 5 workflows x 2 endpoint tests = 10 passed, 0 failed

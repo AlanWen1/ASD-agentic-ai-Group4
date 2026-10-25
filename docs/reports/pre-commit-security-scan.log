@@ -1,0 +1,140 @@
+PRE-COMMIT SECURITY SCAN RESULTS
+Repository : AlanWen1/ASD-agentic-ai-Group4 (branch main, HEAD 3384d97)
+Run at     : 2026-10-25 01:19 UTC
+Config     : .pre-commit-config.yaml (same tool versions and arguments as the hooks)
+Tools      : ruff 0.14.0, detect-secrets 1.5.0, pip-audit 2.10.1
+
+======================================================================
+[1/3] Ruff Python security rules (Bandit S)
+      ruff check --select=S --ignore=S101,S104,S105,S106,S110,S603,S607
+      Files scanned: 75 tracked Python files
+======================================================================
+All checks passed!
+Result: exit code 0
+
+Reviewed inline suppressions (# noqa: S608, dynamic UPDATE/SELECT built from an allow-listed column set; values bound with ?):
+  bill-tracker/database/app.py:168
+  finance-application/database/app.py:215
+  student-3/database/app.py:302
+  student-3/database/app.py:403
+
+======================================================================
+[2/3] detect-secrets staged-file secret scan
+      detect-secrets-hook --baseline .secrets.baseline <all tracked files>
+======================================================================
+No new secrets found.
+Result: exit code 0
+
+Baselined (audited) test-fixture values in .secrets.baseline:
+  student-1-budget/tests/test_budget_api.py:15  Secret Keyword
+  student-1-budget/tests/test_budget_api.py:60  Secret Keyword
+  student-1-budget/tests/test_mcp_rag.py:38  Secret Keyword
+  student-1-budget/tests/test_mcp_rag.py:43  Secret Keyword
+  student-5/tests/test_savings_goal_api.py:17  Secret Keyword
+
+======================================================================
+[3/3] pip-audit Python dependency manifests
+      python scripts/security/run_pip_audit.py  (pip-audit --strict -r <manifest>)
+======================================================================
+Auditing 22 manifest(s) with 6 worker(s); timeout=120s per manifest.
+
+=== pip-audit: ai-services/ai-mode/requirements.txt ===
+ERROR:pip_audit._virtual_env:internal pip failure: ERROR: Could not install packages due to an OSError: ('Connection broken: IncompleteRead(25268 bytes read, 273 more expected)', IncompleteRead(25268 bytes read, 273 more expected))
+
+
+ERROR:pip_audit._cli:Failed to install packages: [pip install --dry-run -r ai-services/ai-mode/requirements.txt] (temporary virtualenv paths omitted)
+
+pip-audit failed for ai-services/ai-mode/requirements.txt (exit 1)
+
+=== pip-audit: ai-services/multi-agent-server/requirements.txt ===
+No known vulnerabilities found
+
+
+=== pip-audit: ai-services/rag-server/requirements.txt ===
+No known vulnerabilities found
+
+
+=== pip-audit: bill-tracker/database/requirements.txt ===
+No known vulnerabilities found
+
+
+=== pip-audit: bill-tracker/frontend/requirements.txt ===
+No known vulnerabilities found
+
+
+=== pip-audit: bill-tracker/backend/requirements.txt ===
+No known vulnerabilities found
+
+
+=== pip-audit: ai-services/agentic-loop/requirements.txt ===
+No known vulnerabilities found
+
+
+=== pip-audit: ai-services/mcp-server/requirements.txt ===
+No known vulnerabilities found
+
+
+=== pip-audit: expense-category-tracker/backend/requirements.txt ===
+No known vulnerabilities found
+
+
+=== pip-audit: expense-category-tracker/database/requirements.txt ===
+No known vulnerabilities found
+
+
+=== pip-audit: expense-category-tracker/frontend/requirements.txt ===
+No known vulnerabilities found
+
+
+=== pip-audit: finance-application/database/requirements.txt ===
+No known vulnerabilities found
+
+
+=== pip-audit: finance-application/backend/requirements.txt ===
+No known vulnerabilities found
+
+
+=== pip-audit: finance-application/frontend/requirements.txt ===
+No known vulnerabilities found
+
+
+=== pip-audit: requirements-dev.txt ===
+No known vulnerabilities found
+
+
+=== pip-audit: student-1-budget/database/requirements.txt ===
+No known vulnerabilities found
+
+
+=== pip-audit: student-1-budget/backend/requirements.txt ===
+No known vulnerabilities found
+
+
+=== pip-audit: student-1-budget/frontend/requirements.txt ===
+No known vulnerabilities found
+
+
+=== pip-audit: student-1-budget/requirements-dev.txt ===
+No known vulnerabilities found
+
+
+=== pip-audit: student-3/database/requirements.txt ===
+No known vulnerabilities found
+
+
+=== pip-audit: student-3/backend/requirements.txt ===
+No known vulnerabilities found
+
+
+=== pip-audit: student-3/frontend/requirements.txt ===
+No known vulnerabilities found
+
+pip-audit summary: 22 manifest(s), 1 failed audit(s).
+
+Re-run of the manifest that failed with a transient network error (IncompleteRead):
+=== pip-audit: ai-services/ai-mode/requirements.txt ===
+No known vulnerabilities found
+
+======================================================================
+SUMMARY: Ruff S PASSED | detect-secrets PASSED | pip-audit 22/22 manifests, no known vulnerabilities
+======================================================================
